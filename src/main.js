@@ -12,3 +12,4 @@ createApp(App)
   .use(router)
   .use(createVuestic())
   .mount("#app")
+  

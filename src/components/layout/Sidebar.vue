@@ -49,7 +49,7 @@ const menu = [
     ],
   },
 
-  // ROOMS
+  // ROOMS  
   {
     title: "Rooms",
     icon: "meeting_room",
