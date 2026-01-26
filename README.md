@@ -1,4 +1,20 @@
-<<<<<<< HEAD
+## What does this PR do?
+<!-- Brief description of your changes -->
+
+## Type of Change
+- [ ] New feature
+- [ ] Bug fix
+- [ ] Refactoring
+- [ ] Documentation
+
+## Screenshots (if applicable)
+<!-- Add screenshots here -->
+
+## Checklist
+- [ ] My code follows the project style
+- [ ] I have tested my changes locally
+- [ ] No console errors
+- [ ] I have commented my code where needed
 
 # Key Features Structure:
 
