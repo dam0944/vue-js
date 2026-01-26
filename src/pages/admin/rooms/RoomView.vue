@@ -1,553 +1,520 @@
-<!-- RoomListPage.vue -->
-<script setup>
-import { ref, computed, reactive, nextTick, watch, onMounted } from "vue"
-import $ from "jquery"
-import { room_list } from "@/data/room/room_list"
-
-const rooms = ref(room_list.map((x) => ({ ...x })))
-
-/* ---------------- Filters ---------------- */
-const q = ref("")
-const floor = ref("")
-const type = ref("")
-const status = ref("")
-const sort = ref("number")
-
-const safe = (v) => (v ?? "").toString().toLowerCase()
-
-const floorOptions = computed(() => {
-  const s = new Set(rooms.value.map((r) => r.floor))
-  return ["", ...Array.from(s).sort((a, b) => Number(a) - Number(b))]
-})
-
-const typeOptions = computed(() => {
-  const s = new Set(rooms.value.map((r) => r.type).filter(Boolean))
-  return ["", ...Array.from(s)]
-})
-
-const statusOptions = ["", "active", "maintenance", "disabled"]
-
-const filtered = computed(() => {
-  const key = safe(q.value)
-
-  let list = rooms.value.filter((r) => {
-    const hit =
-      !key ||
-      safe(r.number).includes(key) ||
-      safe(r.type).includes(key) ||
-      safe(r.bed).includes(key)
-
-    const okFloor = !floor.value || String(r.floor) === String(floor.value)
-    const okType = !type.value || r.type === type.value
-    const okStatus = !status.value || r.status === status.value
-
-    return hit && okFloor && okType && okStatus
-  })
-
-  if (sort.value === "number")
-    list.sort((a, b) => (a.number || "").localeCompare(b.number || ""))
-  if (sort.value === "floor") list.sort((a, b) => Number(a.floor) - Number(b.floor))
-  if (sort.value === "priceNight")
-    list.sort((a, b) => Number(b.priceNight || 0) - Number(a.priceNight || 0))
-
-  return list
-})
-
-/* ---------------- Summary ---------------- */
-const stats = computed(() => {
-  const all = rooms.value
-  const count = (st) => all.filter((x) => x.status === st).length
-  return {
-    total: all.length,
-    active: count("active"),
-    maintenance: count("maintenance"),
-    disabled: count("disabled"),
-  }
-})
-
-/* ---------------- Modal ---------------- */
-const modalOpen = ref(false)
-const modalMode = ref("view") // view | create | edit
-const selected = ref(null)
-
-// jQuery slide container ref
-const formWrapRef = ref(null)
-
-/* ---------------- Form model ---------------- */
-const form = reactive({
-  id: null,
-  floor: 1,
-  number: "",
-  type: "Standard",
-  bed: "Queen",
-  maxGuest: 2,
-  priceHour: 5,
-  priceNight: 20,
-  status: "active",
-})
-
-/* ---------------- ✅ jQuery slideDown (top → bottom) ---------------- */
-function slideFormDown() {
-  nextTick(() => {
-    const el = formWrapRef.value
-    if (!el) return
-    // ✅ force hidden first to always animate from top
-    $(el).stop(true, true).css("display", "none").slideDown(260)
-  })
-}
-
-function slideFormUp(cb) {
-  const el = formWrapRef.value
-  if (!el) {
-    cb?.()
-    return
-  }
-  $(el).stop(true, true).slideUp(200, () => cb?.())
-}
-
-/* ---------------- Open / Close ---------------- */
-function openView(r) {
-  modalMode.value = "view"
-  selected.value = r
-  modalOpen.value = true
-}
-
-function openCreate() {
-  modalMode.value = "create"
-  selected.value = null
-
-  // reset form
-  form.id = null
-  form.floor = 1
-  form.number = ""
-  form.type = "Standard"
-  form.bed = "Queen"
-  form.maxGuest = 2
-  form.priceHour = 5
-  form.priceNight = 20
-  form.status = "active"
-
-  modalOpen.value = true
-  slideFormDown()
-}
-
-function openEdit(r) {
-  modalMode.value = "edit"
-  selected.value = r
-
-  // load form
-  form.id = r.id
-  form.floor = r.floor
-  form.number = r.number
-  form.type = r.type
-  form.bed = r.bed
-  form.maxGuest = r.maxGuest
-  form.priceHour = r.priceHour
-  form.priceNight = r.priceNight
-  form.status = r.status
-
-  modalOpen.value = true
-  slideFormDown()
-}
-
-function closeModal() {
-  // slideUp only for create/edit
-  if (modalMode.value === "create" || modalMode.value === "edit") {
-    slideFormUp(() => {
-      modalOpen.value = false
-      selected.value = null
-    })
-  } else {
-    modalOpen.value = false
-    selected.value = null
-  }
-}
-
-/* ---------------- Save Create/Edit ---------------- */
-function saveCreate() {
-  if (!form.number) return alert("Room number is required!")
-
-  const nextId = Math.max(...rooms.value.map((x) => x.id || 0), 0) + 1
-  rooms.value.unshift({
-    id: nextId,
-    floor: Number(form.floor),
-    number: form.number,
-    type: form.type,
-    bed: form.bed,
-    maxGuest: Number(form.maxGuest),
-    priceHour: Number(form.priceHour),
-    priceNight: Number(form.priceNight),
-    status: form.status,
-  })
-
-  closeModal()
-}
-
-function saveEdit() {
-  const idx = rooms.value.findIndex((x) => x.id === form.id)
-  if (idx === -1) return closeModal()
-
-  rooms.value.splice(idx, 1, {
-    ...rooms.value[idx],
-    floor: Number(form.floor),
-    number: form.number,
-    type: form.type,
-    bed: form.bed,
-    maxGuest: Number(form.maxGuest),
-    priceHour: Number(form.priceHour),
-    priceNight: Number(form.priceNight),
-    status: form.status,
-  })
-
-  closeModal()
-}
-
-/* ---------------- Init + lock scroll ---------------- */
-onMounted(() => {
-  // keep form hidden at start so slideDown always works
-  if (formWrapRef.value) $(formWrapRef.value).hide()
-})
-
-watch(modalOpen, (v) => (document.body.style.overflow = v ? "hidden" : ""))
-</script>
-
+<!-- src/pages/admin/rooms/RoomList.vue -->
 <template>
-  <div class="page">
+  <div class="min-h-[calc(100vh-60px)] bg-slate-50 px-4 py-5 sm:px-6">
     <!-- Header -->
-    <div class="head">
+    <div class="flex items-center justify-between mb-4">
       <div>
-        <h1>Room List</h1>
-        <p>Guesthouse rooms • Create/Edit uses jQuery slideDown (top → bottom)</p>
+        <h1 class="text-xl font-semibold text-slate-900">Rooms</h1>
+        <p class="text-sm text-slate-500">Manage all rooms in your guesthouse.</p>
       </div>
-
-      <div class="headActions">
-        <VaButton preset="secondary" icon="download">Export</VaButton>
-        <VaButton color="success" icon="add" @click="openCreate">Add Room</VaButton>
-      </div>
+      <router-link
+        to="/admin/rooms/create"
+        class="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white"
+      >
+        <span class="material-icons text-[18px]">add</span>
+        Create Room
+      </router-link>
     </div>
 
-    <!-- Summary -->
-    <div class="summary">
-      <div class="sCard">
-        <div class="k">Total Rooms</div>
-        <div class="v">{{ stats.total }}</div>
-      </div>
-      <div class="sCard ok">
-        <div class="k">Active</div>
-        <div class="v">{{ stats.active }}</div>
-      </div>
-      <div class="sCard warn">
-        <div class="k">Maintenance</div>
-        <div class="v">{{ stats.maintenance }}</div>
-      </div>
-      <div class="sCard danger">
-        <div class="k">Disabled</div>
-        <div class="v">{{ stats.disabled }}</div>
-      </div>
-    </div>
+    <!-- Header -->
+    <div class="mx-auto">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div class="flex items-start gap-3">
+          <div class="grid h-11 w-11 place-items-center rounded-xl bg-slate-900 text-white">
+            <span class="material-icons text-[22px]">bed</span>
+          </div>
+          <div>
+            <h1 class="text-lg font-extrabold text-slate-900 sm:text-xl">Rooms</h1>
+            <p class="text-sm text-slate-500">
+              Room list with photos, status, housekeeping, and quick actions.
+            </p>
+          </div>
+        </div>
 
-    <!-- Filters -->
-    <VaCard class="filters">
-      <VaInput v-model="q" placeholder="Search room number / type / bed..." />
-      <VaSelect v-model="floor" :options="floorOptions" label="Floor" />
-      <VaSelect v-model="type" :options="typeOptions" label="Type" />
-      <VaSelect v-model="status" :options="statusOptions" label="Status" />
-      <VaSelect
-        v-model="sort"
-        :options="[
-          { text: 'Room Number', value: 'number' },
-          { text: 'Floor', value: 'floor' },
-          { text: 'Price/Night (High)', value: 'priceNight' },
-        ]"
-        label="Sort"
-        text-by="text"
-        value-by="value"
-      />
-    </VaCard>
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div class="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
+            <span class="material-icons text-[18px] text-slate-500">search</span>
+            <input
+              v-model.trim="q"
+              type="text"
+              placeholder="Search room / type / building..."
+              class="w-full bg-transparent text-sm text-slate-900 outline-none sm:w-[280px]"
+            />
+          </div>
 
-    <!-- Table -->
-    <VaCard class="tableCard">
-      <div class="tableWrap">
-        <table class="tbl">
-          <thead>
-            <tr>
-              <th>Room</th>
-              <th>Type</th>
-              <th>Bed</th>
-              <th>Max</th>
-              <th>Price/Hour</th>
-              <th>Price/Night</th>
-              <th>Status</th>
-              <th class="right">Action</th>
-            </tr>
-          </thead>
+          <select
+            v-model="statusFilter"
+            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none sm:w-[180px]"
+          >
+            <option value="all">All Status</option>
+            <option value="available">Available</option>
+            <option value="occupied">Occupied</option>
+            <option value="reserved">Reserved</option>
+            <option value="cleaning">Cleaning</option>
+            <option value="maintenance">Maintenance</option>
+            <option value="blocked">Blocked</option>
+          </select>
 
-          <tbody>
-            <tr v-if="filtered.length === 0">
-              <td colspan="8" class="empty">No rooms found.</td>
-            </tr>
-
-            <tr v-for="r in filtered" :key="r.id">
-              <td>
-                <div class="main">Room {{ r.number }}</div>
-                <div class="sub">Floor {{ r.floor }}</div>
-              </td>
-
-              <td><div class="main">{{ r.type }}</div></td>
-              <td>{{ r.bed }}</td>
-              <td>{{ r.maxGuest }}</td>
-              <td>$ {{ r.priceHour }}</td>
-              <td>$ {{ r.priceNight }}</td>
-
-              <td>
-                <span class="badge" :class="'st-' + r.status">
-                  {{ r.status.toUpperCase() }}
-                </span>
-              </td>
-
-              <td class="right">
-                <div class="btns">
-                  <VaButton size="small" preset="secondary" @click="openView(r)">View</VaButton>
-                  <VaButton size="small" color="primary" @click="openEdit(r)">Edit</VaButton>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </VaCard>
-
-    <!-- Modal -->
-    <Teleport to="body">
-      <div v-if="modalOpen" class="m-backdrop" @click="closeModal">
-        <div class="m" @click.stop>
-          <header class="m-head">
-            <div>
-              <div class="m-title">
-                {{
-                  modalMode === "view"
-                    ? "Room Details"
-                    : modalMode === "create"
-                    ? "Create Room"
-                    : "Edit Room"
-                }}
-              </div>
-              <div class="m-sub">
-                {{
-                  modalMode === "view"
-                    ? `Room ${selected?.number || ""}`
-                    : "Fill room information"
-                }}
-              </div>
-            </div>
-
-            <VaButton preset="secondary" icon="close" @click="closeModal">Close</VaButton>
-          </header>
-
-          <section class="m-body">
-            <!-- VIEW -->
-            <div v-if="modalMode === 'view'" class="viewGrid">
-              <div class="vCard">
-                <div class="k">Room</div>
-                <div class="v big">Room {{ selected?.number }}</div>
-                <div class="sub">Floor {{ selected?.floor }}</div>
-              </div>
-
-              <div class="vCard">
-                <div class="k">Type</div>
-                <div class="v">{{ selected?.type }}</div>
-                <div class="sub">Bed: {{ selected?.bed }}</div>
-              </div>
-
-              <div class="vCard">
-                <div class="k">Pricing</div>
-                <div class="v">Hour: $ {{ selected?.priceHour }}</div>
-                <div class="sub">Night: $ {{ selected?.priceNight }}</div>
-              </div>
-
-              <div class="vCard">
-                <div class="k">Status</div>
-                <div class="v">
-                  <span class="badge" :class="'st-' + selected?.status">
-                    {{ (selected?.status || "").toUpperCase() }}
-                  </span>
-                </div>
-                <div class="sub">Max guest: {{ selected?.maxGuest }}</div>
-              </div>
-            </div>
-
-            <!-- CREATE / EDIT (slideDown) -->
-            <div v-else ref="formWrapRef" class="formWrap">
-              <div class="formTop">
-                <div class="formTitle">{{ modalMode === "create" ? "Create Room" : "Edit Room" }}</div>
-                <div class="formSub">jQuery slideDown from top → bottom</div>
-              </div>
-
-              <div class="formGrid">
-                <VaInput v-model="form.number" label="Room Number *" placeholder="ex: 101" />
-                <VaSelect v-model="form.floor" :options="[1,2,3,4,5]" label="Floor" />
-
-                <VaSelect
-                  v-model="form.type"
-                  :options="['Standard','Deluxe','Family','VIP']"
-                  label="Room Type"
-                />
-                <VaSelect
-                  v-model="form.bed"
-                  :options="['Queen','King','Twin','2 Queen']"
-                  label="Bed"
-                />
-
-                <VaInput v-model="form.maxGuest" type="number" label="Max Guest" />
-                <VaInput v-model="form.priceHour" type="number" label="Price / Hour" />
-                <VaInput v-model="form.priceNight" type="number" label="Price / Night" />
-
-                <VaSelect
-                  v-model="form.status"
-                  :options="['active','maintenance','disabled']"
-                  label="Status"
-                />
-
-                <div class="summaryBox">
-                  <div>
-                    <div class="k">Preview</div>
-                    <div class="v">
-                      Room <b>{{ form.number || "—" }}</b> • Floor <b>{{ form.floor }}</b>
-                    </div>
-                  </div>
-                  <div class="right">
-                    <div class="k">Price</div>
-                    <div class="v">${{ form.priceHour }}/h • ${{ form.priceNight }}/night</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <footer class="m-foot">
-            <VaButton preset="secondary" @click="closeModal">Cancel</VaButton>
-
-            <template v-if="modalMode === 'create'">
-              <VaButton color="success" @click="saveCreate">Save</VaButton>
-            </template>
-
-            <template v-else-if="modalMode === 'edit'">
-              <VaButton color="success" @click="saveEdit">Save Changes</VaButton>
-            </template>
-          </footer>
+          <select
+            v-model="floorFilter"
+            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none sm:w-[150px]"
+          >
+            <option value="all">All Floors</option>
+            <option v-for="f in floorOptions" :key="f" :value="f">Floor {{ f }}</option>
+          </select>
         </div>
       </div>
-    </Teleport>
+
+      <!-- Quick chips -->
+      <div class="mt-4 flex flex-wrap gap-2">
+        <button
+          v-for="chip in chips"
+          :key="chip.key"
+          @click="applyChip(chip.key)"
+          class="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100"
+        >
+          <span class="mr-2 inline-flex h-2 w-2 rounded-full" :class="chip.dot"></span>
+          {{ chip.label }} <span class="ml-1 text-slate-900">({{ chip.count }})</span>
+        </button>
+
+        <button
+          @click="resetFilters"
+          class="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100"
+        >
+          Reset
+        </button>
+      </div>
+    </div>
+
+    <!-- Grid -->
+    <div class="mx-auto mt-5 max-w-6xl">
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div
+          v-for="room in paginated"
+          :key="room.room_id"
+          class="overflow-hidden rounded-2xl border border-slate-200 bg-white"
+        >
+          <!-- Photo -->
+          <div class="relative">
+            <img
+              :src="primaryImage(room)"
+              class="h-36 w-full object-cover"
+              alt="room"
+              loading="lazy"
+            />
+            <div class="absolute left-3 top-3">
+              <span
+                class="rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase"
+                :class="statusPill(room.status)"
+              >
+                {{ prettyStatus(room.status) }}
+              </span>
+            </div>
+
+            <div class="absolute right-3 top-3">
+              <button
+                class="grid h-9 w-9 place-items-center rounded-xl bg-white/90 hover:bg-white"
+                @click.stop="open(room)"
+                title="Details"
+              >
+                <span class="material-icons text-[18px] text-slate-800">open_in_new</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Content -->
+          <div class="p-3">
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <div class="text-sm font-extrabold text-slate-900">
+                  Room {{ room.room_number }}
+                </div>
+                <div class="mt-0.5 text-xs text-slate-500">
+                  Floor {{ room.floor }} • {{ room.building || "-" }}
+                </div>
+              </div>
+
+              <div class="text-right">
+                <div class="text-[10px] font-bold text-slate-500">Night</div>
+                <div class="text-sm font-extrabold text-slate-900">
+                  {{ money(room.room_type?.nightly_price) }}
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-2 text-xs text-slate-600">
+              <span class="font-bold text-slate-900">{{ room.room_type?.type_name || "-" }}</span>
+              • {{ room.room_type?.bed_count ?? "-" }} bed(s)
+            </div>
+
+            <!-- Housekeeping -->
+            <div class="mt-3 flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
+              <div class="flex items-center gap-2">
+                <span class="material-icons text-[18px] text-slate-500">cleaning_services</span>
+                <div>
+                  <div class="text-xs font-extrabold text-slate-900">Housekeeping</div>
+                  <div class="text-[11px] text-slate-500">
+                    {{ hkText(room.housekeeping) }}
+                  </div>
+                </div>
+              </div>
+
+              <span class="rounded-full px-2 py-0.5 text-[10px] font-extrabold" :class="hkPill(room.housekeeping)">
+                {{ hkLabel(room.housekeeping) }}
+              </span>
+            </div>
+
+            <!-- Current guest (optional) -->
+            <div v-if="room.current_reservation" class="mt-3 rounded-xl bg-white">
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <span class="material-icons text-[18px] text-slate-500">person</span>
+                  <div class="text-xs font-bold text-slate-900">
+                    {{ guestName(room.current_reservation?.guest) }}
+                  </div>
+                </div>
+                <span
+                  v-if="room.current_reservation?.guest?.vip_status"
+                  class="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-extrabold text-amber-700"
+                >
+                  VIP
+                </span>
+              </div>
+              <div class="mt-1 text-[11px] text-slate-500">
+                {{ room.current_reservation?.guest?.phone || "-" }}
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="mt-3 grid grid-cols-2 gap-2">
+              <button
+                class="rounded-xl bg-slate-900 px-3 py-2 text-xs font-extrabold text-white hover:bg-slate-800"
+                @click="open(room)"
+              >
+                Details
+              </button>
+              <button
+                class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-extrabold text-slate-800 hover:bg-slate-50"
+                @click="goToStatus(room)"
+              >
+                Status Board
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty -->
+      <div
+        v-if="filtered.length === 0"
+        class="mt-6 rounded-2xl border border-slate-200 bg-white p-8 text-center"
+      >
+        <div class="text-slate-900 font-extrabold">No rooms found</div>
+        <div class="mt-1 text-sm text-slate-500">Try another keyword or clear filters.</div>
+        <button
+          class="mt-4 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold hover:bg-slate-50"
+          @click="resetFilters"
+        >
+          Reset
+        </button>
+      </div>
+
+      <!-- Pagination -->
+      <div
+        v-if="filtered.length > 0"
+        class="mx-auto mt-4 flex max-w-6xl items-center justify-between"
+      >
+        <button
+          class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-extrabold text-slate-800 disabled:opacity-40"
+          :disabled="page === 1"
+          @click="page--"
+        >
+          Prev
+        </button>
+
+        <div class="text-xs text-slate-500">
+          Page <span class="font-bold text-slate-900">{{ page }}</span> of
+          <span class="font-bold text-slate-900">{{ totalPages }}</span>
+          • <span class="font-bold text-slate-900">{{ filtered.length }}</span> rooms
+        </div>
+
+        <button
+          class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-extrabold text-slate-800 disabled:opacity-40"
+          :disabled="page === totalPages"
+          @click="page++"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+
+    <!-- Drawer -->
+    <div v-if="drawer.open" class="fixed inset-0 z-40" @click="drawer.open = false">
+      <div class="absolute inset-0 bg-black/40"></div>
+    </div>
+
+    <aside
+      v-if="drawer.open"
+      class="fixed right-0 top-0 z-50 h-full w-full max-w-md bg-white"
+    >
+      <div class="flex items-center justify-between px-4 py-4">
+        <div class="flex items-center gap-2">
+          <span class="material-icons text-slate-700">meeting_room</span>
+          <div class="font-extrabold text-slate-900">
+            Room {{ drawer.room?.room_number }}
+          </div>
+        </div>
+        <button class="grid h-10 w-10 place-items-center rounded-xl hover:bg-slate-100" @click="drawer.open=false">
+          <span class="material-icons text-slate-700">close</span>
+        </button>
+      </div>
+
+      <div v-if="drawer.room" class="h-[calc(100vh-72px)] overflow-y-auto px-4 pb-6">
+        <img :src="primaryImage(drawer.room)" class="h-40 w-full rounded-2xl object-cover" alt="room" />
+
+        <div class="mt-4 flex items-center justify-between">
+          <div>
+            <div class="text-sm font-extrabold text-slate-900">
+              {{ drawer.room.room_type?.type_name || "-" }} • {{ drawer.room.room_type?.bed_count ?? "-" }} bed(s)
+            </div>
+            <div class="mt-1 text-xs text-slate-500">
+              Floor {{ drawer.room.floor }} • {{ drawer.room.building || "-" }}
+            </div>
+          </div>
+          <span class="rounded-full px-3 py-1 text-[10px] font-extrabold uppercase" :class="statusPill(drawer.room.status)">
+            {{ prettyStatus(drawer.room.status) }}
+          </span>
+        </div>
+
+        <div class="mt-4 grid grid-cols-2 gap-2">
+          <div class="rounded-2xl bg-slate-50 p-3">
+            <div class="text-[10px] font-extrabold text-slate-500">Night</div>
+            <div class="text-sm font-extrabold text-slate-900">{{ money(drawer.room.room_type?.nightly_price) }}</div>
+          </div>
+          <div class="rounded-2xl bg-slate-50 p-3">
+            <div class="text-[10px] font-extrabold text-slate-500">Hour</div>
+            <div class="text-sm font-extrabold text-slate-900">{{ money(drawer.room.room_type?.hourly_price) }}</div>
+          </div>
+        </div>
+
+        <div class="mt-4 rounded-2xl bg-slate-50 p-3">
+          <div class="flex items-center justify-between">
+            <div class="text-xs font-extrabold text-slate-900">Housekeeping</div>
+            <span class="rounded-full px-2 py-0.5 text-[10px] font-extrabold" :class="hkPill(drawer.room.housekeeping)">
+              {{ hkLabel(drawer.room.housekeeping) }}
+            </span>
+          </div>
+          <div class="mt-1 text-[11px] text-slate-500">
+            {{ hkText(drawer.room.housekeeping) }}
+          </div>
+        </div>
+
+        <div class="mt-4 rounded-2xl bg-white">
+          <div class="text-xs font-extrabold text-slate-900">Current Guest</div>
+
+          <div v-if="drawer.room.current_reservation" class="mt-2 rounded-2xl bg-slate-50 p-3">
+            <div class="flex items-center justify-between">
+              <div class="text-sm font-extrabold text-slate-900">
+                {{ guestName(drawer.room.current_reservation.guest) }}
+              </div>
+              <span
+                v-if="drawer.room.current_reservation?.guest?.vip_status"
+                class="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-extrabold text-amber-700"
+              >
+                VIP
+              </span>
+            </div>
+            <div class="mt-1 text-xs text-slate-600">
+              {{ drawer.room.current_reservation?.guest?.phone || "-" }}
+            </div>
+          </div>
+
+          <div v-else class="mt-2 text-sm text-slate-500">
+            No current reservation.
+          </div>
+        </div>
+
+        <div class="mt-5 grid grid-cols-2 gap-2">
+          <button class="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-extrabold text-white hover:bg-slate-800" @click="goToPos(drawer.room)">
+            POS / Checkout
+          </button>
+          <button class="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-extrabold text-slate-800 hover:bg-slate-200" @click="drawer.open=false">
+            Close
+          </button>
+        </div>
+
+        <div v-if="drawer.room.images?.length" class="mt-6">
+          <div class="text-xs font-extrabold text-slate-900">More photos</div>
+          <div class="mt-2 grid grid-cols-3 gap-2">
+            <button
+              v-for="(img, idx) in drawer.room.images"
+              :key="idx"
+              class="overflow-hidden rounded-xl"
+              @click="drawerPhoto = img.image_url"
+            >
+              <img :src="img.image_url" class="h-20 w-full object-cover" alt="room" />
+            </button>
+          </div>
+
+          <div v-if="drawerPhoto" class="mt-3">
+            <img :src="drawerPhoto" class="h-44 w-full rounded-2xl object-cover" alt="preview" />
+          </div>
+        </div>
+      </div>
+    </aside>
   </div>
 </template>
 
-<style scoped>
-.page { padding: 18px; background: #f6f8fb; min-height: 100vh; }
+<script setup>
+import { computed, reactive, ref, watch } from "vue"
+import { useRouter } from "vue-router"
+import { roomsListData } from "@/data/room/room_list"
 
-/* header */
-.head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:12px; }
-.head h1 { margin:0; font-size:22px; font-weight:900; color:#0f172a; }
-.head p { margin:6px 0 0; font-size:13px; font-weight:700; color:#64748b; }
-.headActions { display:flex; gap:10px; flex-wrap:wrap; }
+const router = useRouter()
 
-/* summary cards */
-.summary { display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; margin-bottom:12px; }
-@media (max-width: 900px){ .summary{ grid-template-columns:repeat(2,1fr);} }
-@media (max-width: 520px){ .summary{ grid-template-columns:1fr;} }
-.sCard{ background:#fff; border:1px solid #e5eaf2; border-radius:14px; padding:12px 14px; box-shadow:0 10px 22px rgba(15,23,42,.06); }
-.sCard .k{ font-size:12px; font-weight:900; color:#64748b; }
-.sCard .v{ margin-top:4px; font-size:20px; font-weight:900; color:#0f172a; }
-.sCard.ok{ background:#ecfdf5; border-color:#bbf7d0; }
-.sCard.warn{ background:#fff7ed; border-color:#fed7aa; }
-.sCard.danger{ background:#fff1f2; border-color:#fecdd3; }
+const q = ref("")
+const statusFilter = ref("all")
+const floorFilter = ref("all")
 
-/* filters */
-.filters{
-  background:#fff; border:1px solid #eef2f6; border-radius:14px; box-shadow:0 8px 20px rgba(15,23,42,.06);
-  padding:14px; display:grid; grid-template-columns:2fr 1fr 1fr 1fr 1fr; gap:12px; margin-bottom:14px;
+const page = ref(1)
+const pageSize = 12
+
+const drawer = reactive({ open: false, room: null })
+const drawerPhoto = ref(null)
+
+const floorOptions = computed(() => {
+  const s = new Set(roomsListData.map((r) => r.floor).filter((x) => x != null))
+  return Array.from(s).sort((a, b) => a - b)
+})
+
+const filtered = computed(() => {
+  const kw = q.value.trim().toLowerCase()
+
+  return roomsListData.filter((r) => {
+    if (statusFilter.value !== "all" && r.status !== statusFilter.value) return false
+    if (floorFilter.value !== "all" && r.floor !== floorFilter.value) return false
+
+    if (!kw) return true
+    const roomNo = String(r.room_number || "").toLowerCase()
+    const type = String(r.room_type?.type_name || "").toLowerCase()
+    const building = String(r.building || "").toLowerCase()
+    return roomNo.includes(kw) || type.includes(kw) || building.includes(kw)
+  })
+})
+
+const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / pageSize)))
+
+const paginated = computed(() => {
+  const start = (page.value - 1) * pageSize
+  return filtered.value.slice(start, start + pageSize)
+})
+
+watch([q, statusFilter, floorFilter], () => {
+  page.value = 1
+})
+
+const chips = computed(() => {
+  const count = (s) => roomsListData.filter((r) => r.status === s).length
+  return [
+    { key: "all", label: "All", count: roomsListData.length, dot: "bg-slate-400" },
+    { key: "available", label: "Available", count: count("available"), dot: "bg-emerald-500" },
+    { key: "occupied", label: "Occupied", count: count("occupied"), dot: "bg-blue-500" },
+    { key: "reserved", label: "Reserved", count: count("reserved"), dot: "bg-violet-500" },
+    { key: "cleaning", label: "Cleaning", count: count("cleaning"), dot: "bg-amber-500" },
+    { key: "maintenance", label: "Maintenance", count: count("maintenance"), dot: "bg-rose-500" },
+    { key: "blocked", label: "Blocked", count: count("blocked"), dot: "bg-slate-700" },
+  ]
+})
+
+function applyChip(key) {
+  statusFilter.value = key === "all" ? "all" : key
 }
-@media (max-width: 1000px){ .filters{ grid-template-columns:1fr 1fr; } }
-@media (max-width: 520px){ .filters{ grid-template-columns:1fr; } }
 
-/* table */
-.tableCard{ border-radius:14px; border:1px solid #eef2f6; box-shadow:0 10px 24px rgba(15,23,42,.08); }
-.tableWrap{ overflow-x:auto; }
-.tbl{ width:100%; border-collapse:collapse; background:#fff; }
-.tbl th{ padding:12px 14px; font-size:12px; text-align:left; color:#64748b; border-bottom:1px solid #eef2f6; background:#fbfcfe; white-space:nowrap; }
-.tbl td{ padding:12px 14px; border-bottom:1px solid #f1f5f9; vertical-align:top; }
-.tbl tr:hover td{ background:#fafcff; }
-.right{ text-align:right; }
-.main{ font-weight:900; font-size:13px; color:#0f172a; }
-.sub{ margin-top:4px; font-size:12px; font-weight:700; color:#64748b; }
-.empty{ text-align:center; padding:18px !important; font-weight:900; color:#64748b; }
-.btns{ display:inline-flex; gap:8px; justify-content:flex-end; flex-wrap:wrap; }
-
-/* badge */
-.badge{
-  display:inline-flex; align-items:center; padding:6px 10px; border-radius:999px;
-  font-size:11px; font-weight:900; border:1px solid #e2e8f0; background:#f8fafc; color:#334155;
+function resetFilters() {
+  q.value = ""
+  statusFilter.value = "all"
+  floorFilter.value = "all"
+  page.value = 1
 }
-.st-active{ background:#ecfdf5; border-color:#bbf7d0; color:#166534; }
-.st-maintenance{ background:#fff7ed; border-color:#fed7aa; color:#9a3412; }
-.st-disabled{ background:#fff1f2; border-color:#fecdd3; color:#9f1239; }
 
-/* modal */
-.m-backdrop{
-  position:fixed; inset:0; background:rgba(15,23,42,.45); z-index:99999;
-  display:grid; place-items:center; padding:16px;
+function open(room) {
+  drawer.room = room
+  drawer.open = true
+  drawerPhoto.value = primaryImage(room)
 }
-.m{
-  width:min(860px,100%); background:#fff; border-radius:16px; border:1px solid #eef2f6;
-  box-shadow:0 30px 90px rgba(15,23,42,.22); overflow:hidden;
+
+function goToStatus(room) {
+  // optional route (if you have it)
+  router.push({ path: "/admin/frontdesk/rooms-status", query: { room_id: room.room_id } })
 }
-.m-head{
-  padding:14px 16px; border-bottom:1px solid #eef2f6; background:#fbfcfe;
-  display:flex; justify-content:space-between; align-items:center; gap:12px;
+
+function goToPos(room) {
+  router.push({ path: "/admin/pos", query: { room_id: room.room_id, room_number: room.room_number } })
 }
-.m-title{ font-size:16px; font-weight:900; color:#0f172a; }
-.m-sub{ margin-top:2px; font-size:12px; color:#64748b; font-weight:700; }
-.m-body{ padding:16px; max-height:70vh; overflow:auto; }
-.m-foot{ padding:14px 16px; border-top:1px solid #eef2f6; display:flex; justify-content:flex-end; gap:10px; }
 
-/* view cards */
-.viewGrid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-@media (max-width:720px){ .viewGrid{ grid-template-columns:1fr; } }
-.vCard{ border:1px solid #eef2f6; background:#fbfcfe; border-radius:14px; padding:14px; }
-.v{ margin-top:6px; font-weight:900; color:#0f172a; }
-.v.big{ font-size:20px; }
-
-/* ✅ form slide wrapper */
-.formWrap { display: none; } /* IMPORTANT: jQuery slideDown needs hidden */
-.formTop{
-  padding:12px 12px 6px;
-  border:1px solid #eef2f6;
-  border-radius:14px;
-  background:#fbfcfe;
-  margin-bottom:12px;
+function money(v) {
+  const n = Number(v || 0)
+  return `$${n.toFixed(2)}`
 }
-.formTitle{ font-size:14px; font-weight:900; color:#0f172a; }
-.formSub{ margin-top:3px; font-size:12px; font-weight:700; color:#64748b; }
 
-.formGrid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-@media (max-width:720px){ .formGrid{ grid-template-columns:1fr; } }
-
-.summaryBox{
-  grid-column:1 / -1;
-  border:1px dashed #cbd5e1;
-  background:#f8fafc;
-  border-radius:14px;
-  padding:12px 14px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:12px;
+function prettyStatus(s) {
+  if (!s) return "-"
+  return String(s).replaceAll("_", " ").replace(/\b\w/g, (m) => m.toUpperCase())
 }
-.summaryBox .k{ font-size:12px; font-weight:900; color:#64748b; }
-.summaryBox .v{ margin-top:4px; font-size:13px; font-weight:900; color:#0f172a; }
-.summaryBox .right{ text-align:right; }
 
-/* Vuestic polish */
-:deep(.va-input__container),
-:deep(.va-select__container){ border-radius:10px; background:#f9fafb; }
-:deep(.va-button){ border-radius:10px; font-weight:800; }
-</style>
+function statusPill(status) {
+  switch (status) {
+    case "available":
+      return "bg-emerald-50 text-emerald-700"
+    case "occupied":
+      return "bg-blue-50 text-blue-700"
+    case "reserved":
+      return "bg-violet-50 text-violet-700"
+    case "cleaning":
+      return "bg-amber-50 text-amber-700"
+    case "maintenance":
+      return "bg-rose-50 text-rose-700"
+    case "blocked":
+      return "bg-slate-200 text-slate-700"
+    default:
+      return "bg-slate-200 text-slate-700"
+  }
+}
+
+function hkLabel(hk) {
+  const s = hk?.status
+  if (!s) return "No Task"
+  return prettyStatus(s)
+}
+
+function hkPill(hk) {
+  const s = hk?.status
+  switch (s) {
+    case "completed":
+      return "bg-emerald-50 text-emerald-700"
+    case "in_progress":
+      return "bg-blue-50 text-blue-700"
+    case "pending":
+      return "bg-amber-50 text-amber-700"
+    default:
+      return "bg-slate-200 text-slate-700"
+  }
+}
+
+function hkText(hk) {
+  if (!hk?.status) return "No housekeeping task"
+  if (hk?.last_cleaned_at) return `Last cleaned: ${String(hk.last_cleaned_at).slice(0, 16)}`
+  return `Status: ${prettyStatus(hk.status)}`
+}
+
+function primaryImage(room) {
+  const primary = room.images?.find((x) => x.is_primary)?.image_url
+  const fallback = room.images?.[0]?.image_url
+  return primary || fallback || "https://via.placeholder.com/600x400?text=Room"
+}
+
+function guestName(g) {
+  if (!g) return "-"
+  return `${g.first_name || ""} ${g.last_name || ""}`.trim() || "-"
+}
+</script>

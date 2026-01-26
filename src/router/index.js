@@ -65,6 +65,7 @@ import FrontdeskCheckin from "@/pages/admin/frontdesk/frontdeskCheckin.vue"
 import FrontdeskCheckout from "@/pages/admin/frontdesk/FrontdeskCheckout.vue"
 import FrontdeskInHouse from "@/pages/admin/frontdesk/FrontdeskInHouse.vue"
 import ReservationCreate from "@/pages/admin/reservation/ReservationCreate.vue"
+import ReservationsNoShowsData from "@/pages/admin/reservation/ReservationsNoShowsData.vue"
 // import RoomStatus from "@/pages/admin/rooms/RoomStatus.vue"
 
 const routes = [ 
@@ -259,6 +260,11 @@ const routes = [
         name: "admin.cancellations",
         component: Cancellations,
       },
+      {
+        path: "reservations/no-shows",
+        name: "admin.no-shows",
+        component: ReservationsNoShowsData,
+      },
 
       /* Billing */
       {
@@ -386,7 +392,7 @@ const router = createRouter({
 
 // Optional: Update page title based on route meta
 router.beforeEach((to, from, next) => {
-  document.title = to.meta?.title || 'PMS System'
+  document.title = to.meta?.title || 'Guesthouse management system'
   next()
 })
 
