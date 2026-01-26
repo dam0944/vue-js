@@ -1,57 +1,88 @@
 <script setup>
-import { computed, ref } from "vue"
+import { computed, onMounted, ref } from "vue"
 import { useRoute, useRouter } from "vue-router"
-import { rooms as dbRooms, roomTypes } from "@/data/index"
+import { property, rooms as dbRooms, roomTypes } from "@/data/index"
 
 const route = useRoute()
 const router = useRouter()
 
 const isEdit = computed(() => !!route.params.id)
-const roomId = computed(() => Number(route.params.id))
+const roomId = computed(() => Number(route.params.id || 0))
 
-// local editable copy (simulate DB)
-const localRooms = ref(JSON.parse(JSON.stringify(dbRooms)))
+// simulate DB in-memory
+const localRooms = ref(JSON.parse(JSON.stringify(dbRooms || [])))
 
 const form = ref({
+  // rooms table
+  property_id: property?.property_id || 1,
   room_number: "",
-  floor: 1,
   room_type_id: "",
+  floor: 1,
+  building: "",
   status: "available",
+
+  // system managed (not editable)
+  current_reservation_id: null,
+
+  // optional ops fields
+  last_cleaned: null,
+  last_inspected: null,
+  next_maintenance_date: "",
+  condition_rating: "good",
   notes: "",
-  image: null, // ✅ NEW: store base64 image
+
+  // ✅ NEW (rooms.image_url)
+  image_url: "",
 })
 
 const statusOptions = [
   "available",
   "occupied",
   "reserved",
+  "cleaning",
   "maintenance",
   "out_of_order",
-  "cleaning",
+  "blocked",
 ]
 
-// load existing on edit
-if (isEdit.value) {
+const conditionOptions = ["excellent", "good", "fair", "poor"]
+
+const typeOptions = computed(() =>
+  (roomTypes || [])
+    .filter((t) => t.status === "active")
+    .map((t) => ({
+      text: `${t.type_name} • ${t.bed_count ?? 1} bed • $${t.base_price ?? "-"}/night`,
+      value: String(t.room_type_id),
+    }))
+)
+
+function loadEdit() {
+  if (!isEdit.value) return
   const found = localRooms.value.find((r) => Number(r.room_id) === roomId.value)
-  if (found) {
-    form.value = {
-      room_number: found.room_number,
-      floor: found.floor,
-      room_type_id: String(found.room_type_id),
-      status: found.status,
-      notes: found.notes || "",
-      image: found.image || null, // ✅ load photo if exists
-    }
+  if (!found) return
+
+  form.value = {
+    property_id: found.property_id ?? (property?.property_id || 1),
+    room_number: found.room_number || "",
+    room_type_id: String(found.room_type_id || ""),
+    floor: Number(found.floor || 1),
+    building: found.building || "",
+    status: found.status || "available",
+    current_reservation_id: found.current_reservation_id ?? null,
+    last_cleaned: found.last_cleaned || null,
+    last_inspected: found.last_inspected || null,
+    next_maintenance_date: found.next_maintenance_date || "",
+    condition_rating: found.condition_rating || "good",
+    notes: found.notes || "",
+    image_url: found.image_url || "",
   }
 }
 
-const typeOptions = computed(() =>
-  roomTypes
-    .filter((t) => t.status === "active")
-    .map((t) => ({ text: t.type_name, value: String(t.room_type_id) }))
-)
+onMounted(loadEdit)
 
-/* ✅ image upload (base64) */
+/** ✅ Upload image => store base64 in image_url for demo
+ * In real backend: upload to server -> store returned URL in image_url
+ */
 function onImageChange(e) {
   const file = e.target.files?.[0]
   if (!file) return
@@ -63,280 +94,175 @@ function onImageChange(e) {
 
   const reader = new FileReader()
   reader.onload = (ev) => {
-    form.value.image = ev.target.result // base64 string
+    form.value.image_url = String(ev.target?.result || "")
   }
   reader.readAsDataURL(file)
-
-  // allow re-upload same file next time
   e.target.value = ""
 }
 
 function removeImage() {
-  form.value.image = null
+  form.value.image_url = ""
 }
 
-const save = () => {
-  if (!form.value.room_number || !form.value.room_type_id) {
-    alert("Room number and room type are required.")
-    return
+function save() {
+  if (!form.value.room_number.trim()) return alert("Room number is required.")
+  if (!form.value.room_type_id) return alert("Room type is required.")
+
+  const payload = {
+    // rooms table fields
+    property_id: Number(form.value.property_id),
+    room_number: form.value.room_number.trim(),
+    room_type_id: Number(form.value.room_type_id),
+    floor: Number(form.value.floor || 1),
+    building: (form.value.building || "").trim() || null,
+    status: form.value.status,
+
+    // optional ops
+    last_cleaned: form.value.last_cleaned || null,
+    last_inspected: form.value.last_inspected || null,
+    next_maintenance_date: form.value.next_maintenance_date || null,
+    condition_rating: form.value.condition_rating || "good",
+    notes: (form.value.notes || "").trim() || null,
+
+    // ✅ photo
+    image_url: (form.value.image_url || "").trim() || null,
+
+    // system managed
+    current_reservation_id: form.value.current_reservation_id ?? null,
   }
 
   if (isEdit.value) {
     const idx = localRooms.value.findIndex((r) => Number(r.room_id) === roomId.value)
     if (idx !== -1) {
-      localRooms.value[idx] = {
-        ...localRooms.value[idx],
-        room_number: form.value.room_number,
-        floor: Number(form.value.floor),
-        room_type_id: Number(form.value.room_type_id),
-        status: form.value.status,
-        notes: form.value.notes,
-        image: form.value.image, // ✅ save image
-      }
+      localRooms.value[idx] = { ...localRooms.value[idx], ...payload, updated_at: new Date().toISOString() }
     }
   } else {
-    const nextId = Math.max(...localRooms.value.map((r) => r.room_id)) + 1
+    const nextId =
+      localRooms.value.length > 0
+        ? Math.max(...localRooms.value.map((r) => Number(r.room_id))) + 1
+        : 1
+
     localRooms.value.push({
       room_id: nextId,
-      room_number: form.value.room_number,
-      floor: Number(form.value.floor),
-      room_type_id: Number(form.value.room_type_id),
-      status: form.value.status,
-      notes: form.value.notes,
-      image: form.value.image, // ✅ save image
-      last_cleaned: null,
+      ...payload,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     })
   }
 
+  // go back to list
   router.push("/admin/rooms")
 }
 
-const cancel = () => router.push("/admin/rooms")
+function cancel() {
+  router.push("/admin/rooms")
+}
 </script>
 
 <template>
-  <div class="page">
-    <!-- Header -->
-    <div class="head">
-      <div>
-        <h1>{{ isEdit ? "Edit Room" : "Add Room" }}</h1>
-        <p>Data follows table: <b>rooms</b></p>
+  <div class="min-h-[calc(100vh-60px)] bg-slate-50 p-4 sm:p-6">
+    <div class="mx-auto w-full max-w-5xl">
+      <!-- Header -->
+      <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="min-w-0">
+          <h1 class="text-xl font-extrabold text-slate-900">
+            {{ isEdit ? "Edit Room" : "Create Room" }}
+          </h1>
+          <p class="text-sm text-slate-500">
+            This form follows table: <b>rooms</b>
+          </p>
+        </div>
+
+        <div class="flex gap-2">
+          <VaButton preset="secondary" @click="cancel">Cancel</VaButton>
+          <VaButton color="success" icon="save" @click="save">Save</VaButton>
+        </div>
       </div>
 
-      <div class="actions">
-        <VaButton preset="secondary" @click="cancel">Cancel</VaButton>
-        <VaButton color="success" icon="save" @click="save">Save</VaButton>
+      <!-- Form (no border/shadow, clean) -->
+      <div class="rounded-2xl bg-white p-4 sm:p-6">
+        <div class="grid gap-4 sm:grid-cols-2">
+          <VaInput v-model="form.room_number" label="Room Number *" placeholder="101, 201..." />
+
+          <VaSelect
+            v-model="form.room_type_id"
+            label="Room Type *"
+            :options="typeOptions"
+            text-by="text"
+            value-by="value"
+            placeholder="Select room type"
+          />
+
+          <VaInput v-model="form.floor" type="number" label="Floor" />
+          <VaInput v-model="form.building" label="Building (optional)" placeholder="Main / A / B ..." />
+
+          <VaSelect v-model="form.status" label="Room Status" :options="statusOptions" />
+          <VaSelect v-model="form.condition_rating" label="Condition Rating" :options="conditionOptions" />
+
+          <VaInput v-model="form.next_maintenance_date" type="date" label="Next Maintenance Date" />
+
+          <!-- Photo -->
+          <div class="sm:col-span-2">
+            <div class="text-sm font-bold text-slate-900">Room Photo</div>
+            <div class="mt-1 text-xs text-slate-500">
+              Saved to <b>rooms.image_url</b>. (Base64 for demo, URL in real backend)
+            </div>
+
+            <div class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div class="h-32 w-full overflow-hidden rounded-2xl bg-slate-100 sm:h-28 sm:w-56">
+                <img
+                  v-if="form.image_url"
+                  :src="form.image_url"
+                  class="h-full w-full object-cover"
+                  alt="room photo"
+                />
+                <div v-else class="grid h-full w-full place-items-center text-sm font-bold text-slate-400">
+                  No Image
+                </div>
+              </div>
+
+              <div class="flex gap-2">
+                <label class="cursor-pointer">
+                  <input type="file" accept="image/*" class="hidden" @change="onImageChange" />
+                  <VaButton preset="secondary" icon="photo">Upload</VaButton>
+                </label>
+
+                <VaButton
+                  v-if="form.image_url"
+                  preset="secondary"
+                  color="danger"
+                  icon="delete"
+                  @click="removeImage"
+                >
+                  Remove
+                </VaButton>
+              </div>
+            </div>
+          </div>
+
+          <div class="sm:col-span-2">
+            <VaTextarea v-model="form.notes" label="Notes" placeholder="Optional notes..." />
+          </div>
+        </div>
+
+        <div class="mt-5 text-xs font-semibold text-slate-500">
+          Not editable: <b>current_reservation_id</b>, timestamps. These are system-managed.
+        </div>
       </div>
     </div>
-
-    <VaCard class="card">
-      <div class="grid">
-        <VaInput v-model="form.room_number" label="Room Number *" placeholder="101, 201..." />
-        <VaInput v-model="form.floor" type="number" label="Floor" placeholder="1" />
-
-        <VaSelect
-          v-model="form.room_type_id"
-          label="Room Type *"
-          :options="typeOptions"
-          text-by="text"
-          value-by="value"
-          placeholder="Select type"
-        />
-
-        <VaSelect v-model="form.status" label="Status" :options="statusOptions" />
-
-        <!-- ✅ Room Photo Upload -->
-        <div class="photoWrap">
-          <div class="photoHead">
-            <div class="photoTitle">Room Photo</div>
-            <div class="photoSub">Upload one photo for this room</div>
-          </div>
-
-          <div class="photoRow">
-            <div class="previewBox">
-              <img v-if="form.image" :src="form.image" class="previewImg" />
-              <div v-else class="previewEmpty">No image</div>
-            </div>
-
-            <div class="photoBtns">
-              <label class="fileBtn">
-                <input type="file" accept="image/*" class="hidden" @change="onImageChange" />
-                <VaButton preset="secondary" icon="photo" size="small">Upload Photo</VaButton>
-              </label>
-
-              <VaButton
-                v-if="form.image"
-                preset="secondary"
-                color="danger"
-                icon="delete"
-                size="small"
-                @click="removeImage"
-              >
-                Remove
-              </VaButton>
-            </div>
-          </div>
-        </div>
-
-        <!-- Notes -->
-        <div class="notes">
-          <VaTextarea v-model="form.notes" label="Notes" placeholder="Optional notes..." />
-        </div>
-      </div>
-
-      <div class="hint">
-        * Room type info (price, bed, size, amenities) comes from <b>room_types</b>
-      </div>
-    </VaCard>
   </div>
 </template>
 
 <style scoped>
-.page {
-  padding: 24px;
-  background: #f6f8fb;
-  min-height: 100vh;
-}
-
-.head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 14px;
-  margin-bottom: 14px;
-}
-
-.head h1 {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 900;
-  color: #0f172a;
-}
-
-.head p {
-  margin: 6px 0 0;
-  font-size: 13px;
-  font-weight: 700;
-  color: #64748b;
-}
-
-.actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.card {
-  border-radius: 16px;
-  border: 1px solid #eef2f6;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
-  padding: 18px;
-  background: #fff;
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-}
-
-@media (max-width: 860px) {
-  .grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* Photo section */
-.photoWrap {
-  grid-column: 1 / -1;
-  border: 1px solid #eef2f6;
-  background: #fbfcfe;
-  border-radius: 16px;
-  padding: 14px;
-}
-
-.photoHead {
-  margin-bottom: 10px;
-}
-
-.photoTitle {
-  font-size: 14px;
-  font-weight: 900;
-  color: #0f172a;
-}
-
-.photoSub {
-  margin-top: 2px;
-  font-size: 12px;
-  font-weight: 700;
-  color: #64748b;
-}
-
-.photoRow {
-  display: flex;
-  gap: 14px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.previewBox {
-  width: 190px;
-  height: 130px;
-  border-radius: 14px;
-  border: 1px dashed #cbd5e1;
-  background: #f8fafc;
-  overflow: hidden;
-  display: grid;
-  place-items: center;
-}
-
-.previewImg {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.previewEmpty {
-  font-size: 12px;
-  font-weight: 800;
-  color: #94a3b8;
-}
-
-.photoBtns {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.hidden {
-  display: none;
-}
-
-.fileBtn {
-  cursor: pointer;
-}
-
-.notes {
-  grid-column: 1 / -1;
-}
-
-.hint {
-  margin-top: 12px;
-  font-size: 12px;
-  font-weight: 700;
-  color: #64748b;
-}
-
-/* Vuestic polish */
+/* make vuestic inputs soft like Tailwind */
 :deep(.va-input__container),
 :deep(.va-select__container),
 :deep(.va-textarea__container) {
-  border-radius: 12px;
-  background: #f9fafb;
+  border-radius: 16px;
+  background: #f8fafc;
 }
-
 :deep(.va-button) {
-  border-radius: 12px;
+  border-radius: 14px;
   font-weight: 900;
 }
 </style>

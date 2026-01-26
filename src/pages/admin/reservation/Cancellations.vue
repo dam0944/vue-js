@@ -1,488 +1,613 @@
-<script setup>
-import { ref, computed, watch } from "vue"
-import { cancellations } from "@/data/booking/cancellations"
-
-const rows = ref([...cancellations])
-
-// filters
-const q = ref("")
-const source = ref("")
-const refund = ref("")
-const penalty = ref("")
-const sort = ref("newest")
-
-const sourceOptions = ["", "walk-in", "booking.com", "agoda", "expedia"]
-const refundOptions = ["", "refunded", "partial", "unpaid"]
-const penaltyOptions = ["", "yes", "no"]
-
-function safe(v) {
-  return (v ?? "").toString().toLowerCase()
-}
-function label(s) {
-  return s ? s.replaceAll("_", " ").toUpperCase() : "-"
-}
-function money(n, cur="USD") {
-  return `${cur} ${Number(n||0).toFixed(2)}`
-}
-
-const filtered = computed(() => {
-  const key = safe(q.value)
-
-  let list = rows.value.filter((r) => {
-    const hit =
-      !key ||
-      safe(r.bookingNumber).includes(key) ||
-      safe(r.guest?.name).includes(key) ||
-      safe(r.guest?.phone).includes(key) ||
-      safe(r.room?.number).includes(key)
-
-    const okSource = !source.value || r.source === source.value
-    const okRefund = !refund.value || r.payment?.status === refund.value
-    const okPenalty =
-      !penalty.value ||
-      (penalty.value === "yes" && r.penalty?.applied) ||
-      (penalty.value === "no" && !r.penalty?.applied)
-
-    return hit && okSource && okRefund && okPenalty
-  })
-
-  if (sort.value === "newest") list.sort((a,b)=> b.id - a.id)
-  if (sort.value === "oldest") list.sort((a,b)=> a.id - b.id)
-  if (sort.value === "amount") list.sort((a,b)=> (b.price?.total||0) - (a.price?.total||0))
-
-  return list
-})
-
-// stats
-const stats = computed(() => {
-  const all = rows.value
-  const total = all.reduce((s,x)=> s + Number(x.price?.total||0), 0)
-  const refunded = all.reduce((s,x)=> s + Number(x.payment?.refundAmount||0), 0)
-  const penalty = all.reduce((s,x)=> s + Number(x.penalty?.amount||0), 0)
-  return { total, refunded, penalty }
-})
-
-// modal
-const showModal = ref(false)
-const selected = ref(null)
-function openView(r) {
-  selected.value = r
-  showModal.value = true
-}
-function closeView() {
-  showModal.value = false
-  selected.value = null
-}
-watch(showModal, v => document.body.style.overflow = v ? "hidden" : "")
-</script>
-
+<!-- src/pages/admin/reservations/Cancellations.vue -->
 <template>
-  <div class="page">
-    <!-- Header -->
-    <div class="head">
-      <div>
-        <h1>Cancellations</h1>
-        <p>Refunds • No-shows • Revenue loss</p>
+  <div class="min-h-[calc(100vh-60px)] bg-slate-50 px-4 py-4 sm:px-6 sm:py-6">
+    <!-- Top bar -->
+    <div class="mx-auto">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div class="flex items-start gap-3">
+          <div class="grid h-11 w-11 place-items-center rounded-2xl bg-slate-900 text-white">
+            <span class="material-icons text-[22px]">cancel</span>
+          </div>
+          <div>
+            <h1 class="text-lg font-extrabold text-slate-900 sm:text-xl">Cancellations</h1>
+            <p class="text-sm text-slate-500">
+              Cancelled reservations (walk-in / phone / other). No border. No shadow.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <button
+            class="rounded-full bg-slate-900 px-4 py-2 text-xs font-extrabold text-white"
+            @click="exportCsv"
+          >
+            <span class="material-icons mr-1 align-middle text-[18px]">file_download</span>
+            Export CSV
+          </button>
+        </div>
       </div>
 
-      <div class="stats">
-        <div class="sCard">
-          <div class="k">Cancelled Value</div>
-          <div class="v">{{ money(stats.total) }}</div>
+      <!-- KPI -->
+      <div class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div class="rounded-2xl bg-white p-4">
+          <div class="text-[11px] font-bold text-slate-500">Total Cancelled</div>
+          <div class="mt-1 text-2xl font-extrabold text-slate-900">{{ filtered.length }}</div>
         </div>
-        <div class="sCard">
-          <div class="k">Refunded</div>
-          <div class="v">{{ money(stats.refunded) }}</div>
+
+        <div class="rounded-2xl bg-white p-4">
+          <div class="text-[11px] font-bold text-slate-500">Paid</div>
+          <div class="mt-1 text-2xl font-extrabold text-slate-900">{{ money(kpi.paid) }}</div>
         </div>
-        <div class="sCard danger">
-          <div class="k">Penalty</div>
-          <div class="v">{{ money(stats.penalty) }}</div>
+
+        <div class="rounded-2xl bg-white p-4">
+          <div class="text-[11px] font-bold text-slate-500">Refunded</div>
+          <div class="mt-1 text-2xl font-extrabold text-slate-900">{{ money(kpi.refunded) }}</div>
         </div>
+
+        <div class="rounded-2xl bg-white p-4">
+          <div class="text-[11px] font-bold text-slate-500">Net Kept</div>
+          <div class="mt-1 text-2xl font-extrabold text-slate-900">{{ money(kpi.net) }}</div>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="mt-4 rounded-2xl bg-white p-4">
+        <div class="grid gap-3 lg:grid-cols-5">
+          <div class="lg:col-span-2">
+            <label class="mb-1 block text-xs font-bold text-slate-500">Search</label>
+            <div class="flex items-center gap-2 rounded-2xl bg-slate-100 px-3 py-2">
+              <span class="material-icons text-[18px] text-slate-500">search</span>
+              <input
+                v-model.trim="q"
+                type="text"
+                placeholder="Reservation, guest, phone, room..."
+                class="w-full bg-transparent text-sm text-slate-900 outline-none"
+              />
+              <button
+                v-if="q"
+                class="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-700"
+                @click="q = ''"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label class="mb-1 block text-xs font-bold text-slate-500">Source</label>
+            <select v-model="source" class="w-full rounded-2xl bg-slate-100 px-3 py-2 text-sm outline-none">
+              <option value="all">All</option>
+              <option value="walk_in">walk_in</option>
+              <option value="phone">phone</option>
+              <option value="other">other</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="mb-1 block text-xs font-bold text-slate-500">Reason</label>
+            <select v-model="reason" class="w-full rounded-2xl bg-slate-100 px-3 py-2 text-sm outline-none">
+              <option value="all">All</option>
+              <option value="travel">Changed travel plan</option>
+              <option value="no_show">No show</option>
+              <option value="not_like">Did not like room</option>
+              <option value="before_arrival">Cancelled before arrival</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="mb-1 block text-xs font-bold text-slate-500">Date</label>
+            <div class="flex gap-2">
+              <button
+                class="rounded-full px-4 py-2 text-xs font-extrabold"
+                :class="dateMode === 'today' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-800'"
+                @click="dateMode = 'today'"
+              >
+                Today
+              </button>
+              <button
+                class="rounded-full px-4 py-2 text-xs font-extrabold"
+                :class="dateMode === 'all' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-800'"
+                @click="dateMode = 'all'"
+              >
+                All
+              </button>
+              <button
+                class="rounded-full bg-slate-100 px-4 py-2 text-xs font-extrabold text-slate-800"
+                @click="resetFilters"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- List -->
+      <div class="mt-4 space-y-2">
+        <div
+          v-for="row in paged"
+          :key="row.reservation_id"
+          class="rounded-2xl bg-white p-4"
+          @click="open(row)"
+          role="button"
+        >
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <!-- Left -->
+            <div class="min-w-0">
+              <div class="flex flex-wrap items-center gap-2">
+                <div class="text-sm font-extrabold text-slate-900">
+                  {{ row.reservation_number }}
+                </div>
+
+                <span class="rounded-full px-3 py-1 text-[10px] font-extrabold uppercase"
+                  :class="sourcePill(row.booking_source)">
+                  {{ row.booking_source }}
+                </span>
+
+                <span class="rounded-full bg-rose-50 px-3 py-1 text-[10px] font-extrabold text-rose-700">
+                  cancelled
+                </span>
+              </div>
+
+              <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-700">
+                <div class="font-bold text-slate-900">{{ row.guest.name }}</div>
+                <span class="text-slate-400">•</span>
+                <div class="text-slate-600">{{ row.guest.phone }}</div>
+                <span class="text-slate-400">•</span>
+                <div class="text-slate-600">
+                  Room {{ row.room.room_number }} (Floor {{ row.room.floor }})
+                </div>
+                <span class="text-slate-400">•</span>
+                <div class="text-slate-600">
+                  {{ row.room.room_type }} • {{ row.room.beds }} bed
+                </div>
+              </div>
+
+              <div class="mt-2 text-xs text-slate-500">
+                Cancelled at:
+                <span class="font-bold text-slate-700">{{ fmt(row.cancellation.cancelled_at) }}</span>
+                <span class="text-slate-300">•</span>
+                By: <span class="font-bold text-slate-700">{{ row.cancellation.cancelled_by }}</span>
+              </div>
+
+              <div class="mt-1 text-xs text-slate-500 line-clamp-2">
+                Reason: <span class="font-semibold text-slate-700">{{ row.cancellation.reason || "-" }}</span>
+              </div>
+            </div>
+
+            <!-- Right -->
+            <div class="flex shrink-0 items-end justify-between gap-3 sm:flex-col sm:items-end sm:justify-center">
+              <div class="text-right">
+                <div class="text-[11px] font-bold text-slate-500">Total</div>
+                <div class="text-lg font-extrabold text-slate-900">{{ money(row.pricing.total_room_charges) }}</div>
+              </div>
+
+              <div class="flex gap-2">
+                <div class="rounded-2xl bg-slate-100 px-3 py-2 text-right">
+                  <div class="text-[10px] font-bold text-slate-500">Paid</div>
+                  <div class="text-xs font-extrabold text-slate-900">{{ money(row.pricing.paid_amount) }}</div>
+                </div>
+                <div class="rounded-2xl bg-slate-100 px-3 py-2 text-right">
+                  <div class="text-[10px] font-bold text-slate-500">Refund</div>
+                  <div class="text-xs font-extrabold text-slate-900">{{ money(row.pricing.refund_amount) }}</div>
+                </div>
+              </div>
+
+              <button
+                class="mt-0.5 hidden rounded-full bg-slate-900 px-4 py-2 text-xs font-extrabold text-white sm:inline-flex"
+                @click.stop="open(row)"
+              >
+                Details
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty -->
+        <div v-if="filtered.length === 0" class="rounded-2xl bg-white p-10 text-center">
+          <div class="text-base font-extrabold text-slate-900">No cancellations</div>
+          <div class="mt-1 text-sm text-slate-500">Try clearing filters or search another keyword.</div>
+          <button class="mt-4 rounded-full bg-slate-900 px-4 py-2 text-xs font-extrabold text-white" @click="resetFilters">
+            Reset Filters
+          </button>
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div v-if="filtered.length > 0" class="mt-4 flex items-center justify-between">
+        <button
+          class="rounded-full bg-slate-100 px-4 py-2 text-xs font-extrabold text-slate-800 disabled:opacity-40"
+          :disabled="page.current === 1"
+          @click="page.current--"
+        >
+          Prev
+        </button>
+        <div class="text-xs font-bold text-slate-500">Page {{ page.current }} / {{ totalPages }}</div>
+        <button
+          class="rounded-full bg-slate-100 px-4 py-2 text-xs font-extrabold text-slate-800 disabled:opacity-40"
+          :disabled="page.current === totalPages"
+          @click="page.current++"
+        >
+          Next
+        </button>
       </div>
     </div>
 
-    <!-- Filters -->
-    <VaCard class="filters">
-      <VaInput v-model="q" placeholder="Search booking / guest / phone / room..." />
-      <VaSelect v-model="source" :options="sourceOptions" label="Source" />
-      <VaSelect v-model="refund" :options="refundOptions" label="Refund Status" />
-      <VaSelect v-model="penalty" :options="penaltyOptions" label="Penalty" />
-      <VaSelect
-        v-model="sort"
-        :options="[
-          {text:'Newest',value:'newest'},
-          {text:'Oldest',value:'oldest'},
-          {text:'Amount',value:'amount'}
-        ]"
-        label="Sort"
-        text-by="text"
-        value-by="value"
-      />
-    </VaCard>
+    <!-- Drawer -->
+    <div v-if="drawer.open" class="fixed inset-0 z-40" @click="closeDrawer">
+      <div class="absolute inset-0 bg-black/40"></div>
+    </div>
 
-    <!-- Table -->
-    <VaCard class="tableCard">
-      <div class="tableWrap">
-        <table class="tbl">
-          <thead>
-            <tr>
-              <th>Booking</th>
-              <th>Guest</th>
-              <th>Room</th>
-              <th>Stay</th>
-              <th>Payment</th>
-              <th class="right">Total</th>
-              <th class="right">Action</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            <tr v-if="filtered.length===0">
-              <td colspan="7" class="empty">No cancellations found.</td>
-            </tr>
-
-            <tr v-for="r in filtered" :key="r.id">
-              <td>
-                <div class="main">{{ r.bookingNumber }}</div>
-                <div class="sub">{{ r.cancelledAt }}</div>
-                <div class="sub">By: {{ label(r.cancelledBy) }}</div>
-              </td>
-
-              <td>
-                <div class="main">{{ r.guest?.name }}</div>
-                <div class="sub">{{ r.guest?.phone }}</div>
-              </td>
-
-              <td>
-                <div class="main">Room {{ r.room?.number }}</div>
-                <div class="sub">{{ r.room?.type }}</div>
-              </td>
-
-              <td>
-                <div class="sub mono">{{ r.stay?.checkIn }}</div>
-                <div class="sub mono">{{ r.stay?.checkOut }}</div>
-              </td>
-
-              <td>
-                <span class="badge" :class="'pay-'+r.payment?.status">
-                  {{ label(r.payment?.status) }}
-                </span>
-                <div class="sub">Refund: {{ money(r.payment?.refundAmount) }}</div>
-                <div class="sub" v-if="r.penalty?.applied">
-                  Penalty: {{ money(r.penalty.amount) }}
-                </div>
-              </td>
-
-              <td class="right">
-                <div class="main">{{ money(r.price?.total) }}</div>
-              </td>
-
-              <td class="right">
-                <VaButton size="small" preset="secondary" @click="openView(r)">View</VaButton>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+    <aside
+      v-if="drawer.open"
+      class="fixed right-0 top-0 z-50 h-full w-full max-w-md bg-white"
+      aria-label="Cancellation details"
+    >
+      <!-- Drawer Header -->
+      <div class="flex items-center justify-between px-5 py-4">
+        <div class="min-w-0">
+          <div class="text-xs font-bold text-slate-500">CANCELLATION DETAILS</div>
+          <div class="truncate text-base font-extrabold text-slate-900">
+            {{ drawer.row?.reservation_number }}
+          </div>
+        </div>
+        <button class="grid h-10 w-10 place-items-center rounded-full bg-slate-100" @click="closeDrawer">
+          <span class="material-icons text-slate-700">close</span>
+        </button>
       </div>
-    </VaCard>
 
-    <!-- Modal -->
-    <Teleport to="body">
-      <div v-if="showModal" class="m-backdrop" @click="closeView">
-        <div class="m" @click.stop>
-          <header class="m-head">
-            <div>
-              <div class="m-title">Cancellation Details</div>
-              <div class="m-sub">{{ selected?.bookingNumber }}</div>
-            </div>
-            <VaButton preset="secondary" icon="close" @click="closeView">Close</VaButton>
-          </header>
+      <!-- Drawer Body -->
+      <div class="h-[calc(100vh-140px)] overflow-y-auto px-5 pb-6">
+        <div v-if="drawer.row" class="space-y-4">
+          <!-- Guest -->
+          <div class="rounded-2xl bg-slate-50 p-4">
+            <div class="text-xs font-bold text-slate-500">GUEST</div>
+            <div class="mt-1 text-base font-extrabold text-slate-900">{{ drawer.row.guest.name }}</div>
+            <div class="mt-0.5 text-sm text-slate-600">{{ drawer.row.guest.phone }}</div>
+            <div class="mt-1 text-xs text-slate-500">Nationality: {{ drawer.row.guest.nationality || "-" }}</div>
+          </div>
 
-          <section class="m-body">
-            <div class="m-grid">
-              <div class="card">
-                <div class="k">Guest</div>
-                <div class="v">{{ selected?.guest?.name }}</div>
-                <div class="muted">{{ selected?.guest?.phone }}</div>
+          <!-- Room -->
+          <div class="rounded-2xl bg-slate-50 p-4">
+            <div class="text-xs font-bold text-slate-500">ROOM</div>
+            <div class="mt-1 flex items-center justify-between">
+              <div class="text-base font-extrabold text-slate-900">
+                Room {{ drawer.row.room.room_number }}
               </div>
-
-              <div class="card">
-                <div class="k">Room</div>
-                <div class="v">Room {{ selected?.room?.number }}</div>
-                <div class="muted">{{ selected?.room?.type }}</div>
-              </div>
-
-              <div class="card">
-                <div class="k">Reason</div>
-                <div class="v">{{ selected?.reason }}</div>
-              </div>
-
-              <div class="card">
-                <div class="k">Financial</div>
-                <div class="muted">Total: {{ money(selected?.price?.total) }}</div>
-                <div class="muted">Refund: {{ money(selected?.payment?.refundAmount) }}</div>
-                <div class="muted">Penalty: {{ money(selected?.penalty?.amount) }}</div>
+              <div class="rounded-full bg-white px-3 py-1 text-[10px] font-extrabold text-slate-700">
+                Floor {{ drawer.row.room.floor }}
               </div>
             </div>
-          </section>
+            <div class="mt-1 text-sm text-slate-700">
+              {{ drawer.row.room.room_type }} • {{ drawer.row.room.beds }} bed
+            </div>
+          </div>
 
-          <footer class="m-foot">
-            <VaButton preset="secondary" @click="closeView">OK</VaButton>
-          </footer>
+          <!-- Stay -->
+          <div class="rounded-2xl bg-slate-50 p-4">
+            <div class="text-xs font-bold text-slate-500">STAY</div>
+            <div class="mt-1 flex items-center justify-between">
+              <div class="text-sm font-extrabold text-slate-900">
+                {{ prettyBookingType(drawer.row.stay.booking_type) }}
+              </div>
+              <div class="text-xs font-bold text-slate-600">
+                {{ stayUnits(drawer.row.stay) }}
+              </div>
+            </div>
+            <div class="mt-2 grid grid-cols-2 gap-2">
+              <div class="rounded-2xl bg-white p-3">
+                <div class="text-[10px] font-bold text-slate-500">Check-in</div>
+                <div class="mt-0.5 text-xs font-extrabold text-slate-900">{{ fmt(drawer.row.stay.check_in) }}</div>
+              </div>
+              <div class="rounded-2xl bg-white p-3">
+                <div class="text-[10px] font-bold text-slate-500">Check-out</div>
+                <div class="mt-0.5 text-xs font-extrabold text-slate-900">{{ fmt(drawer.row.stay.check_out) }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Money -->
+          <div class="rounded-2xl bg-slate-50 p-4">
+            <div class="text-xs font-bold text-slate-500">PAYMENT</div>
+            <div class="mt-2 space-y-2">
+              <div class="flex items-center justify-between text-sm">
+                <span class="text-slate-600">Total room charges</span>
+                <span class="font-extrabold text-slate-900">{{ money(drawer.row.pricing.total_room_charges) }}</span>
+              </div>
+              <div class="flex items-center justify-between text-sm">
+                <span class="text-slate-600">Paid amount</span>
+                <span class="font-extrabold text-slate-900">{{ money(drawer.row.pricing.paid_amount) }}</span>
+              </div>
+              <div class="flex items-center justify-between text-sm">
+                <span class="text-slate-600">Refund amount</span>
+                <span class="font-extrabold text-slate-900">{{ money(drawer.row.pricing.refund_amount) }}</span>
+              </div>
+              <div class="h-px bg-slate-200"></div>
+              <div class="flex items-center justify-between text-sm">
+                <span class="text-slate-600">Net kept</span>
+                <span class="font-extrabold text-slate-900">
+                  {{ money((drawer.row.pricing.paid_amount || 0) - (drawer.row.pricing.refund_amount || 0)) }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cancellation -->
+          <div class="rounded-2xl bg-slate-50 p-4">
+            <div class="text-xs font-bold text-slate-500">CANCELLATION</div>
+            <div class="mt-2 text-xs text-slate-600">
+              Cancelled at:
+              <span class="font-extrabold text-slate-900">{{ fmt(drawer.row.cancellation.cancelled_at) }}</span>
+            </div>
+            <div class="mt-1 text-xs text-slate-600">
+              Cancelled by:
+              <span class="font-extrabold text-slate-900">{{ drawer.row.cancellation.cancelled_by || "-" }}</span>
+            </div>
+            <div class="mt-2 rounded-2xl bg-white p-3 text-sm text-slate-800">
+              <div class="text-[10px] font-bold text-slate-500">Reason</div>
+              <div class="mt-1 font-semibold">{{ drawer.row.cancellation.reason || "-" }}</div>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="grid grid-cols-2 gap-2">
+            <button class="rounded-2xl bg-slate-100 px-4 py-3 text-xs font-extrabold text-slate-800" @click="copyText(drawer.row.reservation_number)">
+              Copy RES #
+            </button>
+            <button class="rounded-2xl bg-slate-900 px-4 py-3 text-xs font-extrabold text-white" @click="printRow(drawer.row)">
+              Print
+            </button>
+          </div>
         </div>
       </div>
-    </Teleport>
+
+      <!-- Drawer Footer -->
+      <div class="px-5 pb-5">
+        <button class="w-full rounded-2xl bg-slate-900 py-3 text-sm font-extrabold text-white" @click="closeDrawer">
+          Close
+        </button>
+      </div>
+    </aside>
   </div>
 </template>
-<style>
-    .page {
-  padding: 18px;
-  background: #f6f8fb;
-  min-height: 100vh;
+
+<script setup>
+import { computed, reactive, ref, watch } from "vue"
+import { reservationsCancellationsData } from "@/data/reservation/reservationsCancellations"
+
+const data = reservationsCancellationsData
+
+const q = ref("")
+const source = ref("all")
+const reason = ref("all")
+const dateMode = ref("all") // today/all
+
+const page = reactive({ current: 1, size: 8 })
+const drawer = reactive({ open: false, row: null })
+
+const rows = computed(() => data.cancellations || [])
+
+const filtered = computed(() => {
+  const keyword = q.value.trim().toLowerCase()
+
+  return rows.value.filter((r) => {
+    // source filter
+    if (source.value !== "all" && r.booking_source !== source.value) return false
+
+    // reason filter (simple mapping)
+    if (reason.value !== "all") {
+      const mapped = mapReason(r.cancellation?.reason || "")
+      if (mapped !== reason.value) return false
+    }
+
+    // date filter: compare by cancelled_at date
+    if (dateMode.value === "today") {
+      const today = new Date()
+      const y = today.getFullYear()
+      const m = String(today.getMonth() + 1).padStart(2, "0")
+      const d = String(today.getDate()).padStart(2, "0")
+      const todayStr = `${y}-${m}-${d}`
+      const cancelled = String(r.cancellation?.cancelled_at || "").slice(0, 10)
+      if (cancelled !== todayStr) return false
+    }
+
+    if (!keyword) return true
+
+    const hay = [
+      r.reservation_number,
+      r.guest?.name,
+      r.guest?.phone,
+      r.room?.room_number,
+      r.room?.room_type,
+      r.cancellation?.reason,
+      r.cancellation?.cancelled_by,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase()
+
+    return hay.includes(keyword)
+  })
+})
+
+const kpi = computed(() => {
+  const paid = filtered.value.reduce((a, x) => a + Number(x.pricing?.paid_amount || 0), 0)
+  const refunded = filtered.value.reduce((a, x) => a + Number(x.pricing?.refund_amount || 0), 0)
+  return { paid, refunded, net: paid - refunded }
+})
+
+const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / page.size)))
+const paged = computed(() => {
+  const start = (page.current - 1) * page.size
+  return filtered.value.slice(start, start + page.size)
+})
+
+watch([q, source, reason, dateMode], () => (page.current = 1))
+
+function resetFilters() {
+  q.value = ""
+  source.value = "all"
+  reason.value = "all"
+  dateMode.value = "all"
 }
 
-/* Header */
-.head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-.head h1 {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 900;
-  color: #0f172a;
-}
-.head p {
-  margin: 6px 0 0;
-  font-size: 13px;
-  font-weight: 700;
-  color: #64748b;
+function open(row) {
+  drawer.row = row
+  drawer.open = true
 }
 
-/* Stat cards */
-.stats {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.sCard {
-  background: #fff;
-  border: 1px solid #e5eaf2;
-  border-radius: 14px;
-  padding: 12px 16px;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
-  min-width: 140px;
-}
-.sCard .k {
-  font-size: 12px;
-  font-weight: 800;
-  color: #64748b;
-}
-.sCard .v {
-  font-size: 22px;
-  font-weight: 900;
-  color: #0f172a;
-}
-.sCard.danger {
-  border-color: #fecaca;
-  background: #fff5f5;
-  color: #991b1b;
+function closeDrawer() {
+  drawer.open = false
+  drawer.row = null
 }
 
-/* Filters */
-.filters {
-  background: #fff;
-  border: 1px solid #eef2f6;
-  border-radius: 14px;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
-  padding: 14px;
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-@media (max-width: 900px) {
-  .filters {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-@media (max-width: 520px) {
-  .filters {
-    grid-template-columns: 1fr;
-  }
+function money(v) {
+  const n = Number(v || 0)
+  return `$${n.toFixed(2)}`
 }
 
-/* Table */
-.tableCard {
-  border-radius: 14px;
-  border: 1px solid #eef2f6;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
-}
-.tableWrap {
-  overflow-x: auto;
-}
-.tbl {
-  width: 100%;
-  border-collapse: collapse;
-  background: #fff;
-}
-.tbl th {
-  padding: 12px 14px;
-  font-size: 12px;
-  text-align: left;
-  color: #64748b;
-  border-bottom: 1px solid #eef2f6;
-  background: #fbfcfe;
-}
-.tbl td {
-  padding: 12px 14px;
-  border-bottom: 1px solid #f1f5f9;
-  vertical-align: top;
-}
-.tbl tr:hover td {
-  background: #fafcff;
+function fmt(s) {
+  if (!s) return "-"
+  return String(s).replace("T", " ").slice(0, 16)
 }
 
-.right {
-  text-align: right;
-}
-.main {
-  font-weight: 900;
-  font-size: 13px;
-  color: #0f172a;
-}
-.sub {
-  margin-top: 4px;
-  font-size: 12px;
-  color: #64748b;
-  font-weight: 700;
-}
-.mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+function prettyBookingType(t) {
+  if (!t) return "-"
+  return t === "hourly" ? "Hourly" : t === "nightly" ? "Nightly" : String(t)
 }
 
-/* Badges */
-.badge {
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 900;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
-  color: #334155;
-}
-.pay-refunded {
-  background: #dcfce7;
-  border-color: #bbf7d0;
-  color: #166534;
-}
-.pay-partial {
-  background: #fff7ed;
-  border-color: #fed7aa;
-  color: #9a3412;
-}
-.pay-unpaid {
-  background: #fee2e2;
-  border-color: #fecaca;
-  color: #991b1b;
+function stayUnits(stay) {
+  if (!stay) return "-"
+  const unit = stay.booking_type === "hourly" ? "h" : "n"
+  return `${stay.nights_or_hours ?? "-"}${unit}`
 }
 
-.empty {
-  text-align: center;
-  padding: 20px !important;
-  font-weight: 900;
-  color: #64748b;
+function sourcePill(s) {
+  if (s === "walk_in") return "bg-emerald-50 text-emerald-700"
+  if (s === "phone") return "bg-blue-50 text-blue-700"
+  return "bg-slate-100 text-slate-700"
 }
 
-/* Modal */
-.m-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.45);
-  z-index: 99999;
-  display: grid;
-  place-items: center;
-  padding: 16px;
-}
-.m {
-  width: min(720px, 100%);
-  background: #fff;
-  border-radius: 16px;
-  border: 1px solid #eef2f6;
-  box-shadow: 0 30px 90px rgba(15, 23, 42, 0.22);
-  overflow: hidden;
-}
-.m-head {
-  padding: 14px 16px;
-  border-bottom: 1px solid #eef2f6;
-  background: #fbfcfe;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.m-title {
-  font-size: 16px;
-  font-weight: 900;
-  color: #0f172a;
-}
-.m-sub {
-  font-size: 12px;
-  color: #64748b;
-}
-.m-body {
-  padding: 16px;
-}
-.m-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-@media (max-width: 640px) {
-  .m-grid {
-    grid-template-columns: 1fr;
-  }
-}
-.card {
-  border: 1px solid #eef2f6;
-  border-radius: 14px;
-  background: #fbfcfe;
-  padding: 14px;
-}
-.k {
-  font-size: 12px;
-  font-weight: 800;
-  color: #64748b;
-}
-.v {
-  font-size: 15px;
-  font-weight: 900;
-  color: #0f172a;
-}
-.muted {
-  margin-top: 4px;
-  font-size: 12px;
-  font-weight: 700;
-  color: #64748b;
-}
-.m-foot {
-  padding: 14px 16px;
-  border-top: 1px solid #eef2f6;
-  display: flex;
-  justify-content: flex-end;
+function mapReason(reasonText) {
+  const t = String(reasonText || "").toLowerCase()
+  if (t.includes("travel")) return "travel"
+  if (t.includes("no show") || t.includes("noshow")) return "no_show"
+  if (t.includes("did not like") || t.includes("didn't like") || t.includes("not like")) return "not_like"
+  if (t.includes("before arrival")) return "before_arrival"
+  return "other"
 }
 
-/* Vuestic polish */
-:deep(.va-input__container),
-:deep(.va-select__container) {
-  border-radius: 10px;
-  background: #f9fafb;
-}
-:deep(.va-button) {
-  border-radius: 10px;
-  font-weight: 800;
+function exportCsv() {
+  const header = [
+    "reservation_number",
+    "guest_name",
+    "guest_phone",
+    "room_number",
+    "room_type",
+    "booking_source",
+    "booking_type",
+    "check_in",
+    "check_out",
+    "total_room_charges",
+    "paid_amount",
+    "refund_amount",
+    "cancelled_at",
+    "cancelled_by",
+    "reason",
+  ]
+
+  const lines = filtered.value.map((r) => [
+    r.reservation_number,
+    r.guest?.name,
+    r.guest?.phone,
+    r.room?.room_number,
+    r.room?.room_type,
+    r.booking_source,
+    r.stay?.booking_type,
+    r.stay?.check_in,
+    r.stay?.check_out,
+    r.pricing?.total_room_charges,
+    r.pricing?.paid_amount,
+    r.pricing?.refund_amount,
+    r.cancellation?.cancelled_at,
+    r.cancellation?.cancelled_by,
+    (r.cancellation?.reason || "").replaceAll("\n", " "),
+  ])
+
+  const csv = [header, ...lines]
+    .map((row) => row.map((x) => `"${String(x ?? "").replaceAll('"', '""')}"`).join(","))
+    .join("\n")
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = `cancellations_${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
+function copyText(text) {
+  const t = String(text || "")
+  if (!t) return
+  navigator.clipboard?.writeText(t)
+}
+function printRow(row) {
+  const w = window.open("", "_blank")
+  if (!w) return alert("Popup blocked. Please allow popups.")
+
+  const unit = row?.stay?.booking_type === "hourly" ? "h" : "n"
+  const units = `${row?.stay?.nights_or_hours ?? "-"}${unit}`
+
+  w.document.open()
+  w.document.write(`<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Cancellation ${row?.reservation_number || ""}</title>
+  </head>
+  <body style="font-family: ui-sans-serif, system-ui; padding: 18px;">
+    <h2 style="margin:0;">${data?.property?.name || ""}</h2>
+    <div style="color:#555; margin-top:6px;">Cancellation Receipt</div>
+    <hr/>
+    <div><b>Reservation:</b> ${row?.reservation_number || "-"}</div>
+    <div><b>Guest:</b> ${row?.guest?.name || "-"}</div>
+    <div><b>Phone:</b> ${row?.guest?.phone || "-"}</div>
+
+    <div style="margin-top:10px;">
+      <b>Room:</b> ${row?.room?.room_number || "-"} • ${row?.room?.room_type || "-"} • ${row?.room?.beds || "-"} bed
+    </div>
+
+    <div><b>Stay:</b> ${prettyBookingType(row?.stay?.booking_type)} • ${units}</div>
+    <div><b>Check-in:</b> ${row?.stay?.check_in || "-"}</div>
+    <div><b>Check-out:</b> ${row?.stay?.check_out || "-"}</div>
+
+    <hr/>
+    <div><b>Cancelled at:</b> ${row?.cancellation?.cancelled_at || "-"}</div>
+    <div><b>Cancelled by:</b> ${row?.cancellation?.cancelled_by || "-"}</div>
+    <div><b>Reason:</b> ${row?.cancellation?.reason || "-"}</div>
+
+    <hr/>
+    <div style="text-align:right;">
+      <div>Total: ${money(row?.pricing?.total_room_charges || 0)}</div>
+      <div>Paid: ${money(row?.pricing?.paid_amount || 0)}</div>
+      <div>Refund: ${money(row?.pricing?.refund_amount || 0)}</div>
+      <div style="font-size:18px;">
+        <b>Net kept: ${money((row?.pricing?.paid_amount || 0) - (row?.pricing?.refund_amount || 0))}</b>
+      </div>
+    </div>
+
+    <script>
+      window.onload = function () { window.print(); };
+    <\/script>
+  </body>
+</html>`)
+  w.document.close()
+}
+
+</script>
+
+<style scoped>
+/* no border, no shadow: everything is plain blocks */
 </style>

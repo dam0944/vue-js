@@ -1,151 +1,210 @@
-export const room_list = [
+export const roomsListData = [
   {
-    id: 1,
-    building: "A",
+    room_id: 11,
+    property_id: 1,
+    room_number: "101",
     floor: 1,
-    number: "101",
-    type: "Standard",
-    priceHour: 5,
-    priceNight: 20,
-    maxGuest: 2,
-    bed: "Queen",
-    size: "18 sqm",
-    features: ["AC", "WiFi", "TV", "Hot Shower"],
-    status: "active",
+    building: "A",
+
+    status: "available", // available | occupied | cleaning | maintenance | blocked
+
+    room_type: {
+      room_type_id: 1,
+      type_code: "SIMPLE_1B",
+      type_name: "Simple",
+      bed_count: 1,
+      max_occupancy: 2,
+      nightly_price: 18,
+      hourly_price: 4,
+      amenities: ["WiFi", "Fan", "Hot Water"],
+    },
+
+    housekeeping: {
+      status: "completed", // completed | pending | in_progress
+      last_cleaned_at: "2026-01-26 09:20",
+      assigned_to: "Davy",
+    },
+
+    current_reservation: null,
   },
 
   {
-    id: 2,
-    building: "A",
+    room_id: 12,
+    property_id: 1,
+    room_number: "102",
     floor: 1,
-    number: "102",
-    type: "Standard",
-    priceHour: 5,
-    priceNight: 20,
-    maxGuest: 2,
-    bed: "Queen",
-    size: "18 sqm",
-    features: ["AC", "WiFi", "TV", "Hot Shower"],
-    status: "active",
+    building: "A",
+    status: "occupied",
+
+    room_type: {
+      room_type_id: 2,
+      type_code: "SIMPLE_2B",
+      type_name: "Simple",
+      bed_count: 2,
+      max_occupancy: 3,
+      nightly_price: 25,
+      hourly_price: 6,
+      amenities: ["WiFi", "Fan", "Hot Water"],
+    },
+
+    housekeeping: {
+      status: "pending",
+      last_cleaned_at: "2026-01-25 14:00",
+      assigned_to: null,
+    },
+
+    current_reservation: {
+      reservation_id: 6002,
+      reservation_number: "RES20260102",
+      booking_type: "hourly",
+      stay_units: 3,
+      status: "checked_in",
+      check_in_at: "2026-01-26 17:00",
+      check_out_at: "2026-01-26 20:00",
+      total_room_charge: 18,
+
+      guest: {
+        guest_id: 103,
+        first_name: "Jennifer",
+        last_name: "Jones",
+        phone: "077 555 444",
+        vip_status: false,
+      },
+    },
   },
 
   {
-    id: 3,
-    building: "A",
-    floor: 1,
-    number: "103",
-    type: "Standard",
-    priceHour: 6,
-    priceNight: 22,
-    maxGuest: 2,
-    bed: "Queen",
-    size: "20 sqm",
-    features: ["AC", "WiFi", "TV", "Hot Shower"],
-    status: "active",
-  },
-
-  {
-    id: 4,
-    building: "A",
+    room_id: 21,
+    property_id: 1,
+    room_number: "201",
     floor: 2,
-    number: "201",
-    type: "Deluxe",
-    priceHour: 8,
-    priceNight: 30,
-    maxGuest: 3,
-    bed: "King",
-    size: "28 sqm",
-    features: ["AC", "WiFi", "Smart TV", "Bathtub", "Hot Shower"],
-    status: "active",
-  },
-
-  {
-    id: 5,
     building: "A",
+    status: "cleaning",
+
+    room_type: {
+      room_type_id: 3,
+      type_code: "VIP_1B",
+      type_name: "VIP",
+      bed_count: 1,
+      max_occupancy: 2,
+      nightly_price: 35,
+      hourly_price: 9,
+      amenities: ["AC", "WiFi", "TV", "Fridge"],
+    },
+
+    housekeeping: {
+      status: "in_progress",
+      last_cleaned_at: "2026-01-26 11:30",
+      assigned_to: "Sokha",
+    },
+
+    current_reservation: null,
+  },
+
+  {
+    room_id: 22,
+    property_id: 1,
+    room_number: "202",
     floor: 2,
-    number: "202",
-    type: "Deluxe",
-    priceHour: 8,
-    priceNight: 30,
-    maxGuest: 3,
-    bed: "King",
-    size: "28 sqm",
-    features: ["AC", "WiFi", "Smart TV", "Bathtub", "Hot Shower"],
-    status: "active",
+    building: "A",
+    status: "available",
+
+    room_type: {
+      room_type_id: 2,
+      type_code: "SIMPLE_2B",
+      type_name: "Simple",
+      bed_count: 2,
+      max_occupancy: 3,
+      nightly_price: 25,
+      hourly_price: 6,
+      amenities: ["WiFi", "Fan", "Hot Water"],
+    },
+
+    housekeeping: {
+      status: "completed",
+      last_cleaned_at: "2026-01-26 10:10",
+      assigned_to: "Davy",
+    },
+
+    current_reservation: null,
   },
 
   {
-    id: 6,
-    building: "B",
-    floor: 1,
-    number: "B01",
-    type: "Standard",
-    priceHour: 4,
-    priceNight: 18,
-    maxGuest: 2,
-    bed: "Queen",
-    size: "16 sqm",
-    features: ["Fan", "WiFi", "Hot Shower"],
-    status: "active",
-  },
-
-  {
-    id: 7,
-    building: "B",
-    floor: 1,
-    number: "B02",
-    type: "Standard",
-    priceHour: 4,
-    priceNight: 18,
-    maxGuest: 2,
-    bed: "Queen",
-    size: "16 sqm",
-    features: ["Fan", "WiFi", "Hot Shower"],
-    status: "active",
-  },
-
-  {
-    id: 8,
-    building: "B",
+    room_id: 23,
+    property_id: 1,
+    room_number: "203",
     floor: 2,
-    number: "B03",
-    type: "Family",
-    priceHour: 10,
-    priceNight: 40,
-    maxGuest: 4,
-    bed: "2 Queen",
-    size: "35 sqm",
-    features: ["AC", "WiFi", "TV", "Sofa", "Hot Shower"],
-    status: "active",
-  },
-
-  {
-    id: 9,
-    building: "C",
-    floor: 1,
-    number: "C01",
-    type: "VIP",
-    priceHour: 15,
-    priceNight: 60,
-    maxGuest: 2,
-    bed: "King",
-    size: "45 sqm",
-    features: ["AC", "WiFi", "Smart TV", "Jacuzzi", "Mini Bar"],
-    status: "active",
-  },
-
-  {
-    id: 10,
-    building: "C",
-    floor: 2,
-    number: "C02",
-    type: "VIP",
-    priceHour: 15,
-    priceNight: 60,
-    maxGuest: 2,
-    bed: "King",
-    size: "45 sqm",
-    features: ["AC", "WiFi", "Smart TV", "Jacuzzi", "Mini Bar"],
+    building: "A",
     status: "maintenance",
+
+    room_type: {
+      room_type_id: 4,
+      type_code: "VIP_2B",
+      type_name: "VIP",
+      bed_count: 2,
+      max_occupancy: 4,
+      nightly_price: 50,
+      hourly_price: 12,
+      amenities: ["AC", "WiFi", "TV", "Fridge", "Balcony"],
+    },
+
+    housekeeping: {
+      status: null,
+      last_cleaned_at: null,
+      assigned_to: null,
+    },
+
+    current_reservation: null,
+
+    maintenance: {
+      issue: "Aircon not cooling",
+      reported_at: "2026-01-25 16:00",
+      priority: "high",
+    },
   },
-];
+
+  {
+    room_id: 31,
+    property_id: 1,
+    room_number: "301",
+    floor: 3,
+    building: "B",
+    status: "occupied",
+
+    room_type: {
+      room_type_id: 4,
+      type_code: "VIP_2B",
+      type_name: "VIP",
+      bed_count: 2,
+      max_occupancy: 4,
+      nightly_price: 50,
+      hourly_price: 12,
+      amenities: ["AC", "WiFi", "TV", "Fridge", "Balcony"],
+    },
+
+    housekeeping: {
+      status: "pending",
+      last_cleaned_at: "2026-01-25 13:10",
+      assigned_to: null,
+    },
+
+    current_reservation: {
+      reservation_id: 6005,
+      reservation_number: "RES20260105",
+      booking_type: "nightly",
+      stay_units: 2,
+      status: "checked_in",
+      check_in_at: "2026-01-25 14:00",
+      check_out_at: "2026-01-27 12:00",
+      total_room_charge: 100,
+
+      guest: {
+        guest_id: 102,
+        first_name: "Linda",
+        last_name: "Chen",
+        phone: "098 222 111",
+        vip_status: true,
+      },
+    },
+  },
+]
