@@ -519,6 +519,10 @@ CREATE TABLE reservation_guests (
   
   FOREIGN KEY (reservation_id) REFERENCES reservations(reservation_id) ON DELETE CASCADE,
   FOREIGN KEY (guest_id) REFERENCES guests(guest_id) ON DELETE CASCADE,
+
+  -- FIX: prevent duplicates
+  UNIQUE KEY uniq_res_guest (reservation_id, guest_id),
+
   INDEX idx_reservation (reservation_id),
   INDEX idx_guest (guest_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -559,16 +563,18 @@ CREATE TABLE invoices (
   property_id INT NOT NULL,
   invoice_number VARCHAR(50) UNIQUE NOT NULL,
   booking_id INT NOT NULL,
-  reservation_id INT NULL,
+  reservation_id INT NULL COMMENT 'Can link to specific reservation or entire booking',
   
-  subtotal DECIMAL(12,2) NOT NULL,
-  tax_rate DECIMAL(5,2) DEFAULT 0,
+  subtotal DECIMAL(12,2) NOT NULL COMMENT 'Room charges + additional charges',
+  tax_rate DECIMAL(5,2) DEFAULT 0 COMMENT 'Tax percentage',
   tax_amount DECIMAL(12,2) DEFAULT 0,
   discount_amount DECIMAL(12,2) DEFAULT 0,
   discount_reason VARCHAR(255),
   total_amount DECIMAL(12,2) NOT NULL,
   amount_paid DECIMAL(12,2) DEFAULT 0,
-  balance_due DECIMAL(12,2) DEFAULT 0,
+
+  -- always correct balance (generated)
+  balance_due DECIMAL(12,2) GENERATED ALWAYS AS (total_amount - amount_paid) STORED,
   
   currency ENUM('USD','KHR') DEFAULT 'USD',
   
@@ -1000,6 +1006,10 @@ CREATE TABLE notification_logs (
 
 CREATE TABLE room_availability_cache (
   cache_id BIGINT PRIMARY KEY AUTO_INCREMENT,
+
+  -- add property_id (multi-property safe)
+  property_id INT NOT NULL,
+
   room_id INT NOT NULL,
   availability_date DATE NOT NULL,
   
@@ -1011,10 +1021,14 @@ CREATE TABLE room_availability_cache (
   
   last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   
+  FOREIGN KEY (property_id) REFERENCES properties(property_id) ON DELETE CASCADE,
   FOREIGN KEY (room_id) REFERENCES rooms(room_id) ON DELETE CASCADE,
   FOREIGN KEY (reservation_id) REFERENCES reservations(reservation_id) ON DELETE SET NULL,
   
-  UNIQUE KEY unique_room_date (room_id, availability_date),
+  -- unique must include property_id
+  UNIQUE KEY unique_property_room_date (property_id, room_id, availability_date),
+
+  INDEX idx_property_date (property_id, availability_date),
   INDEX idx_date (availability_date),
   INDEX idx_available (is_available),
   INDEX idx_room_status (room_id, status, availability_date)
@@ -1346,6 +1360,7 @@ FROM properties p
 LEFT JOIN rooms r ON p.property_id = r.property_id
 WHERE p.is_active = TRUE
 GROUP BY p.property_id, p.property_name;
+
 
 -- View: Revenue summary
 CREATE VIEW v_revenue_summary AS
