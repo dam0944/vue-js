@@ -87,7 +87,7 @@
     </div>
 
     <!-- Grid -->
-    <div class="mx-auto mt-5 max-w-6xl">
+    <div class="mx-auto mt-5">
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         <div
           v-for="room in paginated"
@@ -222,7 +222,7 @@
       <!-- Pagination -->
       <div
         v-if="filtered.length > 0"
-        class="mx-auto mt-4 flex max-w-6xl items-center justify-between"
+        class="mx-auto mt-4 flex w-full items-center justify-between"
       >
         <button
           class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-extrabold text-slate-800 disabled:opacity-40"
