@@ -9,6 +9,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- ============================================================================
 -- PROPERTIES
 -- ============================================================================
+
 CREATE TABLE properties (
   property_id INT PRIMARY KEY AUTO_INCREMENT,
   property_code VARCHAR(20) UNIQUE NOT NULL COMMENT 'GH01, HTL02',
@@ -1067,12 +1068,10 @@ CREATE TABLE audit_logs (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
-
-
-
 -- ============================================================================
 -- USEFUL TRIGGERS
 -- ============================================================================
+
 
 DELIMITER //
 

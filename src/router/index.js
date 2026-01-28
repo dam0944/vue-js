@@ -15,7 +15,7 @@ import ResetPassword from "@/pages/auth/ResetPassword.vue"
 /* Admin pages */
 import RoomView from "@/pages/admin/rooms/RoomView.vue"
 import RoomFormView from "@/pages/admin/rooms/RoomFormView.vue"
-import RoomTypes from "@/pages/admin/rooms/RoomTypes.vue"
+// import RoomTypes from "@/pages/admin/rooms/RoomTypes.vue"
 // import RoomStatus from "@/pages/admin/rooms/RoomStatus.vue"
 import AllBooking from "@/pages/admin/reservation/AllBooking.vue"
 import Calender from "@/pages/admin/reservation/Calender.vue"
@@ -66,6 +66,14 @@ import FrontdeskCheckout from "@/pages/admin/frontdesk/FrontdeskCheckout.vue"
 import FrontdeskInHouse from "@/pages/admin/frontdesk/FrontdeskInHouse.vue"
 import ReservationCreate from "@/pages/admin/reservation/ReservationCreate.vue"
 import ReservationsNoShowsData from "@/pages/admin/reservation/ReservationsNoShowsData.vue"
+import RoomCreateType from "@/pages/admin/rooms/RoomCreateType.vue"
+import RoomTypes from "@/pages/admin/rooms/RoomTypes.vue"
+import RoomImage from "@/pages/admin/rooms/RoomImage.vue"
+// import RoomKeys from "@/pages/admin/rooms/RoomKeys.vue"
+import RoomKeys from "@/pages/admin/rooms/RoomKeys.vue"
+import RoomKeyCreate from "@/pages/admin/rooms/RoomKeyCreate.vue"
+import RoomMaintenance from "@/pages/admin/rooms/RoomMaintenance.vue"
+import RoomMaintenanceForm from "@/pages/admin/rooms/RoomMaintenanceForm.vue"
 // import RoomStatus from "@/pages/admin/rooms/RoomStatus.vue"
 
 const routes = [ 
@@ -155,6 +163,11 @@ const routes = [
         component: RoomTypes,
       },
       {
+        path: "/create/room/types",
+        name: "admin.rooms.create.type",
+        component: RoomCreateType,
+      },
+      {
         path: "rooms/features",
         name: "admin.rooms.features",
         component: RoomFeatures,
@@ -165,6 +178,36 @@ const routes = [
         component: RoomRate,
       },
 
+      {
+        path:"rooms/images",
+        name:"admin.rooms.images",
+        component:RoomImage,
+      },
+      {
+        path:"rooms/keys",
+        name:"admin.rooms.keys",
+        component:RoomKeys,
+      },
+      {
+        path: "/rooms/keys/create",
+        name:"admin.rooms.create",
+        component:RoomKeyCreate,
+      },
+      { 
+        path: "/rooms/keys/edit/:key_id",
+        name:"admin.rooms.edit",
+        component:RoomKeyCreate,
+      },
+      { 
+        path: "rooms/maintenance",
+        name:"admin.rooms.maintenance",
+        component:RoomMaintenance,
+      },
+      { 
+        path: "/rooms/maintenance/create",
+        name:"admin.rooms.maintenance.form",
+        component:RoomMaintenanceForm,
+      },
       /* Guests*/
       { 
         path: "guests",
