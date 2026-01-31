@@ -28,7 +28,7 @@ import Deposits from "@/pages/admin/billding/Deposits.vue"
 import Transactions from "@/pages/admin/billding/Transactions.vue"
 import RoomFeatures from "@/pages/admin/rooms/RoomFeatures.vue"
 import RoomRate from "@/pages/admin/rooms/RoomRate.vue"
-import Guest from "@/pages/admin/guests/Guest.vue"
+// import Guest from "@/pages/admin/guests/Guest.vue"
 import Create from "@/pages/admin/guests/Create.vue"
 import InHouse from "@/pages/admin/guests/InHouse.vue"
 import GuestHistory from "@/pages/admin/guests/GuestHistory.vue"
@@ -74,6 +74,12 @@ import RoomKeys from "@/pages/admin/rooms/RoomKeys.vue"
 import RoomKeyCreate from "@/pages/admin/rooms/RoomKeyCreate.vue"
 import RoomMaintenance from "@/pages/admin/rooms/RoomMaintenance.vue"
 import RoomMaintenanceForm from "@/pages/admin/rooms/RoomMaintenanceForm.vue"
+import GuestList from "@/pages/admin/guests/GuestList.vue"
+import GuestForm from "@/pages/admin/guests/GuestForm.vue"
+// import GuestDocumentForm from "@/pages/admin/guests/GuestDocumentForm.vue"
+import GuestDocumentForm from "@/pages/admin/guests/GuestDocumentForm.vue"
+import GuestDocumentsList from "@/pages/admin/guests/GuestDocumentsList.vue"
+import GuestVip from "@/pages/admin/guests/GuestVip.vue"
 // import RoomStatus from "@/pages/admin/rooms/RoomStatus.vue"
 
 const routes = [ 
@@ -97,7 +103,7 @@ const routes = [
     children: [
       {
        path:"dashboard",
-       name: '  dashboard',
+       name: 'dashboard',
        component:Analysis,
       },
       {
@@ -190,12 +196,12 @@ const routes = [
       },
       {
         path: "/rooms/keys/create",
-        name:"admin.rooms.create",
+        name:"admin.rooms.keys.create",
         component:RoomKeyCreate,
       },
       { 
         path: "/rooms/keys/edit/:key_id",
-        name:"admin.rooms.edit",
+        name:"admin.rooms.keys.edit",
         component:RoomKeyCreate,
       },
       { 
@@ -212,12 +218,37 @@ const routes = [
       { 
         path: "guests",
         name: "admin.guests",
-        component: Guest,
+        component: GuestList,
       },
       {
         path: "guests/create",
         name: "admin.guests.create",
-        component: Create,
+        component: GuestForm,
+      },
+      {
+        path: "guests/:id/edit",
+        name: "admin.guests.edit",
+        component: GuestForm,
+      },
+      {
+        path: "/admin/guests/documents",
+        name: "guest-documents-list",
+        component: GuestDocumentsList,
+      },
+      {
+        path: "guests/:guestId/documents/create",
+        name: "guest-documents-create",
+        component: GuestDocumentForm,
+      },
+      {
+        path: "guests/:guestId/documents/:documentId/edit",
+        name: "guest-documents-edit",
+        component: GuestDocumentForm,
+      },
+      {
+        path: "guests/vip",
+        name: "admin.guests.vip",
+        component: GuestVip,
       },
       {
         path: "guests/in-house",
