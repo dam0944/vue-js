@@ -13,6 +13,7 @@
       />
     </div>
   </div>
+  <h3> hi bro</h3>
 </template>
 
 <script setup>
