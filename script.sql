@@ -47,7 +47,6 @@ CREATE TABLE properties (
   INDEX idx_active (is_active),
   INDEX idx_code (property_code),
   INDEX idx_city (city)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
 -- USERS & AUTHENTICATION
@@ -86,7 +85,6 @@ CREATE TABLE users (
   INDEX idx_position (position),
   INDEX idx_property (property_id),
   INDEX idx_deleted (deleted_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE system_config (
   config_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -106,7 +104,6 @@ CREATE TABLE system_config (
   UNIQUE KEY unique_property_key (property_id, config_key),
   INDEX idx_category (category),
   INDEX idx_key (config_key)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE roles (
   role_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -117,7 +114,6 @@ CREATE TABLE roles (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_active (is_active)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE user_roles (
   user_role_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -131,7 +127,6 @@ CREATE TABLE user_roles (
   UNIQUE KEY unique_user_role (user_id, role_id),
   INDEX idx_user (user_id),
   INDEX idx_role (role_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE user_sessions (
   session_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -148,7 +143,6 @@ CREATE TABLE user_sessions (
   INDEX idx_active (is_active),
   INDEX idx_token (session_token),
   INDEX idx_expires (expires_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE permissions (
   permission_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -160,7 +154,6 @@ CREATE TABLE permissions (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_active (is_active),
   INDEX idx_module (module)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE role_permissions (
   id INT PRIMARY KEY AUTO_INCREMENT,
@@ -170,7 +163,6 @@ CREATE TABLE role_permissions (
   FOREIGN KEY (role_id) REFERENCES roles(role_id) ON DELETE CASCADE,
   FOREIGN KEY (permission_id) REFERENCES permissions(permission_id) ON DELETE CASCADE,
   UNIQUE KEY unique_role_permission (role_id, permission_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE user_permissions (
   id INT PRIMARY KEY AUTO_INCREMENT,
@@ -183,7 +175,6 @@ CREATE TABLE user_permissions (
   FOREIGN KEY (permission_id) REFERENCES permissions(permission_id) ON DELETE CASCADE,
   FOREIGN KEY (granted_by) REFERENCES users(user_id) ON DELETE SET NULL,
   UNIQUE KEY unique_user_permission (user_id, permission_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
 -- GUESTS
@@ -228,7 +219,6 @@ CREATE TABLE guests (
   INDEX idx_email (email),
   INDEX idx_deleted (deleted_at),
   INDEX idx_vip (vip_status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE guest_documents (
   document_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -247,7 +237,6 @@ CREATE TABLE guest_documents (
   FOREIGN KEY (verified_by) REFERENCES users(user_id) ON DELETE SET NULL,
   INDEX idx_guest (guest_id),
   INDEX idx_expiry (expiry_date)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE guest_preferences (
   preference_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -258,7 +247,6 @@ CREATE TABLE guest_preferences (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (guest_id) REFERENCES guests(guest_id) ON DELETE CASCADE,
   INDEX idx_guest (guest_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
 -- ROOM TYPES & ROOMS
@@ -302,7 +290,6 @@ CREATE TABLE room_types (
   INDEX idx_property (property_id),
   INDEX idx_class (room_class),
   INDEX idx_status (status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE room_type_pricing_seasons (
   season_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -321,7 +308,6 @@ CREATE TABLE room_type_pricing_seasons (
   INDEX idx_active (is_active),
   
   CONSTRAINT chk_season_dates CHECK (end_date >= start_date)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE rooms (
   room_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -364,7 +350,6 @@ CREATE TABLE rooms (
   INDEX idx_type (room_type_id),
   INDEX idx_floor (floor),
   INDEX idx_version (version)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE room_images (
   image_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -397,7 +382,6 @@ CREATE TABLE room_images (
     (room_id IS NOT NULL AND room_type_id IS NULL) OR
     (room_id IS NULL AND room_type_id IS NOT NULL)
   )
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
 -- BOOKINGS & RESERVATIONS
@@ -442,7 +426,6 @@ CREATE TABLE bookings (
   INDEX idx_guest (primary_guest_id),
   INDEX idx_booking_number (booking_number),
   INDEX idx_source (booking_source)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE reservations (
   reservation_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -508,7 +491,6 @@ CREATE TABLE reservations (
     actual_check_in_at IS NULL OR 
     actual_check_out_at >= actual_check_in_at
   )
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE reservation_guests (
   id INT PRIMARY KEY AUTO_INCREMENT,
@@ -526,7 +508,6 @@ CREATE TABLE reservation_guests (
 
   INDEX idx_reservation (reservation_id),
   INDEX idx_guest (guest_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
 -- CHARGES & BILLING
@@ -557,7 +538,6 @@ CREATE TABLE additional_charges (
   INDEX idx_reservation (reservation_id),
   INDEX idx_type (charge_type),
   INDEX idx_charged_at (charged_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE invoices (
   invoice_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -599,7 +579,6 @@ CREATE TABLE invoices (
   INDEX idx_number (invoice_number),
   INDEX idx_date (issued_at),
   INDEX idx_property (property_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE payments (
   payment_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -634,7 +613,6 @@ CREATE TABLE payments (
   INDEX idx_status (status),
   INDEX idx_number (payment_number),
   INDEX idx_property (property_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE payment_refunds (
   refund_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -661,7 +639,6 @@ CREATE TABLE payment_refunds (
   INDEX idx_payment (payment_id),
   INDEX idx_date (refund_date),
   INDEX idx_status (status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 -- ============================================================================
 -- CONTINUATION FROM invoice_items
 -- ============================================================================
@@ -693,7 +670,6 @@ CREATE TABLE invoice_items (
   INDEX idx_invoice (invoice_id),
   INDEX idx_reservation (reservation_id),
   INDEX idx_type (item_type)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE receipts (
   receipt_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -722,7 +698,6 @@ CREATE TABLE receipts (
   INDEX idx_number (receipt_number),
   INDEX idx_date (issued_at),
   INDEX idx_property (property_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
 -- DAILY CLOSING & CASH DRAWER
@@ -766,7 +741,6 @@ CREATE TABLE daily_closings (
   INDEX idx_date (business_date),
   INDEX idx_status (status),
   INDEX idx_property (property_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
 -- ROOM KEYS
@@ -791,7 +765,6 @@ CREATE TABLE room_keys (
   INDEX idx_status (status),
   INDEX idx_reservation (issued_to_reservation_id),
   INDEX idx_room (room_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
 -- HOUSEKEEPING
@@ -831,7 +804,6 @@ CREATE TABLE housekeeping_tasks (
   INDEX idx_date (created_at),
   INDEX idx_priority (priority),
   INDEX idx_property (property_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
 -- TAX CONFIGURATION
@@ -855,7 +827,6 @@ CREATE TABLE tax_rates (
   INDEX idx_property (property_id),
   INDEX idx_active (is_active),
   INDEX idx_dates (effective_from, effective_to)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
 -- PROMO CODES & DISCOUNTS
@@ -900,7 +871,6 @@ CREATE TABLE promo_codes (
   INDEX idx_property (property_id),
   
   CONSTRAINT chk_promo_dates CHECK (valid_to >= valid_from)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE promo_code_uses (
   use_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -920,7 +890,6 @@ CREATE TABLE promo_code_uses (
   INDEX idx_booking (booking_id),
   INDEX idx_guest (guest_id),
   INDEX idx_used_at (used_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
 -- CANCELLATION POLICIES
@@ -948,7 +917,6 @@ CREATE TABLE cancellation_policies (
   INDEX idx_property (property_id),
   INDEX idx_active (is_active),
   INDEX idx_default (is_default)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Add cancellation policy to bookings
 ALTER TABLE bookings 
@@ -999,7 +967,6 @@ CREATE TABLE notification_logs (
   INDEX idx_status (status),
   INDEX idx_type (notification_type),
   INDEX idx_property (property_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
 -- ROOM AVAILABILITY CACHE (Performance Optimization)
@@ -1033,7 +1000,7 @@ CREATE TABLE room_availability_cache (
   INDEX idx_date (availability_date),
   INDEX idx_available (is_available),
   INDEX idx_room_status (room_id, status, availability_date)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
 -- ============================================================================
 -- AUDIT LOGS
@@ -1065,7 +1032,7 @@ CREATE TABLE audit_logs (
   INDEX idx_table (table_name),
   INDEX idx_date (created_at),
   INDEX idx_record (table_name, record_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
 
 -- ============================================================================
