@@ -1,179 +1,143 @@
+// src/data/invoices.js
+
 export const invoices = [
   {
-    id: 1,
-    invoiceNumber: "INV-2026-0001",
-    date: "2026-01-15 12:05",
-    bookingNumber: "BK-2026-0001",
-    guest: {
-      id: 1,
-      name: "Sok Dara",
-      phone: "012345678",
-      nationality: "Cambodian",
-    },
-    room: {
-      number: "101",
-      type: "Standard",
-    },
-    stay: {
-      checkIn: "2026-01-15 08:05",
-      checkOut: "2026-01-15 11:05",
-      durationType: "hour",
-      hours: 3,
-      nights: 0,
-    },
-    charges: [
-      { name: "Room (3 hours)", qty: 3, unitPrice: 5, total: 15 },
-    ],
-    summary: {
-      subTotal: 15,
-      tax: 0,
-      discount: 0,
-      total: 15,
-      currency: "USD",
-    },
-    payment: {
-      method: "cash",
-      paid: 15,
-      status: "paid",
-    },
-    staff: {
-      id: 1,
-      name: "Reception A",
-    },
-    status: "issued", // issued | cancelled | refunded
+    invoice_id: 1,
+    property_id: 1,
+    invoice_number: "INV20260131-001-000001",
+    booking_id: 101,
+    reservation_id: 201,
+
+    subtotal: 420.00,
+    tax_rate: 10.00,
+    tax_amount: 42.00,
+    discount_amount: 20.00,
+    discount_reason: "Loyalty discount",
+    total_amount: 442.00,
+    amount_paid: 442.00,
+    balance_due: 0.00,
+
+    currency: "USD",
+    status: "paid",
+
+    issued_at: "2026-01-31 10:20:00",
+    due_date: "2026-02-02",
+    paid_at: "2026-01-31 10:45:00",
+
+    notes: "Guest paid in full at checkout",
+    created_by: 3,
+    updated_at: "2026-01-31 10:45:00"
   },
 
   {
-    id: 2,
-    invoiceNumber: "INV-2026-0002",
-    date: "2026-01-16 12:01",
-    bookingNumber: "BK-2026-0004",
-    guest: {
-      id: 4,
-      name: "Lina Kim",
-      phone: "+82 10 3322 7788",
-      nationality: "Korean",
-    },
-    room: {
-      number: "103",
-      type: "Standard",
-    },
-    stay: {
-      checkIn: "2026-01-16 10:03",
-      checkOut: "2026-01-16 12:01",
-      durationType: "hour",
-      hours: 2,
-      nights: 0,
-    },
-    charges: [
-      { name: "Room (2 hours)", qty: 2, unitPrice: 6, total: 12 },
-      { name: "Late checkout fee", qty: 1, unitPrice: 10, total: 10 },
-    ],
-    summary: {
-      subTotal: 22,
-      tax: 0,
-      discount: 0,
-      total: 22,
-      currency: "USD",
-    },
-    payment: {
-      method: "cash",
-      paid: 22,
-      status: "paid",
-    },
-    staff: {
-      id: 2,
-      name: "Reception B",
-    },
-    status: "issued",
+    invoice_id: 2,
+    property_id: 1,
+    invoice_number: "INV20260131-001-000002",
+    booking_id: 102,
+    reservation_id: 202,
+
+    subtotal: 300.00,
+    tax_rate: 10.00,
+    tax_amount: 30.00,
+    discount_amount: 0.00,
+    discount_reason: null,
+    total_amount: 330.00,
+    amount_paid: 150.00,
+    balance_due: 180.00,
+
+    currency: "USD",
+    status: "partially_paid",
+
+    issued_at: "2026-01-31 14:10:00",
+    due_date: "2026-02-03",
+    paid_at: null,
+
+    notes: "Partial payment by ABA transfer",
+    created_by: 2,
+    updated_at: "2026-01-31 14:30:00"
   },
 
   {
-    id: 3,
-    invoiceNumber: "INV-2026-0003",
-    date: "2026-01-20 11:59",
-    bookingNumber: "BK-2026-0005",
-    guest: {
-      id: 5,
-      name: "David Nguyen",
-      phone: "+84 912 888 999",
-      nationality: "Vietnamese",
-    },
-    room: {
-      number: "301",
-      type: "Suite",
-    },
-    stay: {
-      checkIn: "2026-01-17 14:00",
-      checkOut: "2026-01-20 12:00",
-      durationType: "night",
-      hours: 0,
-      nights: 3,
-    },
-    charges: [
-      { name: "Suite (3 nights)", qty: 3, unitPrice: 80, total: 240 },
-      { name: "Mini bar", qty: 1, unitPrice: 20, total: 20 },
-    ],
-    summary: {
-      subTotal: 260,
-      tax: 0,
-      discount: 0,
-      total: 260,
-      currency: "USD",
-    },
-    payment: {
-      method: "card",
-      paid: 260,
-      status: "paid",
-    },
-    staff: {
-      id: 1,
-      name: "Reception A",
-    },
-    status: "issued",
+    invoice_id: 3,
+    property_id: 1,
+    invoice_number: "INV20260131-001-000003",
+    booking_id: 103,
+    reservation_id: 203,
+
+    subtotal: 150.00,
+    tax_rate: 10.00,
+    tax_amount: 15.00,
+    discount_amount: 0.00,
+    discount_reason: null,
+    total_amount: 165.00,
+    amount_paid: 0.00,
+    balance_due: 165.00,
+
+    currency: "USD",
+    status: "pending",
+
+    issued_at: "2026-01-31 16:05:00",
+    due_date: "2026-02-04",
+    paid_at: null,
+
+    notes: "Awaiting payment at checkout",
+    created_by: 4,
+    updated_at: "2026-01-31 16:05:00"
   },
 
   {
-    id: 4,
-    invoiceNumber: "INV-2026-0004",
-    date: "2026-01-16 13:15",
-    bookingNumber: "BK-2026-0008",
-    guest: {
-      id: 13,
-      name: "Sophea Chhun",
-      phone: "098 887 766",
-      nationality: "Cambodian",
-    },
-    room: {
-      number: "105",
-      type: "Standard",
-    },
-    stay: {
-      checkIn: "2026-01-17 14:00",
-      checkOut: "2026-01-17 16:00",
-      durationType: "hour",
-      hours: 2,
-      nights: 0,
-    },
-    charges: [
-      { name: "Deposit (50%)", qty: 1, unitPrice: 10, total: 10 },
-    ],
-    summary: {
-      subTotal: 10,
-      tax: 0,
-      discount: 0,
-      total: 10,
-      currency: "USD",
-    },
-    payment: {
-      method: "cash",
-      paid: 10,
-      status: "refunded",
-    },
-    staff: {
-      id: 1,
-      name: "Reception A",
-    },
-    status: "refunded",
+    invoice_id: 4,
+    property_id: 1,
+    invoice_number: "INV20260130-001-000004",
+    booking_id: 104,
+    reservation_id: 204,
+
+    subtotal: 600.00,
+    tax_rate: 10.00,
+    tax_amount: 60.00,
+    discount_amount: 50.00,
+    discount_reason: "Promo code WATERFEST",
+    total_amount: 610.00,
+    amount_paid: 610.00,
+    balance_due: 0.00,
+
+    currency: "USD",
+    status: "paid",
+
+    issued_at: "2026-01-30 11:00:00",
+    due_date: "2026-02-01",
+    paid_at: "2026-01-30 11:30:00",
+
+    notes: "Promo applied successfully",
+    created_by: 2,
+    updated_at: "2026-01-30 11:30:00"
   },
+
+  {
+    invoice_id: 5,
+    property_id: 1,
+    invoice_number: "INV20260129-001-000005",
+    booking_id: 105,
+    reservation_id: 205,
+
+    subtotal: 220.00,
+    tax_rate: 10.00,
+    tax_amount: 22.00,
+    discount_amount: 0.00,
+    discount_reason: null,
+    total_amount: 242.00,
+    amount_paid: 0.00,
+    balance_due: 242.00,
+
+    currency: "USD",
+    status: "draft",
+
+    issued_at: "2026-01-29 09:15:00",
+    due_date: "2026-02-02",
+    paid_at: null,
+
+    notes: "Draft invoice before checkout",
+    created_by: 3,
+    updated_at: "2026-01-29 09:15:00"
+  }
 ];
