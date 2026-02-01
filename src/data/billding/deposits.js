@@ -1,131 +1,112 @@
 export const deposits = [
   {
-    id: 1,
-    depositNumber: "DEP-2026-0001",
-    date: "2026-01-15 08:05",
-    bookingNumber: "BK-2026-0001",
-    guest: {
-      id: 1,
-      name: "Sok Dara",
-      phone: "012345678",
-    },
-    room: {
-      number: "101",
-      type: "Standard",
-    },
-    amount: 5,
-    currency: "USD",
-    method: "cash",
-    status: "held", // held | applied | refunded | forfeited
-    appliedToInvoice: null,
-    staff: {
-      id: 1,
-      name: "Reception A",
-    },
-    note: "3 hours booking deposit",
-  },
+    booking_id: 101,
+    booking_number: "BK20260131-001-000101",
+    property_id: 1,
 
-  {
-    id: 2,
-    depositNumber: "DEP-2026-0002",
-    date: "2026-01-16 09:12",
-    bookingNumber: "BK-2026-0004",
-    guest: {
-      id: 4,
-      name: "Lina Kim",
-      phone: "+82 10 3322 7788",
-    },
-    room: {
-      number: "103",
-      type: "Standard",
-    },
-    amount: 15,
-    currency: "USD",
-    method: "cash",
-    status: "applied",
-    appliedToInvoice: "INV-2026-0002",
-    staff: {
-      id: 2,
-      name: "Reception B",
-    },
-    note: "Deposit for late checkout",
-  },
+    primary_guest_id: 1,
+    guest_name: "Sok Dara",
+    phone: "+855 12 345 678",
 
-  {
-    id: 3,
-    depositNumber: "DEP-2026-0003",
-    date: "2026-01-17 14:03",
-    bookingNumber: "BK-2026-0005",
-    guest: {
-      id: 5,
-      name: "David Nguyen",
-      phone: "+84 912 888 999",
-    },
-    room: {
-      number: "301",
-      type: "Suite",
-    },
-    amount: 100,
-    currency: "USD",
-    method: "card",
-    status: "applied",
-    appliedToInvoice: "INV-2026-0003",
-    staff: {
-      id: 1,
-      name: "Reception A",
-    },
-    note: "Security deposit for Suite",
-  },
+    booking_source: "walk_in",
+    status: "confirmed",
 
-  {
-    id: 4,
-    depositNumber: "DEP-2026-0004",
-    date: "2026-01-16 13:15",
-    bookingNumber: "BK-2026-0008",
-    guest: {
-      id: 13,
-      name: "Sophea Chhun",
-      phone: "098 887 766",
-    },
-    room: {
-      number: "105",
-      type: "Standard",
-    },
-    amount: 10,
-    currency: "USD",
-    method: "cash",
-    status: "refunded",
-    appliedToInvoice: null,
-    staff: {
-      id: 1,
-      name: "Reception A",
-    },
-    note: "50% booking deposit refunded",
-  },
+    deposit_amount: 100.00,
+    deposit_paid: 100.00,
+    deposit_currency: "USD",
 
-  {
-    id: 5,
-    depositNumber: "DEP-2026-0005",
-    date: "2026-01-18 11:45",
-    bookingNumber: "BK-2026-0010",
-    guest: {
-      id: 18,
-      name: "Srey Leak",
-      phone: "0967788990",
-    },
-    room: {
-      number: "204",
-      type: "Deluxe",
-    },
-    amount: 20,
-    currency: "USD",
-    method: "aba",
-    status: "forfeited",
-    appliedToInvoice: null,
-    staff: {
-      id: 3,
-      name: "Reception C",
-    },
-    note: "Guest did not show up",
+    booking_date: "2026-01-31 10:20:00",
+    notes: "Deposit for 2-night stay (Room 201).",
+
+    created_at: "2026-01-31 10:20:00",
+    updated_at: "2026-01-31 10:20:00"
   },
-];
+  {
+    booking_id: 102,
+    booking_number: "BK20260130-001-000102",
+    property_id: 1,
+
+    primary_guest_id: 2,
+    guest_name: "John Smith",
+    phone: "+855 88 222 333",
+
+    booking_source: "online",
+    status: "pending",
+
+    deposit_amount: 200.00,
+    deposit_paid: 50.00,
+    deposit_currency: "USD",
+
+    booking_date: "2026-01-30 15:05:00",
+    notes: "Partial deposit paid via ABA transfer.",
+
+    created_at: "2026-01-30 15:05:00",
+    updated_at: "2026-01-30 15:05:00"
+  },
+  {
+    booking_id: 103,
+    booking_number: "BK20260129-001-000103",
+    property_id: 1,
+
+    primary_guest_id: 3,
+    guest_name: "Marie Dupont",
+    phone: "+855 97 555 444",
+
+    booking_source: "email",
+    status: "cancelled",
+
+    deposit_amount: 150.00,
+    deposit_paid: 150.00,
+    deposit_currency: "USD",
+
+    booking_date: "2026-01-29 11:45:00",
+    notes: "Deposit will be refunded due to cancellation.",
+
+    created_at: "2026-01-29 11:45:00",
+    updated_at: "2026-01-29 11:45:00"
+  },
+  {
+    booking_id: 104,
+    booking_number: "BK20260128-001-000104",
+    property_id: 1,
+
+    primary_guest_id: 4,
+    guest_name: "Chantha Rith",
+    phone: "+855 10 999 888",
+
+    booking_source: "phone",
+    status: "checked_in",
+
+    deposit_amount: 80.00,
+    deposit_paid: 80.00,
+    deposit_currency: "USD",
+
+    booking_date: "2026-01-28 09:10:00",
+    notes: "Deposit collected at front desk.",
+
+    created_at: "2026-01-28 09:10:00",
+    updated_at: "2026-01-28 09:10:00"
+  },
+  {
+    booking_id: 105,
+    booking_number: "BK20260127-001-000105",
+    property_id: 1,
+
+    primary_guest_id: 5,
+    guest_name: "Li Wei", 
+    phone: "+855 15 123 321",
+
+    booking_source: "walk_in",
+    status: "confirmed",
+
+    deposit_amount: 300000,
+    deposit_paid: 300000,
+    deposit_currency: "KHR",
+
+    booking_date: "2026-01-27 13:30:00",
+    notes: "Deposit paid in Khmer riel.",
+
+    created_at: "2026-01-27 13:30:00",
+    updated_at: "2026-01-27 13:30:00"
+  }
+]

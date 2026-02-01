@@ -1,507 +1,448 @@
-<script setup>
-import { ref, computed, watch } from "vue"
-import { deposits } from "@/data/billding/deposits"
-
-const rows = ref([...deposits])
-
-// ---- filters ----
-const q = ref("")
-const status = ref("")
-const method = ref("")
-const sort = ref("newest")
-
-const statusOptions = ["", "held", "applied", "refunded", "forfeited"]
-const methodOptions = ["", "cash", "aba", "card", "paypal"]
-
-const safe = (v) => (v ?? "").toString().toLowerCase()
-const label = (s) => (s ? s.replaceAll("_", " ").toUpperCase() : "-")
-const money = (n, cur = "USD") => `${cur} ${Number(n || 0).toFixed(2)}`
-
-const filtered = computed(() => {
-  const key = safe(q.value)
-
-  let list = rows.value.filter((r) => {
-    const hit =
-      !key ||
-      safe(r.depositNumber).includes(key) ||
-      safe(r.bookingNumber).includes(key) ||
-      safe(r.guest?.name).includes(key) ||
-      safe(r.guest?.phone).includes(key) ||
-      safe(r.room?.number).includes(key) ||
-      safe(r.appliedToInvoice).includes(key)
-
-    const okStatus = !status.value || r.status === status.value
-    const okMethod = !method.value || r.method === method.value
-
-    return hit && okStatus && okMethod
-  })
-
-  if (sort.value === "newest") list.sort((a, b) => (b.id || 0) - (a.id || 0))
-  if (sort.value === "oldest") list.sort((a, b) => (a.id || 0) - (b.id || 0))
-  if (sort.value === "amount") list.sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0))
-
-  return list
-})
-
-// ---- summary ----
-const stats = computed(() => {
-  const all = rows.value
-  const sum = (fn) => all.reduce((s, x) => s + fn(x), 0)
-
-  const held = sum((x) => (x.status === "held" ? Number(x.amount || 0) : 0))
-  const applied = sum((x) => (x.status === "applied" ? Number(x.amount || 0) : 0))
-  const refunded = sum((x) => (x.status === "refunded" ? Number(x.amount || 0) : 0))
-  const forfeited = sum((x) => (x.status === "forfeited" ? Number(x.amount || 0) : 0))
-
-  return {
-    held,
-    applied,
-    refunded,
-    forfeited,
-    count: all.length,
-  }
-})
-
-// ---- modal ----
-const showModal = ref(false)
-const selected = ref(null)
-
-function openView(r) {
-  selected.value = r
-  showModal.value = true
-}
-function closeView() {
-  showModal.value = false
-  selected.value = null
-}
-
-watch(showModal, (v) => (document.body.style.overflow = v ? "hidden" : ""))
-</script>
-
 <template>
   <div class="page">
     <!-- Header -->
-    <div class="head">
-      <div>
-        <h1>Deposits</h1>
-        <p>Security deposits • Applied to invoice • Refund & forfeiture tracking</p>
+    <header class="top">
+      <div class="left">
+        <h1 class="title">Deposits</h1>
+        <p class="subtitle">Track booking deposits (from bookings table).</p>
       </div>
+      <div class="right">
+        <button class="btn" type="button" @click="resetFilters">Reset</button>
+      </div>
+    </header>
 
-      <div class="actions">
-        <VaButton preset="secondary" icon="download">Export</VaButton>
-        <VaButton color="success" icon="add">New Deposit</VaButton>
+    <!-- Summary -->
+    <section class="summary">
+      <div class="sum-card">
+        <div class="sum-label">Total Deposits</div>
+        <div class="sum-value">{{ money(totals.amount) }}</div>
       </div>
-    </div>
-
-    <!-- Summary cards -->
-    <div class="summary">
-      <div class="sCard">
-        <div class="k">Total Records</div>
-        <div class="v">{{ stats.count }}</div>
-        <div class="sub">All deposits</div>
+      <div class="sum-card">
+        <div class="sum-label">Paid</div>
+        <div class="sum-value">{{ money(totals.paid) }}</div>
       </div>
-
-      <div class="sCard held">
-        <div class="k">Held</div>
-        <div class="v">{{ money(stats.held) }}</div>
-        <div class="sub">Need to apply/refund</div>
+      <div class="sum-card">
+        <div class="sum-label">Balance</div>
+        <div class="sum-value">{{ money(totals.balance) }}</div>
       </div>
-
-      <div class="sCard applied">
-        <div class="k">Applied</div>
-        <div class="v">{{ money(stats.applied) }}</div>
-        <div class="sub">Used in invoice</div>
-      </div>
-
-      <div class="sCard refunded">
-        <div class="k">Refunded</div>
-        <div class="v">{{ money(stats.refunded) }}</div>
-        <div class="sub">Returned to guest</div>
-      </div>
-
-      <div class="sCard forfeited">
-        <div class="k">Forfeited</div>
-        <div class="v">{{ money(stats.forfeited) }}</div>
-        <div class="sub">No-show / damage</div>
-      </div>
-    </div>
+    </section>
 
     <!-- Filters -->
-    <VaCard class="filters">
-      <VaInput v-model="q" placeholder="Search deposit / booking / guest / invoice / room..." />
-      <VaSelect v-model="status" :options="statusOptions" label="Status" />
-      <VaSelect v-model="method" :options="methodOptions" label="Method" />
-      <VaSelect
-        v-model="sort"
-        :options="[
-          { text: 'Newest', value: 'newest' },
-          { text: 'Oldest', value: 'oldest' },
-          { text: 'Amount (High)', value: 'amount' },
-        ]"
-        label="Sort"
-        text-by="text"
-        value-by="value"
-      />
-    </VaCard>
+    <section class="filters">
+      <div class="field">
+        <label class="label">Search</label>
+        <input
+          class="input"
+          v-model="filters.q"
+          type="text"
+          placeholder="Booking number / guest name / phone..."
+        />
+      </div>
+      <div class="field">
+        <label class="label">Status</label>
+        <select class="select" v-model="filters.status">
+          <option value="all">All</option>
+          <option v-for="s in STATUS_OPTIONS" :key="s" :value="s">{{ s }}</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="label">Source</label>
+        <select class="select" v-model="filters.source">
+          <option value="all">All</option>
+          <option v-for="s in SOURCE_OPTIONS" :key="s" :value="s">{{ s }}</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="label">Currency</label>
+        <select class="select" v-model="filters.currency">
+          <option value="all">All</option>
+          <option v-for="c in CURRENCY_OPTIONS" :key="c" :value="c">{{ c }}</option>
+        </select>
+      </div>
+    </section>
 
     <!-- Table -->
-    <VaCard class="tableCard">
-      <div class="tableWrap">
-        <table class="tbl">
-          <thead>
-            <tr>
-              <th>Deposit</th>
-              <th>Guest</th>
-              <th>Room</th>
-              <th>Invoice Link</th>
-              <th>Status</th>
-              <th class="right">Amount</th>
-              <th class="right">Action</th>
-            </tr>
-          </thead>
+    <section class="table-wrap">
+      <div v-if="rows.length === 0" class="empty">No deposits found.</div>
 
-          <tbody>
-            <tr v-if="filtered.length === 0">
-              <td colspan="7" class="empty">No deposits found.</td>
-            </tr>
+      <table v-else class="table">
+        <thead>
+          <tr>
+            <th>Booking</th>
+            <th>Guest</th>
+            <th>Status</th>
+            <th>Source</th>
+            <th class="num">Deposit</th>
+            <th class="num">Paid</th>
+            <th class="num">Balance</th>
+            <th>Date</th>
+            <th class="actions">Action</th>
+          </tr>
+        </thead>
 
-            <tr v-for="r in filtered" :key="r.id">
-              <td>
-                <div class="main">{{ r.depositNumber }}</div>
-                <div class="sub mono">{{ r.date }}</div>
-                <div class="sub">Booking: {{ r.bookingNumber }}</div>
-              </td>
+        <tbody>
+          <tr v-for="d in rows" :key="d.booking_id">
+            <td>
+              <div class="main">{{ d.booking_number }}</div>
+              <div class="muted">ID: {{ d.booking_id }}</div>
+            </td>
 
-              <td>
-                <div class="main">{{ r.guest?.name || "-" }}</div>
-                <div class="sub">{{ r.guest?.phone || "-" }}</div>
-                <div class="sub">Staff: {{ r.staff?.name || "-" }}</div>
-              </td>
+            <td>
+              <div class="main">{{ d.guest_name }}</div>
+              <div class="muted">{{ d.phone }}</div>
+            </td>
 
-              <td>
-                <div class="main">Room {{ r.room?.number || "-" }}</div>
-                <div class="sub">{{ r.room?.type || "-" }}</div>
-              </td>
+            <td>
+              <span class="pill" :data-tone="getTone(d.status)">{{ d.status }}</span>
+            </td>
 
-              <td>
-                <div class="sub">
-                  <span v-if="r.appliedToInvoice" class="link">
-                    {{ r.appliedToInvoice }}
-                  </span>
-                  <span v-else class="muted">-</span>
-                </div>
-              </td>
+            <td>
+              <span class="chip">{{ d.booking_source }}</span>
+            </td>
 
-              <td>
-                <span class="badge" :class="'st-' + r.status">{{ label(r.status) }}</span>
-                <div class="sub">Method: <b>{{ label(r.method) }}</b></div>
-              </td>
+            <td class="num">{{ money(d.deposit_amount, d.deposit_currency) }}</td>
+            <td class="num">{{ money(d.deposit_paid, d.deposit_currency) }}</td>
+            <td class="num">{{ money(getBalance(d), d.deposit_currency) }}</td>
 
-              <td class="right">
-                <div class="amount" :class="{ neg: r.status === 'refunded' }">
-                  {{ money(r.amount, r.currency) }}
-                </div>
-              </td>
+            <td>
+              <div class="main">{{ formatDate(d.booking_date) }}</div>
+              <div class="muted">{{ formatTime(d.booking_date) }}</div>
+            </td>
 
-              <td class="right">
-                <VaButton size="small" preset="secondary" @click="openView(r)">View</VaButton>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+            <td class="actions">
+              <RouterLink
+                class="link"
+                :to="{ name: 'billing-deposits-show', params: { bookingId: String(d.booking_id) } }"
+              >
+                View
+              </RouterLink>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Note -->
+    <section class="note">
+      <div class="note-title">How this page matches your database</div>
+      <div class="note-text">
+        Deposits are stored inside <b>bookings</b>: deposit_amount, deposit_paid, deposit_currency.
+        This list is derived from booking records (joined with guests for display).
       </div>
-    </VaCard>
-
-    <!-- Modal -->
-    <Teleport to="body">
-      <div v-if="showModal" class="m-backdrop" @click="closeView">
-        <div class="m" @click.stop>
-          <header class="m-head">
-            <div>
-              <div class="m-title">Deposit Details</div>
-              <div class="m-sub">{{ selected?.depositNumber }} • {{ selected?.date }}</div>
-            </div>
-            <VaButton preset="secondary" icon="close" @click="closeView">Close</VaButton>
-          </header>
-
-          <section class="m-body">
-            <div class="detailGrid">
-              <div class="card">
-                <div class="k">Guest</div>
-                <div class="v">{{ selected?.guest?.name }}</div>
-                <div class="muted">{{ selected?.guest?.phone }}</div>
-              </div>
-
-              <div class="card">
-                <div class="k">Room</div>
-                <div class="v">Room {{ selected?.room?.number }}</div>
-                <div class="muted">{{ selected?.room?.type }}</div>
-              </div>
-
-              <div class="card">
-                <div class="k">Status</div>
-                <div class="v">
-                  <span class="badge" :class="'st-' + selected?.status">{{ label(selected?.status) }}</span>
-                </div>
-                <div class="muted">Method: {{ label(selected?.method) }}</div>
-              </div>
-
-              <div class="card">
-                <div class="k">Amount</div>
-                <div class="v big">{{ money(selected?.amount, selected?.currency) }}</div>
-                <div class="muted">Booking: {{ selected?.bookingNumber }}</div>
-              </div>
-
-              <div class="card wide">
-                <div class="k">Invoice</div>
-                <div class="v">{{ selected?.appliedToInvoice || "-" }}</div>
-              </div>
-
-              <div class="card wide" v-if="selected?.note">
-                <div class="k">Note</div>
-                <div class="v">{{ selected.note }}</div>
-              </div>
-            </div>
-          </section>
-
-          <footer class="m-foot">
-            <VaButton preset="secondary" @click="closeView">OK</VaButton>
-          </footer>
-        </div>
-      </div>
-    </Teleport>
+    </section>
   </div>
 </template>
 
+<script setup>
+import { computed, reactive } from "vue"
+import { deposits } from "@/data/billding/deposits"
+
+// ─── Constants ───────────────────────────────────────────────
+const STATUS_OPTIONS   = ["pending", "confirmed", "checked_in", "checked_out", "cancelled", "no_show"]
+const SOURCE_OPTIONS   = ["walk_in", "phone", "email", "online", "other"]
+const CURRENCY_OPTIONS = ["USD", "KHR"]
+
+const TONE_MAP = {
+  cancelled: "danger",
+  no_show:   "danger",
+  pending:   "warn",
+  confirmed: "ok",
+  checked_in:  "ok",
+  checked_out: "ok",
+}
+
+// ─── Reactive Filters ────────────────────────────────────────
+const filters = reactive({
+  q:        "",
+  status:   "all",
+  source:   "all",
+  currency: "all",
+})
+
+function resetFilters() {
+  filters.q        = ""
+  filters.status   = "all"
+  filters.source   = "all"
+  filters.currency = "all"
+}
+
+// ─── Helpers ─────────────────────────────────────────────────
+function normalize(s) {
+  return String(s ?? "").toLowerCase().trim()
+}
+
+function getBalance(d) {
+  return Math.max(0, Number(d.deposit_amount || 0) - Number(d.deposit_paid || 0))
+}
+
+function getTone(status) {
+  return TONE_MAP[normalize(status)] ?? "neutral"
+}
+
+function money(amount, cur = "USD") {
+  const n     = Number(amount || 0)
+  const fixed = cur === "KHR" ? 0 : 2
+  return cur === "KHR" ? `${n.toFixed(fixed)} ៛` : `$${n.toFixed(fixed)}`
+}
+
+function formatDate(dt) {
+  const s = String(dt || "")
+  return s ? s.split(" ")[0] : "-"
+}
+
+function formatTime(dt) {
+  const s = String(dt || "")
+  return s.includes(" ") ? s.split(" ")[1] : "-"
+}
+
+// ─── Computed: Filtered & Sorted Rows ────────────────────────
+const rows = computed(() => {
+  const q = normalize(filters.q)
+
+  return deposits
+    .filter((d) => {
+      if (filters.status   !== "all" && d.status          !== filters.status)   return false
+      if (filters.source   !== "all" && d.booking_source  !== filters.source)   return false
+      if (filters.currency !== "all" && d.deposit_currency !== filters.currency) return false
+
+      if (q) {
+        const haystack = [d.booking_number, d.guest_name, d.phone, d.booking_id]
+          .map(normalize)
+          .join(" ")
+        if (!haystack.includes(q)) return false
+      }
+
+      return true
+    })
+    .sort((a, b) => (b.booking_date > a.booking_date ? 1 : b.booking_date < a.booking_date ? -1 : 0))
+})
+
+// ─── Computed: Totals ────────────────────────────────────────
+const totals = computed(() => {
+  let amount = 0, paid = 0, balance = 0
+
+  for (const d of rows.value) {
+    amount  += Number(d.deposit_amount || 0)
+    paid    += Number(d.deposit_paid   || 0)
+    balance += getBalance(d)
+  }
+
+  return { amount, paid, balance }
+})
+</script>
+
 <style scoped>
 .page {
-  padding: 18px;
-  background: #f6f8fb;
-  min-height: 100vh;
+  padding: 18px 18px 40px;
+  margin: 0 auto;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  color: #0f172a;
 }
 
-/* Header */
-.head {
+/* ─── Header ─── */
+.top {
   display: flex;
+  align-items: flex-end;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 14px;
-  margin-bottom: 14px;
+  gap: 12px;
+  margin-bottom: 18px;
 }
-.head h1 {
-  margin: 0;
+.title {
   font-size: 22px;
   font-weight: 900;
-  color: #0f172a;
+  letter-spacing: -0.02em;
 }
-.head p {
-  margin: 6px 0 0;
-  font-size: 13px;
-  font-weight: 700;
+.subtitle {
+  margin-top: 6px;
   color: #64748b;
+  font-size: 13px;
 }
-.actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+.btn {
+  appearance: none;
+  border: none;
+  background: #0f172a;
+  color: #fff;
+  font-weight: 800;
+  font-size: 13px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s;
 }
+.btn:hover { background: #1e293b; }
 
-/* Summary */
+/* ─── Summary ─── */
 .summary {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 12px;
-  margin-bottom: 12px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 14px 0 18px;
 }
-@media (max-width: 1100px) {
-  .summary { grid-template-columns: repeat(3, 1fr); }
-}
-@media (max-width: 650px) {
-  .summary { grid-template-columns: repeat(2, 1fr); }
-}
-@media (max-width: 420px) {
-  .summary { grid-template-columns: 1fr; }
-}
-.sCard {
-  background: #fff;
-  border: 1px solid #e5eaf2;
+.sum-card {
+  padding: 12px;
+  background: #f8fafc;
   border-radius: 14px;
-  padding: 12px 14px;
-  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
 }
-.sCard .k {
-  font-size: 12px;
-  font-weight: 900;
+.sum-label {
   color: #64748b;
-}
-.sCard .v {
-  margin-top: 4px;
-  font-size: 20px;
-  font-weight: 900;
-  color: #0f172a;
-}
-.sCard .sub {
-  margin-top: 6px;
   font-size: 12px;
   font-weight: 700;
-  color: #64748b;
 }
-.sCard.held { border-color: #bfdbfe; background: #f0f7ff; }
-.sCard.applied { border-color: #bbf7d0; background: #ecfdf5; }
-.sCard.refunded { border-color: #fecaca; background: #fff5f5; }
-.sCard.forfeited { border-color: #fed7aa; background: #fff7ed; }
+.sum-value {
+  margin-top: 6px;
+  font-size: 18px;
+  font-weight: 900;
+}
 
-/* Filters */
+/* ─── Filters ─── */
 .filters {
-  background: #fff;
-  border: 1px solid #eef2f6;
-  border-radius: 14px;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
-  padding: 14px;
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
-  gap: 12px;
+  grid-template-columns: 1.5fr 1fr 1fr 1fr;
+  gap: 10px;
   margin-bottom: 14px;
 }
-@media (max-width: 900px) {
-  .filters { grid-template-columns: 1fr 1fr; }
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
-@media (max-width: 520px) {
-  .filters { grid-template-columns: 1fr; }
-}
-
-/* Table */
-.tableCard {
-  border-radius: 14px;
-  border: 1px solid #eef2f6;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
-}
-.tableWrap { overflow-x: auto; }
-.tbl {
-  width: 100%;
-  border-collapse: collapse;
-  background: #fff;
-}
-.tbl th {
-  padding: 12px 14px;
+.label {
   font-size: 12px;
-  text-align: left;
-  color: #64748b;
-  border-bottom: 1px solid #eef2f6;
-  background: #fbfcfe;
-  white-space: nowrap;
-}
-.tbl td {
-  padding: 12px 14px;
-  border-bottom: 1px solid #f1f5f9;
-  vertical-align: top;
-}
-.tbl tr:hover td { background: #fafcff; }
-
-.right { text-align: right; }
-.main { font-weight: 900; font-size: 13px; color: #0f172a; }
-.sub { margin-top: 4px; font-size: 12px; font-weight: 700; color: #64748b; }
-.mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-}
-.empty { text-align: center; padding: 18px !important; font-weight: 900; color: #64748b; }
-
-.badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 900;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
+  font-weight: 800;
   color: #334155;
 }
-.st-held { background: #f0f7ff; border-color: #bfdbfe; color: #1d4ed8; }
-.st-applied { background: #ecfdf5; border-color: #bbf7d0; color: #166534; }
-.st-refunded { background: #fff1f2; border-color: #fecdd3; color: #9f1239; }
-.st-forfeited { background: #fff7ed; border-color: #fed7aa; color: #9a3412; }
-
-.amount { font-weight: 900; color: #0f172a; }
-.amount.neg { color: #b91c1c; }
-
-.link {
-  display: inline-flex;
-  padding: 6px 10px;
-  border-radius: 10px;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
-  font-weight: 900;
-  font-size: 12px;
-  color: #0f172a;
+.input,
+.select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 12px;
+  background: #f1f5f9;
+  outline: none;
+  font-size: 13px;
+  transition: background 0.15s;
 }
-.muted { color: #64748b; font-weight: 800; }
-
-/* Modal */
-.m-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.45);
-  z-index: 99999;
-  display: grid;
-  place-items: center;
-  padding: 16px;
+.input:focus,
+.select:focus {
+  background: #eaf2ff;
 }
-.m {
-  width: min(880px, 100%);
+
+/* ─── Table ─── */
+.table-wrap {
   background: #fff;
   border-radius: 16px;
-  border: 1px solid #eef2f6;
-  box-shadow: 0 30px 90px rgba(15, 23, 42, 0.22);
   overflow: hidden;
 }
-.m-head {
-  padding: 14px 16px;
-  border-bottom: 1px solid #eef2f6;
-  background: #fbfcfe;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
+.table {
+  width: 100%;
+  border-collapse: collapse;
 }
-.m-title { font-size: 16px; font-weight: 900; color: #0f172a; }
-.m-sub { margin-top: 2px; font-size: 12px; color: #64748b; font-weight: 700; }
-.m-body { padding: 16px; max-height: 70vh; overflow: auto; }
-.m-foot {
-  padding: 14px 16px;
-  border-top: 1px solid #eef2f6;
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
+thead th {
+  text-align: left;
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 900;
+  padding: 12px;
+  background: #f8fafc;
+  white-space: nowrap;
 }
-
-.detailGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+tbody td {
+  padding: 12px;
+  vertical-align: top;
+  font-size: 13px;
+  border-top: 1px solid #f1f5f9;
 }
-@media (max-width: 720px) {
-  .detailGrid { grid-template-columns: 1fr; }
+tbody tr:hover {
+  background: #f8fafc;
 }
-.card {
-  border: 1px solid #eef2f6;
-  border-radius: 14px;
-  background: #fbfcfe;
-  padding: 14px;
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
-.card.wide { grid-column: 1 / -1; }
-.k { font-size: 12px; font-weight: 900; color: #64748b; }
-.v { margin-top: 6px; font-weight: 900; color: #0f172a; }
-.v.big { font-size: 22px; }
-
-/* Vuestic polish */
-:deep(.va-input__container),
-:deep(.va-select__container) {
-  border-radius: 10px;
-  background: #f9fafb;
+.actions {
+  width: 90px;
+  text-align: right;
 }
-:deep(.va-button) {
-  border-radius: 10px;
+.main {
   font-weight: 800;
+}
+.muted {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 3px;
+}
+
+/* ─── Pills & Chips ─── */
+.pill {
+  display: inline-flex;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  font-weight: 900;
+  font-size: 12px;
+  text-transform: lowercase;
+}
+.pill[data-tone="ok"]     { background: #ecfdf5; color: #047857; }
+.pill[data-tone="warn"]   { background: #fffbeb; color: #b45309; }
+.pill[data-tone="danger"] { background: #fef2f2; color: #b91c1c; }
+
+.chip {
+  display: inline-flex;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  font-weight: 800;
+  font-size: 12px;
+  text-transform: lowercase;
+}
+
+/* ─── Link ─── */
+.link {
+  color: #0f172a;
+  font-weight: 900;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.link:hover {
+  color: #3b82f6;
+  text-decoration: underline;
+}
+
+/* ─── Empty ─── */
+.empty {
+  padding: 40px 18px;
+  text-align: center;
+  color: #64748b;
+  font-weight: 700;
+}
+
+/* ─── Note ─── */
+.note {
+  margin-top: 16px;
+  padding: 14px;
+  border-radius: 16px;
+  background: #f8fafc;
+}
+.note-title {
+  font-weight: 900;
+  font-size: 13px;
+}
+.note-text {
+  margin-top: 6px;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 980px) {
+  .filters  { grid-template-columns: 1fr 1fr; }
+  .summary  { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 600px) {
+  .filters  { grid-template-columns: 1fr; }
+  .summary  { grid-template-columns: 1fr; }
+  .table-wrap { overflow-x: auto; }
 }
 </style>

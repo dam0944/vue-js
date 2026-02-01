@@ -11,9 +11,6 @@ function verifyOTP() {
     alert("Please enter 6-digit OTP")
     return
   }
-
-  // later: send otp to Laravel API here
-
   router.push('/reset')
 }
 </script>
@@ -45,7 +42,6 @@ function verifyOTP() {
           Resend
         </span>
       </div>
-
     </div>
   </div>
 </template>

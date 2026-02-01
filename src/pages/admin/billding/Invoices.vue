@@ -1,559 +1,322 @@
-<script setup>
-import { ref, computed, watch } from "vue"
-import { invoices } from "@/data/billding/invoices"
-
-const rows = ref([...invoices])
-
-// ---------- Filters ----------
-const q = ref("")
-const status = ref("")
-const method = ref("")
-const sort = ref("newest")
-
-const statusOptions = ["", "issued", "cancelled", "refunded"]
-const methodOptions = ["", "cash", "aba", "card", "paypal"]
-
-const safe = (v) => (v ?? "").toString().toLowerCase()
-const label = (s) => (s ? s.replaceAll("_", " ").toUpperCase() : "-")
-const money = (n, cur = "USD") => `${cur} ${Number(n || 0).toFixed(2)}`
-
-const filtered = computed(() => {
-  const key = safe(q.value)
-
-  let list = rows.value.filter((r) => {
-    const hit =
-      !key ||
-      safe(r.invoiceNumber).includes(key) ||
-      safe(r.bookingNumber).includes(key) ||
-      safe(r.guest?.name).includes(key) ||
-      safe(r.guest?.phone).includes(key) ||
-      safe(r.room?.number).includes(key)
-
-    const okStatus = !status.value || r.status === status.value
-    const okMethod = !method.value || r.payment?.method === method.value
-    return hit && okStatus && okMethod
-  })
-
-  if (sort.value === "newest") list.sort((a, b) => (b.id || 0) - (a.id || 0))
-  if (sort.value === "oldest") list.sort((a, b) => (a.id || 0) - (b.id || 0))
-  if (sort.value === "total") list.sort((a, b) => (b.summary?.total || 0) - (a.summary?.total || 0))
-
-  return list
-})
-
-// ---------- Summary ----------
-const summary = computed(() => {
-  const all = rows.value
-  const total = all.reduce((s, x) => s + Number(x.summary?.total || 0), 0)
-  const refunded = all
-    .filter((x) => x.status === "refunded" || x.payment?.status === "refunded")
-    .reduce((s, x) => s + Number(x.summary?.total || 0), 0)
-  const count = all.length
-  return { total, refunded, count }
-})
-
-// ---------- Modal ----------
-const showModal = ref(false)
-const selected = ref(null)
-
-function openView(r) {
-  selected.value = r
-  showModal.value = true
-}
-function closeView() {
-  showModal.value = false
-  selected.value = null
-}
-
-watch(showModal, (v) => (document.body.style.overflow = v ? "hidden" : ""))
-
-// ---------- Print ----------
-function printInvoice() {
-  // simplest print: print current page with invoice modal open
-  // later you can use a dedicated print template route
-  window.print()
-}
-</script>
-
 <template>
-  <div class="page">
-    <!-- Header -->
-    <div class="head">
-      <div>
-        <h1>Invoices</h1>
-        <p>Billing history • Print invoice • Refund tracking</p>
+  <div class="min-h-[calc(100vh-60px)] bg-slate-50 px-4 py-5 sm:px-6">
+    <div class="mx-auto">
+      <!-- Header -->
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div class="min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="material-icons text-slate-700">receipt_long</span>
+            <h1 class="truncate text-lg font-extrabold text-slate-900 sm:text-xl">
+              Invoices
+            </h1>
+          </div>
+          <p class="mt-1 text-sm text-slate-500">
+            Search, filter, and manage invoices (draft → paid) without clutter.
+          </p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <button
+            class="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+            @click="goCreate"
+          >
+            + New Invoice
+          </button>
+        </div>
       </div>
 
-      <div class="topCards">
-        <div class="tCard">
-          <div class="k">Invoices</div>
-          <div class="v">{{ summary.count }}</div>
+      <!-- Stats (no border/shadow, only background blocks) -->
+      <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="rounded-2xl bg-white px-4 py-3">
+          <div class="text-xs font-semibold text-slate-500">Total</div>
+          <div class="mt-1 text-xl font-extrabold text-slate-900">{{ rows.length }}</div>
         </div>
-        <div class="tCard">
-          <div class="k">Total Billed</div>
-          <div class="v">{{ money(summary.total) }}</div>
+        <div class="rounded-2xl bg-white px-4 py-3">
+          <div class="text-xs font-semibold text-slate-500">Pending Balance</div>
+          <div class="mt-1 text-xl font-extrabold text-slate-900">
+            {{ money(sumBalance, currencySelected || "USD") }}
+          </div>
         </div>
-        <div class="tCard danger">
-          <div class="k">Refunded</div>
-          <div class="v">{{ money(summary.refunded) }}</div>
+        <div class="rounded-2xl bg-white px-4 py-3">
+          <div class="text-xs font-semibold text-slate-500">Paid</div>
+          <div class="mt-1 text-xl font-extrabold text-slate-900">{{ countByStatus("paid") }}</div>
         </div>
+        <div class="rounded-2xl bg-white px-4 py-3">
+          <div class="text-xs font-semibold text-slate-500">Partially Paid</div>
+          <div class="mt-1 text-xl font-extrabold text-slate-900">{{ countByStatus("partially_paid") }}</div>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="mt-5 rounded-2xl bg-white p-3 sm:p-4">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div class="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
+            <div class="flex-1">
+              <div class="relative">
+                <span class="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                  search
+                </span>
+                <input
+                  v-model.trim="q"
+                  type="text"
+                  class="w-full rounded-full bg-slate-100 py-2 pl-10 pr-4 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                  placeholder="Search invoice number, booking id, reservation id…"
+                />
+              </div>
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+              <select
+                v-model="status"
+                class="rounded-full bg-slate-100 px-4 py-2 text-sm text-slate-900 outline-none"
+              >
+                <option value="all">All status</option>
+                <option value="draft">Draft</option>
+                <option value="pending">Pending</option>
+                <option value="partially_paid">Partially paid</option>
+                <option value="paid">Paid</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="refunded">Refunded</option>
+              </select>
+
+              <select
+                v-model="currencySelected"
+                class="rounded-full bg-slate-100 px-4 py-2 text-sm text-slate-900 outline-none"
+              >
+                <option value="">All currency</option>
+                <option value="USD">USD</option>
+                <option value="KHR">KHR</option>
+              </select>
+
+              <button
+                class="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700"
+                @click="resetFilters"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+
+          <div class="text-sm text-slate-500">
+            Showing <span class="font-semibold text-slate-900">{{ filtered.length }}</span> results
+          </div>
+        </div>
+      </div>
+
+      <!-- List -->
+      <div class="mt-4 rounded-2xl bg-white p-2 sm:p-3">
+        <!-- Skeleton -->
+        <div v-if="loading" class="space-y-2 p-2">
+          <div v-for="i in 6" :key="i" class="animate-pulse rounded-2xl bg-slate-100 p-4">
+            <div class="flex items-center justify-between gap-3">
+              <div class="h-4 w-56 rounded-full bg-slate-200"></div>
+              <div class="h-7 w-24 rounded-full bg-slate-200"></div>
+            </div>
+            <div class="mt-3 grid gap-2 sm:grid-cols-3">
+              <div class="h-3 w-40 rounded-full bg-slate-200"></div>
+              <div class="h-3 w-48 rounded-full bg-slate-200"></div>
+              <div class="h-3 w-32 rounded-full bg-slate-200"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty -->
+        <div v-else-if="!filtered.length" class="p-10 text-center">
+          <div class="mx-auto mb-2 grid h-12 w-12 place-items-center rounded-2xl bg-slate-100 text-slate-700">
+            <span class="material-icons">inbox</span>
+          </div>
+          <div class="text-base font-bold text-slate-900">No invoices found</div>
+          <div class="mt-1 text-sm text-slate-500">Try changing filters or search keyword.</div>
+        </div>
+
+        <!-- Items -->
+        <div v-else class="space-y-2 p-2">
+          <div
+            v-for="inv in filtered"
+            :key="inv.invoice_id"
+            class="rounded-2xl bg-slate-50 px-4 py-4"
+          >
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <div class="truncate text-sm font-extrabold text-slate-900">
+                    {{ inv.invoice_number }}
+                  </div>
+                  <span
+                    class="rounded-full px-2.5 py-1 text-xs font-bold"
+                    :class="statusPill(inv.status)"
+                  >
+                    {{ prettyStatus(inv.status) }}
+                  </span>
+                  <span class="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-600">
+                    {{ inv.currency }}
+                  </span>
+                </div>
+
+                <div class="mt-2 grid gap-2 text-sm text-slate-600 sm:grid-cols-3">
+                  <div>
+                    <span class="text-slate-400">Booking:</span>
+                    <span class="font-semibold text-slate-800">#{{ inv.booking_id }}</span>
+                  </div>
+                  <div>
+                    <span class="text-slate-400">Reservation:</span>
+                    <span class="font-semibold text-slate-800">
+                      {{ inv.reservation_id ?? "—" }}
+                    </span>
+                  </div>
+                  <div>
+                    <span class="text-slate-400">Due:</span>
+                    <span class="font-semibold text-slate-800">{{ inv.due_date ?? "—" }}</span>
+                  </div>
+                </div>
+
+                <div class="mt-2 grid gap-2 text-sm text-slate-600 sm:grid-cols-3">
+                  <div>
+                    <span class="text-slate-400">Total:</span>
+                    <span class="font-extrabold text-slate-900">{{ money(inv.total_amount, inv.currency) }}</span>
+                  </div>
+                  <div>
+                    <span class="text-slate-400">Paid:</span>
+                    <span class="font-bold text-slate-900">{{ money(inv.amount_paid, inv.currency) }}</span>
+                  </div>
+                  <div>
+                    <span class="text-slate-400">Balance:</span>
+                    <span class="font-extrabold" :class="inv.balance_due > 0 ? 'text-rose-600' : 'text-emerald-700'">
+                      {{ money(inv.balance_due, inv.currency) }}
+                    </span>
+                  </div>
+                </div>
+
+                <div v-if="inv.notes" class="mt-2 text-sm text-slate-500">
+                  {{ inv.notes }}
+                </div>
+              </div>
+
+              <div class="flex shrink-0 items-center gap-2">
+                <button
+                  class="rounded-full bg-white px-3 py-2 text-sm font-semibold text-slate-800"
+                  @click="goEdit(inv.invoice_id)"
+                >
+                  Edit
+                </button>
+                <button
+                  class="rounded-full bg-slate-900 px-3 py-2 text-sm font-semibold text-white"
+                  @click="view(inv.invoice_id)"
+                >
+                  View
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer note -->
+      <div class="mt-5 pb-6 text-center text-xs text-slate-400">
+        Tip: Keep invoices “draft” until checkout, then mark “paid” after payment is confirmed.
       </div>
     </div>
-
-    <!-- Filters -->
-    <VaCard class="filters">
-      <VaInput v-model="q" placeholder="Search invoice / booking / guest / phone / room..." />
-      <VaSelect v-model="status" :options="statusOptions" label="Invoice Status" />
-      <VaSelect v-model="method" :options="methodOptions" label="Payment Method" />
-      <VaSelect
-        v-model="sort"
-        :options="[
-          { text: 'Newest', value: 'newest' },
-          { text: 'Oldest', value: 'oldest' },
-          { text: 'Total (High)', value: 'total' },
-        ]"
-        label="Sort"
-        text-by="text"
-        value-by="value"
-      />
-    </VaCard>
-
-    <!-- Table -->
-    <VaCard class="tableCard">
-      <div class="tableWrap">
-        <table class="tbl">
-          <thead>
-            <tr>
-              <th>Invoice</th>
-              <th>Guest</th>
-              <th>Room</th>
-              <th>Stay</th>
-              <th>Payment</th>
-              <th class="right">Total</th>
-              <th class="right">Action</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            <tr v-if="filtered.length === 0">
-              <td colspan="7" class="empty">No invoices found.</td>
-            </tr>
-
-            <tr v-for="r in filtered" :key="r.id">
-              <td>
-                <div class="main">{{ r.invoiceNumber }}</div>
-                <div class="sub mono">{{ r.date }}</div>
-                <div class="sub">Booking: {{ r.bookingNumber }}</div>
-                <span class="badge" :class="'st-' + r.status">{{ label(r.status) }}</span>
-              </td>
-
-              <td>
-                <div class="main">{{ r.guest?.name || "-" }}</div>
-                <div class="sub">{{ r.guest?.phone || "-" }}</div>
-                <div class="sub">{{ r.guest?.nationality || "-" }}</div>
-              </td>
-
-              <td>
-                <div class="main">Room {{ r.room?.number || "-" }}</div>
-                <div class="sub">{{ r.room?.type || "-" }}</div>
-              </td>
-
-              <td>
-                <div class="sub mono">IN: {{ r.stay?.checkIn }}</div>
-                <div class="sub mono">OUT: {{ r.stay?.checkOut }}</div>
-                <div class="sub">
-                  {{ label(r.stay?.durationType) }}
-                  <span v-if="r.stay?.hours">• {{ r.stay.hours }}h</span>
-                  <span v-if="r.stay?.nights">• {{ r.stay.nights }} night</span>
-                </div>
-              </td>
-
-              <td>
-                <span class="badge pay" :class="'pay-' + r.payment?.status">
-                  {{ label(r.payment?.status) }}
-                </span>
-                <div class="sub">Method: <b>{{ label(r.payment?.method) }}</b></div>
-                <div class="sub">Paid: {{ money(r.payment?.paid, r.summary?.currency) }}</div>
-              </td>
-
-              <td class="right">
-                <div class="total">
-                  {{ money(r.summary?.total, r.summary?.currency) }}
-                </div>
-              </td>
-
-              <td class="right">
-                <div class="btns">
-                  <VaButton size="small" preset="secondary" @click="openView(r)">View</VaButton>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </VaCard>
-
-    <!-- Modal: Invoice View -->
-    <Teleport to="body">
-      <div v-if="showModal" class="m-backdrop" @click="closeView">
-        <div class="m" @click.stop>
-          <header class="m-head">
-            <div>
-              <div class="m-title">Invoice</div>
-              <div class="m-sub">
-                {{ selected?.invoiceNumber }} • {{ selected?.date }}
-              </div>
-            </div>
-            <VaButton preset="secondary" icon="close" @click="closeView">Close</VaButton>
-          </header>
-
-          <section class="m-body">
-            <div class="invoice">
-              <div class="row2">
-                <div class="box">
-                  <div class="k">Guest</div>
-                  <div class="v">{{ selected?.guest?.name }}</div>
-                  <div class="muted">{{ selected?.guest?.phone }}</div>
-                  <div class="muted">{{ selected?.guest?.nationality }}</div>
-                </div>
-
-                <div class="box">
-                  <div class="k">Room / Stay</div>
-                  <div class="v">Room {{ selected?.room?.number }} • {{ selected?.room?.type }}</div>
-                  <div class="muted mono">IN: {{ selected?.stay?.checkIn }}</div>
-                  <div class="muted mono">OUT: {{ selected?.stay?.checkOut }}</div>
-                </div>
-              </div>
-
-              <div class="items">
-                <div class="itemsHead">
-                  <div>Item</div>
-                  <div class="right">Qty</div>
-                  <div class="right">Price</div>
-                  <div class="right">Total</div>
-                </div>
-
-                <div
-                  v-for="(it, idx) in selected?.charges || []"
-                  :key="idx"
-                  class="itemsRow"
-                >
-                  <div class="name">{{ it.name }}</div>
-                  <div class="right">{{ it.qty }}</div>
-                  <div class="right">{{ money(it.unitPrice, selected?.summary?.currency) }}</div>
-                  <div class="right b">{{ money(it.total, selected?.summary?.currency) }}</div>
-                </div>
-              </div>
-
-              <div class="totals">
-                <div class="tRow">
-                  <span class="k">Sub Total</span>
-                  <span class="v">{{ money(selected?.summary?.subTotal, selected?.summary?.currency) }}</span>
-                </div>
-                <div class="tRow">
-                  <span class="k">Discount</span>
-                  <span class="v">{{ money(selected?.summary?.discount, selected?.summary?.currency) }}</span>
-                </div>
-                <div class="tRow">
-                  <span class="k">Tax</span>
-                  <span class="v">{{ money(selected?.summary?.tax, selected?.summary?.currency) }}</span>
-                </div>
-
-                <div class="divider"></div>
-
-                <div class="tRow big">
-                  <span class="k">TOTAL</span>
-                  <span class="v">{{ money(selected?.summary?.total, selected?.summary?.currency) }}</span>
-                </div>
-
-                <div class="payBox">
-                  <div class="k">Payment</div>
-                  <div class="v">
-                    {{ label(selected?.payment?.method) }} • {{ label(selected?.payment?.status) }}
-                  </div>
-                  <div class="muted">Paid: {{ money(selected?.payment?.paid, selected?.summary?.currency) }}</div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <footer class="m-foot">
-            <VaButton preset="secondary" @click="closeView">OK</VaButton>
-            <VaButton color="primary" icon="print" @click="printInvoice">Print</VaButton>
-          </footer>
-        </div>
-      </div>
-    </Teleport>
   </div>
 </template>
 
-<style scoped>
-.page {
-  padding: 18px;
-  background: #f6f8fb;
-  min-height: 100vh;
+<script setup>
+import { computed, onMounted, ref } from "vue"
+import { useRouter } from "vue-router"
+import { invoices as staticInvoices } from "@/data/billding/invoices"
+
+const router = useRouter()
+
+const loading = ref(true)
+const rows = ref([])
+
+const q = ref("")
+const status = ref("all")
+const currencySelected = ref("")
+
+onMounted(() => {
+  // simulate API delay
+  setTimeout(() => {
+    rows.value = [...staticInvoices].sort((a, b) => (b.invoice_id ?? 0) - (a.invoice_id ?? 0))
+    loading.value = false
+  }, 700)
+})
+
+const filtered = computed(() => {
+  const keyword = q.value.toLowerCase()
+
+  return rows.value.filter((inv) => {
+    const matchQ =
+      !keyword ||
+      String(inv.invoice_number ?? "").toLowerCase().includes(keyword) ||
+      String(inv.booking_id ?? "").includes(keyword) ||
+      String(inv.reservation_id ?? "").includes(keyword)
+
+    const matchStatus = status.value === "all" ? true : inv.status === status.value
+    const matchCurrency = currencySelected.value ? inv.currency === currencySelected.value : true
+
+    return matchQ && matchStatus && matchCurrency
+  })
+})
+
+const sumBalance = computed(() => {
+  const list = currencySelected.value
+    ? filtered.value.filter((x) => x.currency === currencySelected.value)
+    : filtered.value
+
+  return list.reduce((sum, x) => sum + Number(x.balance_due || 0), 0)
+})
+
+function countByStatus(s) {
+  return rows.value.filter((x) => x.status === s).length
 }
 
-/* Header */
-.head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 14px;
-  margin-bottom: 14px;
-}
-.head h1 {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 900;
-  color: #0f172a;
-}
-.head p {
-  margin: 6px 0 0;
-  font-size: 13px;
-  font-weight: 700;
-  color: #64748b;
+function money(amount, currency) {
+  const n = Number(amount || 0)
+  if (currency === "KHR") return `៛${Math.round(n).toLocaleString()}`
+  return `$${n.toFixed(2)}`
 }
 
-/* Top cards */
-.topCards {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.tCard {
-  background: #fff;
-  border: 1px solid #e5eaf2;
-  border-radius: 14px;
-  padding: 12px 16px;
-  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
-  min-width: 140px;
-}
-.tCard .k {
-  font-size: 12px;
-  font-weight: 900;
-  color: #64748b;
-}
-.tCard .v {
-  margin-top: 4px;
-  font-size: 20px;
-  font-weight: 900;
-  color: #0f172a;
-}
-.tCard.danger {
-  border-color: #fecaca;
-  background: #fff5f5;
+function prettyStatus(s) {
+  return String(s || "")
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (m) => m.toUpperCase())
 }
 
-/* Filters */
-.filters {
-  background: #fff;
-  border: 1px solid #eef2f6;
-  border-radius: 14px;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
-  padding: 14px;
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-@media (max-width: 900px) {
-  .filters { grid-template-columns: 1fr 1fr; }
-}
-@media (max-width: 520px) {
-  .filters { grid-template-columns: 1fr; }
-}
-
-/* Table */
-.tableCard {
-  border-radius: 14px;
-  border: 1px solid #eef2f6;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
-}
-.tableWrap { overflow-x: auto; }
-.tbl {
-  width: 100%;
-  border-collapse: collapse;
-  background: #fff;
-}
-.tbl th {
-  padding: 12px 14px;
-  font-size: 12px;
-  text-align: left;
-  color: #64748b;
-  border-bottom: 1px solid #eef2f6;
-  background: #fbfcfe;
-  white-space: nowrap;
-}
-.tbl td {
-  padding: 12px 14px;
-  border-bottom: 1px solid #f1f5f9;
-  vertical-align: top;
-}
-.tbl tr:hover td { background: #fafcff; }
-
-.right { text-align: right; }
-.main { font-weight: 900; font-size: 13px; color: #0f172a; }
-.sub { margin-top: 4px; font-size: 12px; font-weight: 700; color: #64748b; }
-.mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-}
-.total { font-weight: 900; color: #0f172a; }
-.empty { text-align: center; padding: 18px !important; font-weight: 900; color: #64748b; }
-
-/* badges */
-.badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 900;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
-  color: #334155;
-  margin-top: 8px;
-}
-.badge.pay { margin-top: 0; background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
-
-.st-issued { background: #dcfce7; border-color: #bbf7d0; color: #166534; }
-.st-cancelled { background: #f1f5f9; border-color: #e2e8f0; color: #475569; }
-.st-refunded { background: #fff1f2; border-color: #fecdd3; color: #9f1239; }
-
-.pay-paid { background: #dcfce7; border-color: #bbf7d0; color: #166534; }
-.pay-refunded { background: #eef2ff; border-color: #c7d2fe; color: #4338ca; }
-
-/* modal */
-.m-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.45);
-  z-index: 99999;
-  display: grid;
-  place-items: center;
-  padding: 16px;
-}
-.m {
-  width: min(980px, 100%);
-  background: #fff;
-  border-radius: 16px;
-  border: 1px solid #eef2f6;
-  box-shadow: 0 30px 90px rgba(15, 23, 42, 0.22);
-  overflow: hidden;
-}
-.m-head {
-  padding: 14px 16px;
-  border-bottom: 1px solid #eef2f6;
-  background: #fbfcfe;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-}
-.m-title { font-size: 16px; font-weight: 900; color: #0f172a; }
-.m-sub { margin-top: 2px; font-size: 12px; color: #64748b; font-weight: 700; }
-.m-body { padding: 16px; max-height: 70vh; overflow: auto; }
-.m-foot {
-  padding: 14px 16px;
-  border-top: 1px solid #eef2f6;
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
+function statusPill(s) {
+  switch (s) {
+    case "paid":
+      return "bg-emerald-100 text-emerald-800"
+    case "partially_paid":
+      return "bg-amber-100 text-amber-800"
+    case "pending":
+      return "bg-sky-100 text-sky-800"
+    case "draft":
+      return "bg-slate-200 text-slate-700"
+    case "cancelled":
+      return "bg-rose-100 text-rose-800"
+    case "refunded":
+      return "bg-purple-100 text-purple-800"
+    default:
+      return "bg-slate-200 text-slate-700"
+  }
 }
 
-/* invoice view */
-.invoice {
-  border: 1px dashed #cbd5e1;
-  background: #fbfcfe;
-  border-radius: 14px;
-  padding: 14px;
-}
-.row2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-@media (max-width: 760px) {
-  .row2 { grid-template-columns: 1fr; }
-}
-.box {
-  border: 1px solid #eef2f6;
-  border-radius: 14px;
-  background: #fff;
-  padding: 12px;
-}
-.k { font-size: 12px; font-weight: 900; color: #64748b; }
-.v { margin-top: 6px; font-weight: 900; color: #0f172a; }
-.muted { margin-top: 4px; font-size: 12px; font-weight: 700; color: #64748b; }
-
-.items {
-  border: 1px solid #eef2f6;
-  border-radius: 14px;
-  overflow: hidden;
-  background: #fff;
-}
-.itemsHead, .itemsRow {
-  display: grid;
-  grid-template-columns: 1fr 90px 120px 120px;
-  gap: 10px;
-  padding: 10px 12px;
-}
-.itemsHead {
-  background: #fbfcfe;
-  border-bottom: 1px solid #eef2f6;
-  font-size: 12px;
-  font-weight: 900;
-  color: #64748b;
-}
-.itemsRow {
-  border-bottom: 1px solid #f1f5f9;
-  font-size: 12px;
-  font-weight: 800;
-  color: #0f172a;
-}
-.itemsRow:last-child { border-bottom: 0; }
-.name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.b { font-weight: 900; }
-
-.totals {
-  margin-top: 12px;
-  display: grid;
-  gap: 10px;
-}
-.tRow {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  font-weight: 800;
-}
-.tRow.big .v { font-size: 20px; }
-.divider { height: 1px; background: #e2e8f0; margin: 6px 0; }
-.payBox {
-  border: 1px solid #eef2f6;
-  border-radius: 14px;
-  background: #fff;
-  padding: 12px;
+function resetFilters() {
+  q.value = ""
+  status.value = "all"
+  currencySelected.value = ""
 }
 
-/* Vuestic polish */
-:deep(.va-input__container),
-:deep(.va-select__container) {
-  border-radius: 10px;
-  background: #f9fafb;
-}
-:deep(.va-button) {
-  border-radius: 10px;
-  font-weight: 800;
+function goCreate() {
+  router.push({ name: "billing-invoices-create" })
 }
 
-/* Print only invoice */
-@media print {
-  .page, .filters, .tableCard, .head, .topCards { display: none !important; }
-  .m-backdrop { position: static; background: transparent; padding: 0; }
-  .m { box-shadow: none; border: 0; width: 100%; }
-  .m-head, .m-foot { display: none !important; }
-  .m-body { max-height: none; overflow: visible; padding: 0; }
-  .invoice { border: 0; padding: 0; }
+function goEdit(invoiceId) {
+  router.push({ name: "billing-invoices-edit", params: { invoiceId: String(invoiceId) } })
 }
-</style>
+
+function view(invoiceId) {
+  // if you later make a view page route, change this
+  alert(`View invoice #${invoiceId}`)
+}
+</script>
