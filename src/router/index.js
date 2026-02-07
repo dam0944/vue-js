@@ -1,116 +1,9 @@
 import { createRouter, createWebHistory } from "vue-router"
 
-/* ─── Layouts ───────────────────────────────────────────────── */
+/* ─── Layouts (keep these eager loaded) ──────────────────────── */
 import AuthLayout      from "@/layouts/AuthLayout.vue"
 import DashboardLayout from "@/layouts/DashboardLayout.vue"
 import PosLayout       from "@/layouts/PosLayout.vue"
-
-/* ─── Auth ──────────────────────────────────────────────────── */
-import Login         from "@/pages/auth/Login.vue"
-import Forgot        from "@/pages/auth/Forgot.vue"
-import ResetPassword from "@/pages/auth/ResetPassword.vue"
-import OTP           from "@/pages/auth/OTP.vue"
-
-/* ─── Frontdesk ─────────────────────────────────────────────── */
-import RoomStatus          from "@/pages/admin/frontdesk/RoomStatus.vue"
-import QueckBook           from "@/pages/admin/frontdesk/QueckBook.vue"
-// import FrontdeskCheckin    from "@/pages/admin/frontdesk/frontdeskCheckin.vue"
-import FrontdeskCheckout   from "@/pages/admin/frontdesk/FrontdeskCheckout.vue"
-import FrontdeskInHouse    from "@/pages/admin/frontdesk/FrontdeskInHouse.vue"
-
-/* ─── Rooms ─────────────────────────────────────────────────── */
-import RoomView              from "@/pages/admin/rooms/RoomView.vue"
-import RoomFormView          from "@/pages/admin/rooms/RoomFormView.vue"
-import RoomTypes             from "@/pages/admin/rooms/RoomTypes.vue"
-import RoomCreateType        from "@/pages/admin/rooms/RoomCreateType.vue"
-import RoomFeatures          from "@/pages/admin/rooms/RoomFeatures.vue"
-import RoomRate              from "@/pages/admin/rooms/RoomRate.vue"
-import RoomImage             from "@/pages/admin/rooms/RoomImage.vue"
-import RoomKeys              from "@/pages/admin/rooms/RoomKeys.vue"
-import RoomKeyCreate         from "@/pages/admin/rooms/RoomKeyCreate.vue"
-import RoomMaintenance       from "@/pages/admin/rooms/RoomMaintenance.vue"
-import RoomMaintenanceForm   from "@/pages/admin/rooms/RoomMaintenanceForm.vue"
-
-/* ─── Guests ────────────────────────────────────────────────── */
-import GuestList            from "@/pages/admin/guests/GuestList.vue"
-import GuestForm            from "@/pages/admin/guests/GuestForm.vue"
-import GuestDocumentForm    from "@/pages/admin/guests/GuestDocumentForm.vue"
-import GuestDocumentsList   from "@/pages/admin/guests/GuestDocumentsList.vue"
-import GuestVip             from "@/pages/admin/guests/GuestVip.vue"
-import InHouse              from "@/pages/admin/guests/InHouse.vue"
-import GuestHistory         from "@/pages/admin/guests/GuestHistory.vue"
-import GuestPreference      from "@/pages/admin/guests/GuestPreference.vue"
-
-/* ─── Housekeeping ──────────────────────────────────────────── */
-import Housekeeping_Task         from "@/pages/admin/housekeeping/Housekeeping_Task.vue"
-// import Housekeeping_Today        from "@/pages/admin/housekeeping/Housekeeping_Today.vue"
-import CreateHouse_Task          from "@/pages/admin/housekeeping/CreateHouse_Task.vue"
-import Housekeeping_Calender     from "@/pages/admin/housekeeping/Housekeeping_Calender.vue"
-import Housekeeping_Checklist    from "@/pages/admin/housekeeping/housekeeping_Checklist.vue"
-import Housekeeping_Performance  from "@/pages/admin/housekeeping/Housekeeping_Performance.vue"
-// import Housekeeping_StaffTasks   from "@/pages/admin/housekeeping/Housekeeping_StaffTasks.vue"
-import Housekeeping_StaffTasks   from "@/pages/admin/housekeeping/Housekeeping_StaffTasks.vue"
-
-
-/* ─── Reservations ──────────────────────────────────────────── */
-import AllBooking                from "@/pages/admin/reservation/AllBooking.vue"
-import Calender                  from "@/pages/admin/reservation/Calender.vue"
-import Checkin_Checkout          from "@/pages/admin/reservation/Checkin_Checkout.vue"
-import Availability              from "@/pages/admin/reservation/Availability.vue"
-import Cancellations             from "@/pages/admin/reservation/Cancellations.vue"
-import ReservationCreate         from "@/pages/admin/reservation/ReservationCreate.vue"
-import ReservationsNoShowsData   from "@/pages/admin/reservation/ReservationsNoShowsData.vue"
-
-/* ─── Billing ───────────────────────────────────────────────── */
-import DailySale        from "@/pages/admin/billding/DailySale.vue"
-import Invoices         from "@/pages/admin/billding/Invoices.vue"
-import InvoiceFormView  from "@/pages/admin/billding/InvoiceFormView.vue"
-import Deposits         from "@/pages/admin/billding/Deposits.vue"
-import DepositsShow     from "@/pages/admin/billding/DepositsShow.vue"
-import Transactions     from "@/pages/admin/billding/Transactions.vue"
-import PaymentForm      from "@/pages/admin/billding/PaymentForm.vue"
-import PaymentList      from "@/pages/admin/billding/PaymentList.vue"
-
-/* ─── Reports ───────────────────────────────────────────────── */
-import Occupancy  from "@/pages/admin/reports/Occupancy.vue"
-import Revenue    from "@/pages/admin/reports/Revenue.vue"
-import RoomSale   from "@/pages/admin/reports/RoomSale.vue"
-import Guests     from "@/pages/admin/reports/Guests.vue"
-
-/* ─── Settings ──────────────────────────────────────────────── */
-import User             from "@/pages/admin/setting/User.vue"
-import CreateUser       from "@/pages/admin/setting/CreateUser.vue"
-import Role             from "@/pages/admin/setting/Role.vue"
-import CreateRole       from "@/pages/admin/setting/CreateRole.vue"
-import Permission       from "@/pages/admin/setting/Permission.vue"
-import CreatePermission from "@/pages/admin/setting/CreatePermission.vue"
-import PaymentMethod    from "@/pages/admin/setting/PaymentMethod.vue"
-import General          from "@/pages/admin/setting/General.vue"
-
-/* ─── POS ───────────────────────────────────────────────────── */
-import Index            from "@/pages/pos/Index.vue"
-import CustomerView     from "@/pages/pos/CustomerView.vue"
-import PosHistory       from "@/pages/pos/PosHistory.vue"
-import PosHistoryView   from "@/pages/pos/PosHistoryView.vue"
-import PosClosingData   from "@/pages/pos/PosClosingData.vue"
-
-/* ─── Other ─────────────────────────────────────────────────── */
-import Analysis     from "@/pages/admin/Analysis.vue"
-import NotFoundView from "@/pages/NotFoundView.vue"
-import ExtraChargeForm from "@/pages/admin/billding/ExtraChargeForm.vue"
-import ExtraChargesList from "@/pages/admin/billding/ExtraChargesList.vue"
-import RefundsList from "@/pages/admin/billding/RefundsList.vue"
-import RefundForm from "@/pages/admin/billding/RefundForm.vue"
-import HousekeepingForm from "@/pages/admin/housekeeping/HousekeepingForm.vue"
-import Housekeeping_Today from "@/pages/admin/housekeeping/Housekeeping_Today.vue"
-import FrontdeskCheckin from "@/pages/admin/frontdesk/FrontdeskCheckin.vue"
-import HousekeepingAssign from "@/pages/admin/housekeeping/HousekeepingAssign.vue"
-import ReportDaily from "@/pages/admin/reports/ReportDaily.vue"
-import ReportsMonthly from "@/pages/admin/reports/ReportsMonthly.vue"
-import ReportsPaymentMethods from "@/pages/admin/reports/ReportsPaymentMethods.vue"
-import SettingsProperty from "../pages/admin/setting/SettingsProperty.vue"
-import SettingsConfig from "@/pages/admin/setting/SettingsConfig.vue"
-import SettingsAudit from "@/pages/admin/setting/SettingsAudit.vue"
 
 /* ─── Routes ────────────────────────────────────────────────── */
 const routes = [
@@ -120,10 +13,10 @@ const routes = [
     path: "/",
     component: AuthLayout,
     children: [
-      { path: "",       name: "login", component: Login },
-      { path: "forgot", name: "forgot", component: Forgot },
-      { path: "otp",    name: "otp",    component: OTP },
-      { path: "reset",  name: "reset",  component: ResetPassword },
+      { path: "",       name: "login",  component: () => import("@/pages/auth/Login.vue") },
+      { path: "forgot", name: "forgot", component: () => import("@/pages/auth/Forgot.vue") },
+      { path: "otp",    name: "otp",    component: () => import("@/pages/auth/OTP.vue") },
+      { path: "reset",  name: "reset",  component: () => import("@/pages/auth/ResetPassword.vue") },
     ],
   },
 
@@ -134,121 +27,118 @@ const routes = [
     children: [
 
       // Dashboard
-      { path: "dashboard", name: "dashboard", component: Analysis },
+      { path: "dashboard", name: "dashboard", component: () => import("@/pages/admin/Analysis.vue") },
 
       // ── Frontdesk ──────────────────────────────────────────
-      { path: "frontdesk/rooms-status", name: "admin.frontdesk.rooms-status", component: RoomStatus },
-      { path: "frontdesk/quick-book",   name: "admin.frontdesk.quick-book",   component: QueckBook },
-      { path: "frontdesk/checkin",      name: "admin.frontdesk.checkin",      component: FrontdeskCheckin },
-      { path: "frontdesk/checkout",     name: "admin.frontdesk.checkout",     component: FrontdeskCheckout },
-      { path: "frontdesk/in-house",     name: "admin.frontdesk.in-house",     component: FrontdeskInHouse },
+      { path: "frontdesk/rooms-status", name: "admin.frontdesk.rooms-status", component: () => import("@/pages/admin/frontdesk/RoomStatus.vue") },
+      { path: "frontdesk/quick-book",   name: "admin.frontdesk.quick-book",   component: () => import("@/pages/admin/frontdesk/QueckBook.vue") },
+      { path: "frontdesk/checkin",      name: "admin.frontdesk.checkin",      component: () => import("@/pages/admin/frontdesk/FrontdeskCheckin.vue") },
+      { path: "frontdesk/checkout",     name: "admin.frontdesk.checkout",     component: () => import("@/pages/admin/frontdesk/FrontdeskCheckout.vue") },
+      { path: "frontdesk/in-house",     name: "admin.frontdesk.in-house",     component: () => import("@/pages/admin/frontdesk/FrontdeskInHouse.vue") },
 
       // ── Rooms ──────────────────────────────────────────────
-      { path: "rooms",               name: "admin.rooms",              component: RoomView },
-      { path: "rooms/create",        name: "admin.rooms.create",       component: RoomFormView },
-      { path: "rooms/types",         name: "admin.rooms.type",         component: RoomTypes },
-      { path: "rooms/types/create",  name: "admin.rooms.create.type",  component: RoomCreateType },
-      { path: "rooms/features",      name: "admin.rooms.features",     component: RoomFeatures },
-      { path: "rooms/rates",         name: "admin.rooms.rates",        component: RoomRate },
-      { path: "rooms/images",        name: "admin.rooms.images",       component: RoomImage },
+      { path: "rooms",               name: "admin.rooms",              component: () => import("@/pages/admin/rooms/RoomView.vue") },
+      { path: "rooms/create",        name: "admin.rooms.create",       component: () => import("@/pages/admin/rooms/RoomFormView.vue") },
+      { path: "rooms/types",         name: "admin.rooms.type",         component: () => import("@/pages/admin/rooms/RoomTypes.vue") },
+      { path: "rooms/types/create",  name: "admin.rooms.create.type",  component: () => import("@/pages/admin/rooms/RoomCreateType.vue") },
+      { path: "rooms/features",      name: "admin.rooms.features",     component: () => import("@/pages/admin/rooms/RoomFeatures.vue") },
+      { path: "rooms/rates",         name: "admin.rooms.rates",        component: () => import("@/pages/admin/rooms/RoomRate.vue") },
+      { path: "rooms/images",        name: "admin.rooms.images",       component: () => import("@/pages/admin/rooms/RoomImage.vue") },
 
       // Room Keys
-      { path: "rooms/keys",              name: "admin.rooms.keys",        component: RoomKeys },
-      { path: "rooms/keys/create",       name: "admin.rooms.keys.create", component: RoomKeyCreate },
-      { path: "rooms/keys/edit/:key_id", name: "admin.rooms.keys.edit",   component: RoomKeyCreate, props: true },
+      { path: "rooms/keys",              name: "admin.rooms.keys",        component: () => import("@/pages/admin/rooms/RoomKeys.vue") },
+      { path: "rooms/keys/create",       name: "admin.rooms.keys.create", component: () => import("@/pages/admin/rooms/RoomKeyCreate.vue") },
+      { path: "rooms/keys/edit/:key_id", name: "admin.rooms.keys.edit",   component: () => import("@/pages/admin/rooms/RoomKeyCreate.vue"), props: true },
 
       // Maintenance
-      { path: "rooms/maintenance",        name: "admin.rooms.maintenance",      component: RoomMaintenance },
-      { path: "rooms/maintenance/create", name: "admin.rooms.maintenance.form", component: RoomMaintenanceForm },
+      { path: "rooms/maintenance",        name: "admin.rooms.maintenance",      component: () => import("@/pages/admin/rooms/RoomMaintenance.vue") },
+      { path: "rooms/maintenance/create", name: "admin.rooms.maintenance.form", component: () => import("@/pages/admin/rooms/RoomMaintenanceForm.vue") },
 
       // ── Guests ─────────────────────────────────────────────
-      { path: "guests",              name: "admin.guests",        component: GuestList },
-      { path: "guests/create",       name: "admin.guests.create", component: GuestForm },
-      { path: "guests/:id/edit",     name: "admin.guests.edit",   component: GuestForm, props: true },
-      { path: "guests/vip",          name: "admin.guests.vip",    component: GuestVip },
-      { path: "guests/in-house",     name: "admin.guests.in-house",    component: InHouse },
-      { path: "guests/history",      name: "admin.guests.history",     component: GuestHistory },
-      { path: "guests/preferences",  name: "admin.guests.preferences", component: GuestPreference },
+      { path: "guests",              name: "admin.guests",        component: () => import("@/pages/admin/guests/GuestList.vue") },
+      { path: "guests/create",       name: "admin.guests.create", component: () => import("@/pages/admin/guests/GuestForm.vue") },
+      { path: "guests/:id/edit",     name: "admin.guests.edit",   component: () => import("@/pages/admin/guests/GuestForm.vue"), props: true },
+      { path: "guests/vip",          name: "admin.guests.vip",    component: () => import("@/pages/admin/guests/GuestVip.vue") },
+      { path: "guests/in-house",     name: "admin.guests.in-house",    component: () => import("@/pages/admin/guests/InHouse.vue") },
+      { path: "guests/history",      name: "admin.guests.history",     component: () => import("@/pages/admin/guests/GuestHistory.vue") },
+      { path: "guests/preferences",  name: "admin.guests.preferences", component: () => import("@/pages/admin/guests/GuestPreference.vue") },
 
       // Guest Documents
-      { path: "guests/documents",                                  name: "guest-documents-list",   component: GuestDocumentsList },
-      { path: "guests/:guestId/documents/create",                  name: "guest-documents-create", component: GuestDocumentForm,  props: true },
-      { path: "guests/:guestId/documents/:documentId/edit",        name: "guest-documents-edit",   component: GuestDocumentForm,  props: true },
+      { path: "guests/documents",                                  name: "guest-documents-list",   component: () => import("@/pages/admin/guests/GuestDocumentsList.vue") },
+      { path: "guests/:guestId/documents/create",                  name: "guest-documents-create", component: () => import("@/pages/admin/guests/GuestDocumentForm.vue"),  props: true },
+      { path: "guests/:guestId/documents/:documentId/edit",        name: "guest-documents-edit",   component: () => import("@/pages/admin/guests/GuestDocumentForm.vue"),  props: true },
 
       // ── Housekeeping ───────────────────────────────────────
-      { path: "housekeeping/today",                  name: "housekeeping-today",              component: Housekeeping_Today },
-      { path: "housekeeping/create",                 name: "housekeeping-create",             component: HousekeepingForm },
-      { path: "housekeeping/:taskId/edit",           name: "housekeeping-edit",               component: HousekeepingForm },
+      { path: "housekeeping/today",                  name: "housekeeping-today",              component: () => import("@/pages/admin/housekeeping/Housekeeping_Today.vue") },
+      { path: "housekeeping/create",                 name: "housekeeping-create",             component: () => import("@/pages/admin/housekeeping/HousekeepingForm.vue") },
+      { path: "housekeeping/:taskId/edit",           name: "housekeeping-edit",               component: () => import("@/pages/admin/housekeeping/HousekeepingForm.vue") },
 
-      { path: "housekeeping/tasks",                  name: "admin.housekeeping.tasks",        component: Housekeeping_Task },
-      { path: "housekeeping/create",                 name: "admin.housekeeping.create",       component: CreateHouse_Task },
-      { path: "housekeeping/calendar",               name: "admin.housekeeping.calender",     component: Housekeeping_Calender },
-      { path: "housekeeping/checklist",              name: "admin.housekeeping.checklist",    component: Housekeeping_Checklist },
-      { path: "housekeeping/performance",            name: "admin.housekeeping.performance",  component: Housekeeping_Performance },
-      { path: "housekeeping/staff/:staffId/tasks",   name: "admin.housekeeping.staff.tasks",  component: Housekeeping_StaffTasks, props: true },
+      { path: "housekeeping/tasks",                  name: "admin.housekeeping.tasks",        component: () => import("@/pages/admin/housekeeping/Housekeeping_Task.vue") },
+      { path: "housekeeping/create",                 name: "admin.housekeeping.create",       component: () => import("@/pages/admin/housekeeping/CreateHouse_Task.vue") },
+      { path: "housekeeping/calendar",               name: "admin.housekeeping.calender",     component: () => import("@/pages/admin/housekeeping/Housekeeping_Calender.vue") },
+      { path: "housekeeping/checklist",              name: "admin.housekeeping.checklist",    component: () => import("@/pages/admin/housekeeping/housekeeping_Checklist.vue") },
+      { path: "housekeeping/performance",            name: "admin.housekeeping.performance",  component: () => import("@/pages/admin/housekeeping/Housekeeping_Performance.vue") },
+      { path: "housekeeping/staff/:staffId/tasks",   name: "admin.housekeeping.staff.tasks",  component: () => import("@/pages/admin/housekeeping/Housekeeping_StaffTasks.vue"), props: true },
 
-      { path: "housekeeping/assign",        name: "housekeeping-assign",    component: HousekeepingAssign },
-
+      { path: "housekeeping/assign",        name: "housekeeping-assign",    component: () => import("@/pages/admin/housekeeping/HousekeepingAssign.vue") },
 
       // ── Reservations ───────────────────────────────────────
-      { path: "reservations",               name: "admin.booking",          component: AllBooking },
-      { path: "reservations/create",        name: "admin.booking.create",   component: ReservationCreate },
-      { path: "reservations/calendar",      name: "admin.calendar",         component: Calender },
-      { path: "reservations/checkin",       name: "admin.checkin",          component: Checkin_Checkout },
-      { path: "reservations/availability",  name: "admin.availability",     component: Availability },
-      { path: "reservations/cancellations", name: "admin.cancellations",    component: Cancellations },
-      { path: "reservations/no-shows",      name: "admin.no-shows",         component: ReservationsNoShowsData },
+      { path: "reservations",               name: "admin.booking",          component: () => import("@/pages/admin/reservation/AllBooking.vue") },
+      { path: "reservations/create",        name: "admin.booking.create",   component: () => import("@/pages/admin/reservation/ReservationCreate.vue") },
+      { path: "reservations/calendar",      name: "admin.calendar",         component: () => import("@/pages/admin/reservation/Calender.vue") },
+      { path: "reservations/checkin",       name: "admin.checkin",          component: () => import("@/pages/admin/reservation/Checkin_Checkout.vue") },
+      { path: "reservations/availability",  name: "admin.availability",     component: () => import("@/pages/admin/reservation/Availability.vue") },
+      { path: "reservations/cancellations", name: "admin.cancellations",    component: () => import("@/pages/admin/reservation/Cancellations.vue") },
+      { path: "reservations/no-shows",      name: "admin.no-shows",         component: () => import("@/pages/admin/reservation/ReservationsNoShowsData.vue") },
 
       // ── Billing ────────────────────────────────────────────
-      { path: "pos/transactions",  name: "admin.transactions",  component: Transactions },
-      { path: "pos/daily-sales",   name: "admin.daily-sales",   component: DailySale },
+      { path: "pos/transactions",  name: "admin.transactions",  component: () => import("@/pages/admin/billding/Transactions.vue") },
+      { path: "pos/daily-sales",   name: "admin.daily-sales",   component: () => import("@/pages/admin/billding/DailySale.vue") },
 
-      { path: "billing/invoices",                  name: "admin.invoices",          component: Invoices },
-      { path: "billing/invoices/create",           name: "billing-invoices-create", component: InvoiceFormView },
-      { path: "billing/invoices/:invoiceId/edit",  name: "billing-invoices-edit",   component: InvoiceFormView, props: true },
+      { path: "billing/invoices",                  name: "admin.invoices",          component: () => import("@/pages/admin/billding/Invoices.vue") },
+      { path: "billing/invoices/create",           name: "billing-invoices-create", component: () => import("@/pages/admin/billding/InvoiceFormView.vue") },
+      { path: "billing/invoices/:invoiceId/edit",  name: "billing-invoices-edit",   component: () => import("@/pages/admin/billding/InvoiceFormView.vue"), props: true },
 
-      { path: "billing/payments",        name: "billing-payments",        component: PaymentList },
-      { path: "billing/payments/create", name: "billing-payments-create", component: PaymentForm },
+      { path: "billing/payments",        name: "billing-payments",        component: () => import("@/pages/admin/billding/PaymentList.vue") },
+      { path: "billing/payments/create", name: "billing-payments-create", component: () => import("@/pages/admin/billding/PaymentForm.vue") },
 
-      { path: "billing/deposits",              name: "admin.deposits",          component: Deposits },
-      { path: "billing/deposits/:bookingId",   name: "billing-deposits-show",   component: DepositsShow, props: true },
+      { path: "billing/deposits",              name: "admin.deposits",          component: () => import("@/pages/admin/billding/Deposits.vue") },
+      { path: "billing/deposits/:bookingId",   name: "billing-deposits-show",   component: () => import("@/pages/admin/billding/DepositsShow.vue"), props: true },
 
-      { path: "billing/extra-charges",                name: "admin.extra-charges",                 component: ExtraChargesList },
-      { path: "billing/extra-charges/create",         name: "admin.billing-extra-charges-create",  component: ExtraChargeForm},
-      { path: "billing/extra-charges/:chargeId/edit", name: "admin.billing-extra-charges-edit",    component: ExtraChargeForm, props: true },
+      { path: "billing/extra-charges",                name: "admin.extra-charges",                 component: () => import("@/pages/admin/billding/ExtraChargesList.vue") },
+      { path: "billing/extra-charges/create",         name: "admin.billing-extra-charges-create",  component: () => import("@/pages/admin/billding/ExtraChargeForm.vue") },
+      { path: "billing/extra-charges/:chargeId/edit", name: "admin.billing-extra-charges-edit",    component: () => import("@/pages/admin/billding/ExtraChargeForm.vue"), props: true },
 
-      { path: "billing/refunds",                 name: "billing-refunds",         component: RefundsList, },
-      { path: "billing/refunds/create",          name: "billing-refunds-create",  component: RefundForm   },
-      { path: "billing/refunds/:refundId/edit",  name: "billing-refunds-edit",    component: RefundForm,  props: true,  },
+      { path: "billing/refunds",                 name: "billing-refunds",         component: () => import("@/pages/admin/billding/RefundsList.vue") },
+      { path: "billing/refunds/create",          name: "billing-refunds-create",  component: () => import("@/pages/admin/billding/RefundForm.vue") },
+      { path: "billing/refunds/:refundId/edit",  name: "billing-refunds-edit",    component: () => import("@/pages/admin/billding/RefundForm.vue"), props: true },
 
       // ── Reports ────────────────────────────────────────────
-      { path: "reports/daily",            name: "reports.dailys",                 component: ReportDaily },
-      { path: "reports/monthly",          name: "reports.monthlys",               component: ReportsMonthly },
-      { path: "reports/occupancy",        name: "admin.reports.occupancy",        component: Occupancy },    
-      { path: "reports/revenue",          name: "admin.reports.revenue",          component: Revenue },
-      { path: "reports/payment-methods",  name: "admin.reports.payment-methods",  component: ReportsPaymentMethods },
-      { path: "reports/room-sales",       name: "admin.reports.room_sale",        component: RoomSale },
-      { path: "reports/guests",           name: "admin.reports.guest",            component: Guests },
+      { path: "reports/daily",            name: "reports.dailys",                 component: () => import("@/pages/admin/reports/ReportDaily.vue") },
+      { path: "reports/monthly",          name: "reports.monthlys",               component: () => import("@/pages/admin/reports/ReportsMonthly.vue") },
+      { path: "reports/occupancy",        name: "admin.reports.occupancy",        component: () => import("@/pages/admin/reports/Occupancy.vue") },    
+      { path: "reports/revenue",          name: "admin.reports.revenue",          component: () => import("@/pages/admin/reports/Revenue.vue") },
+      { path: "reports/payment-methods",  name: "admin.reports.payment-methods",  component: () => import("@/pages/admin/reports/ReportsPaymentMethods.vue") },
+      { path: "reports/room-sales",       name: "admin.reports.room_sale",        component: () => import("@/pages/admin/reports/RoomSale.vue") },
+      { path: "reports/guests",           name: "admin.reports.guest",            component: () => import("@/pages/admin/reports/Guests.vue") },
 
       // ── Settings ───────────────────────────────────────────
-      { path: "settings/users",                          name: "admin.setting.users",               component: User },
-      { path: "settings/create",                         name: "admin.setting.create",              component: CreateUser },
-      { path: "settings/roles",                          name: "admin.setting.role",                component: Role },
-      { path: "settings/create/role",                    name: "admin.setting.create.role",         component: CreateRole },
-      { path: "settings/permissions",                    name: "admin.setting.permission",          component: Permission },
-      { path: "settings/permissions/create",             name: "admin.setting.permission.create",   component: CreatePermission },
-      { path: "settings/permissions/:permissionId/edit", name: "admin.settings.permissions.edit",   component: CreatePermission, props: true },
-      { path: "settings/payment-methods",                name: "admin.settings.payment-methods",    component: PaymentMethod },
-      // { path: "settings/general",                        name: "admin.settings.general",            component: General },
-      { path: "settings/property",                       name: "admin.settings.property",           component: SettingsProperty },
-      { path: "settings/config",                         name: "admin.settings.config",             component: SettingsConfig },
-      { path: "settings/audit",                          name: "admin.settings.audit",              component: SettingsAudit },
-
+      { path: "settings/users",                          name: "admin.setting.users",               component: () => import("@/pages/admin/setting/User.vue") },
+      { path: "settings/create",                         name: "admin.setting.create",              component: () => import("@/pages/admin/setting/CreateUser.vue") },
+      { path: "settings/roles",                          name: "admin.setting.role",                component: () => import("@/pages/admin/setting/Role.vue") },
+      { path: "settings/create/role",                    name: "admin.setting.create.role",         component: () => import("@/pages/admin/setting/CreateRole.vue") },
+      { path: "settings/permissions",                    name: "admin.setting.permission",          component: () => import("@/pages/admin/setting/Permission.vue") },
+      { path: "settings/permissions/create",             name: "admin.setting.permission.create",   component: () => import("@/pages/admin/setting/CreatePermission.vue") },
+      { path: "settings/permissions/:permissionId/edit", name: "admin.settings.permissions.edit",   component: () => import("@/pages/admin/setting/CreatePermission.vue"), props: true },
+      { path: "settings/payment-methods",                name: "admin.settings.payment-methods",    component: () => import("@/pages/admin/setting/PaymentMethod.vue") },
+      { path: "settings/property",                       name: "admin.settings.property",           component: () => import("@/pages/admin/setting/SettingsProperty.vue") },
+      { path: "settings/config",                         name: "admin.settings.config",             component: () => import("@/pages/admin/setting/SettingsConfig.vue") },
+      { path: "settings/audit",                          name: "admin.settings.audit",              component: () => import("@/pages/admin/setting/SettingsAudit.vue") },
 
       // ── POS (within admin layout) ──────────────────────────
-      { path: "pos/history",      name: "admin.pos.history",       component: PosHistory },
-      { path: "pos/history/:id",  name: "admin.pos.history.views", component: PosHistoryView, props: true },
-      { path: "pos/closing",      name: "admin.pos.closing",       component: PosClosingData },
+      { path: "pos/history",      name: "admin.pos.history",       component: () => import("@/pages/pos/PosHistory.vue") },
+      { path: "pos/history/:id",  name: "admin.pos.history.views", component: () => import("@/pages/pos/PosHistoryView.vue"), props: true },
+      { path: "pos/closing",      name: "admin.pos.closing",       component: () => import("@/pages/pos/PosClosingData.vue") },
     ],
   },
 
@@ -258,16 +148,16 @@ const routes = [
     name: "admin.pos",
     component: PosLayout,
     children: [
-      { path: "",         name: "admin.pos.index",    component: Index },
-      { path: "customer", name: "admin.pos.customer", component: CustomerView },
+      { path: "",         name: "admin.pos.index",    component: () => import("@/pages/pos/Index.vue") },
+      { path: "customer", name: "admin.pos.customer", component: () => import("@/pages/pos/CustomerView.vue") },
     ],
   },
 
-  // ── 404 ────────────────────────────────────────────────────//
+  // ── 404 ────────────────────────────────────────────────────
   {
     path: "/:pathMatch(.*)*",
     name: "NotFound",
-    component: NotFoundView,
+    component: () => import("@/pages/NotFoundView.vue"),
     meta: { title: "404 - Page Not Found" },
   },
 ]
