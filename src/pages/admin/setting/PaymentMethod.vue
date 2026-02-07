@@ -1,696 +1,860 @@
+<template>
+  <div class="pm-page">
+    <!-- Header -->
+    <header class="pm-header">
+      <div>
+        <h1 class="pm-title">Settings · Payment Methods</h1>
+        <p class="pm-subtitle">
+          Manage how guests can pay (Cash, KHQR, Card, Bank transfer) and control fees & rules.
+        </p>
+      </div>
+
+      <div class="pm-actions">
+        <VaButton preset="secondary" icon="restart_alt" @click="resetFilters">
+          Reset
+        </VaButton>
+
+        <VaButton color="primary" icon="add" @click="openCreate">
+          Add Method
+        </VaButton>
+      </div>
+    </header>
+
+    <!-- Summary -->
+    <section class="pm-summary" aria-label="Payment summary">
+      <div class="pm-card">
+        <div class="pm-card-label">Total</div>
+        <div class="pm-card-value">{{ methods.length }}</div>
+        <div class="pm-card-meta">Payment methods configured</div>
+      </div>
+
+      <div class="pm-card">
+        <div class="pm-card-label">Active</div>
+        <div class="pm-card-value">{{ activeCount }}</div>
+        <div class="pm-card-meta">Visible to cashier / checkout</div>
+      </div>
+
+      <div class="pm-card">
+        <div class="pm-card-label">Online / KHQR</div>
+        <div class="pm-card-value">{{ onlineCount }}</div>
+        <div class="pm-card-meta">Scan / wallet payments</div>
+      </div>
+
+      <div class="pm-card">
+        <div class="pm-card-label">With Fees</div>
+        <div class="pm-card-value">{{ feeCount }}</div>
+        <div class="pm-card-meta">Card or provider fee enabled</div>
+      </div>
+    </section>
+
+    <!-- Filters -->
+    <section class="pm-filters" aria-label="Filters">
+      <VaInput
+        v-model="q"
+        class="pm-search"
+        placeholder="Search method… (Cash, ABA, Card)"
+        clearable
+      >
+        <template #prependInner>
+          <VaIcon name="search" color="secondary" />
+        </template>
+      </VaInput>
+
+      <VaSelect
+        v-model="typeFilter"
+        :options="typeOptions"
+        text-by="label"
+        value-by="value"
+        label="Type"
+        class="pm-select"
+      />
+
+      <VaSelect
+        v-model="statusFilter"
+        :options="statusOptions"
+        text-by="label"
+        value-by="value"
+        label="Status"
+        class="pm-select"
+      />
+
+      <VaSelect
+        v-model="currencyFilter"
+        :options="currencyOptions"
+        text-by="label"
+        value-by="value"
+        label="Currency"
+        class="pm-select"
+      />
+    </section>
+
+    <!-- Content -->
+    <section class="pm-content">
+      <!-- Left: List -->
+      <div class="pm-list">
+        <VaCard
+          v-for="m in filtered"
+          :key="m.id"
+          class="pm-item"
+          :class="{ 'pm-item--inactive': !m.is_active, 'pm-item--selected': selectedId === m.id }"
+          @click="select(m.id)"
+        >
+          <div class="pm-item-left">
+            <div class="pm-icon">
+              <VaIcon :name="m.icon" size="22px" />
+            </div>
+
+            <div class="pm-item-main">
+              <div class="pm-item-top">
+                <div class="pm-name">{{ m.name }}</div>
+
+                <div class="pm-badges">
+                  <span class="pm-badge" :class="m.is_active ? 'b-active' : 'b-inactive'">
+                    {{ m.is_active ? "Active" : "Inactive" }}
+                  </span>
+                  <span class="pm-badge b-type">{{ labelType(m.type) }}</span>
+                </div>
+              </div>
+
+              <div class="pm-desc">{{ m.description }}</div>
+
+              <div class="pm-meta">
+                <span class="pm-pill">Code: {{ m.code }}</span>
+                <span class="pm-pill">Currency: {{ m.currency.join(", ") }}</span>
+                <span class="pm-pill" v-if="m.auto_confirm">Auto-confirm</span>
+                <span class="pm-pill" v-if="m.require_reference">Ref required</span>
+                <span class="pm-pill" v-if="hasFee(m)">Fee: {{ feeLabel(m) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="pm-item-right">
+            <VaSwitch
+              :model-value="m.is_active"
+              @update:model-value="(val) => toggleActive(m.id, val)"
+              aria-label="Toggle active"
+            />
+          </div>
+        </VaCard>
+
+        <div v-if="filtered.length === 0" class="pm-empty">
+          <VaIcon name="payments" size="36px" color="secondary" />
+          <div class="pm-empty-title">No payment methods found</div>
+          <div class="pm-empty-sub">Try clearing filters or add a new method.</div>
+          <VaButton color="primary" icon="add" @click="openCreate">Add Method</VaButton>
+        </div>
+      </div>
+
+      <!-- Right: Details -->
+      <aside class="pm-detail" aria-label="Selected method details">
+        <VaCard class="pm-detail-card" v-if="selected">
+          <div class="pm-detail-head">
+            <div class="pm-detail-title">
+              <div class="pm-detail-icon">
+                <VaIcon :name="selected.icon" size="22px" />
+              </div>
+              <div>
+                <div class="pm-detail-name">{{ selected.name }}</div>
+                <div class="pm-detail-sub">{{ selected.description }}</div>
+              </div>
+            </div>
+
+            <div class="pm-detail-actions">
+              <VaButton preset="secondary" icon="edit" @click="openEdit(selected)">
+                Edit
+              </VaButton>
+              <VaButton preset="secondary" color="danger" icon="delete" @click="remove(selected.id)">
+                Remove
+              </VaButton>
+            </div>
+          </div>
+
+          <div class="pm-detail-grid">
+            <div class="pm-kv">
+              <div class="k">Status</div>
+              <div class="v">
+                <span class="pm-badge" :class="selected.is_active ? 'b-active' : 'b-inactive'">
+                  {{ selected.is_active ? "Active" : "Inactive" }}
+                </span>
+              </div>
+            </div>
+
+            <div class="pm-kv">
+              <div class="k">Type</div>
+              <div class="v">{{ labelType(selected.type) }}</div>
+            </div>
+
+            <div class="pm-kv">
+              <div class="k">Currencies</div>
+              <div class="v">{{ selected.currency.join(", ") }}</div>
+            </div>
+
+            <div class="pm-kv">
+              <div class="k">Auto-confirm</div>
+              <div class="v">{{ selected.auto_confirm ? "Yes" : "No" }}</div>
+            </div>
+
+            <div class="pm-kv">
+              <div class="k">Reference required</div>
+              <div class="v">{{ selected.require_reference ? "Yes" : "No" }}</div>
+            </div>
+
+            <div class="pm-kv">
+              <div class="k">Fee</div>
+              <div class="v">{{ hasFee(selected) ? feeLabel(selected) : "None" }}</div>
+            </div>
+          </div>
+
+          <div class="pm-detail-note">
+            Tip: Enable “Reference required” for KHQR / Bank transfer so staff can record txn id.
+          </div>
+        </VaCard>
+
+        <VaCard class="pm-detail-card pm-detail-empty" v-else>
+          <div class="pm-empty-title">Select a payment method</div>
+          <div class="pm-empty-sub">Click a card on the left to view details.</div>
+        </VaCard>
+      </aside>
+    </section>
+
+    <!-- Create/Edit Modal -->
+    <VaModal
+      v-model="modalOpen"
+      hide-default-actions
+      size="large"
+      max-width="760px"
+    >
+      <template #header>
+        <div class="pm-modal-title">
+          <VaIcon :name="form.id ? 'edit' : 'add'" />
+          <span>{{ form.id ? "Edit Payment Method" : "Add Payment Method" }}</span>
+        </div>
+      </template>
+
+      <div class="pm-modal-body">
+        <div class="pm-form-grid">
+          <VaInput v-model="form.name" label="Name" placeholder="e.g. ABA Pay / KHQR" />
+          <VaInput v-model="form.code" label="Code" placeholder="e.g. ABA" />
+
+          <VaSelect
+            v-model="form.type"
+            :options="typeOptions"
+            text-by="label"
+            value-by="value"
+            label="Type"
+          />
+
+          <VaSelect
+            v-model="form.icon"
+            :options="iconOptions"
+            label="Icon"
+          />
+
+          <VaTextarea
+            v-model="form.description"
+            label="Description"
+            placeholder="Short help text for staff"
+            autosize
+          />
+
+          <div class="pm-form-row">
+            <div class="pm-label">Currencies</div>
+            <div class="pm-chips">
+              <VaChip
+                v-for="c in allCurrencies"
+                :key="c"
+                :model-value="form.currency.includes(c)"
+                @update:model-value="(v) => toggleCurrency(c, v)"
+                outline
+              >
+                {{ c }}
+              </VaChip>
+            </div>
+          </div>
+
+          <div class="pm-form-row pm-form-split">
+            <VaInput
+              v-model.number="form.fee_percent"
+              label="Fee %"
+              type="number"
+              min="0"
+              step="0.1"
+              placeholder="0"
+            />
+            <VaInput
+              v-model.number="form.fee_fixed"
+              label="Fee fixed"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="0"
+            />
+          </div>
+
+          <div class="pm-form-row pm-form-switches">
+            <VaSwitch v-model="form.is_active" label="Active" />
+            <VaSwitch v-model="form.auto_confirm" label="Auto-confirm" />
+            <VaSwitch v-model="form.require_reference" label="Reference required" />
+          </div>
+        </div>
+
+        <div class="pm-modal-footer">
+          <VaButton preset="secondary" @click="closeModal">Cancel</VaButton>
+          <VaButton color="primary" @click="save">
+            {{ form.id ? "Save Changes" : "Create Method" }}
+          </VaButton>
+        </div>
+      </div>
+    </VaModal>
+  </div>
+</template>
 <script setup>
-import { ref, computed, reactive, nextTick, watch } from "vue"
-import $ from "jquery"
-import { payment_method as seed } from "@/data/setting/payment_method"
+import { computed, ref } from "vue";
+import { payment_method as paymentMethodData } from "@/data/setting/payment_method"; 
+// If your file exports a different name, change it:
+// e.g. import { paymentMethods as paymentMethodData } from "@/data/setting/payment_method";
 
-const rows = ref(seed.map((x) => ({ ...x })))
+/** ---------- Data ---------- */
+// IMPORTANT: methods must exist
+const methods = ref(Array.isArray(paymentMethodData) ? paymentMethodData : []);
 
-// filters
-const q = ref("")
-const activeF = ref("") // "" | "active" | "inactive"
-const sort = ref("label")
+/** ---------- Filters ---------- */
+const q = ref("");
+const typeFilter = ref("all");
+const statusFilter = ref("all");
+const currencyFilter = ref("all");
 
-const safe = (v) => (v ?? "").toString().toLowerCase()
+const typeOptions = [
+  { label: "All", value: "all" },
+  { label: "Offline", value: "offline" },
+  { label: "Online / KHQR", value: "online" },
+  { label: "Terminal", value: "terminal" },
+  { label: "Manual", value: "manual" },
+];
+
+const statusOptions = [
+  { label: "All", value: "all" },
+  { label: "Active", value: "active" },
+  { label: "Inactive", value: "inactive" },
+];
+
+const currencyOptions = [
+  { label: "All", value: "all" },
+  { label: "USD", value: "USD" },
+  { label: "KHR", value: "KHR" },
+];
 
 const filtered = computed(() => {
-  const key = safe(q.value)
+  const text = q.value.trim().toLowerCase();
 
-  let list = rows.value.filter((r) => {
-    const hit =
-      !key ||
-      safe(r.label).includes(key) ||
-      safe(r.code).includes(key) ||
-      safe(r.db_value).includes(key) ||
-      safe(r.description).includes(key)
+  return methods.value.filter((m) => {
+    // protect against missing fields
+    const name = (m.name || "").toLowerCase();
+    const code = (m.code || "").toLowerCase();
+    const desc = (m.description || "").toLowerCase();
+    const currency = Array.isArray(m.currency) ? m.currency : [];
 
-    const okActive =
-      activeF.value === ""
-        ? true
-        : Boolean(r.is_active) === (activeF.value === "active")
+    const matchesText = !text || name.includes(text) || code.includes(text) || desc.includes(text);
+    const matchesType = typeFilter.value === "all" || m.type === typeFilter.value;
 
-    return hit && okActive
-  })
+    const matchesStatus =
+      statusFilter.value === "all" ||
+      (statusFilter.value === "active" ? !!m.is_active : !m.is_active);
 
-  if (sort.value === "label") list.sort((a, b) => safe(a.label).localeCompare(safe(b.label)))
-  if (sort.value === "code") list.sort((a, b) => safe(a.code).localeCompare(safe(b.code)))
-  if (sort.value === "db") list.sort((a, b) => safe(a.db_value).localeCompare(safe(b.db_value)))
-  if (sort.value === "active") list.sort((a, b) => Number(!!b.is_active) - Number(!!a.is_active))
+    const matchesCurrency =
+      currencyFilter.value === "all" || currency.includes(currencyFilter.value);
 
-  return list
-})
+    return matchesText && matchesType && matchesStatus && matchesCurrency;
+  });
+});
 
-const stats = computed(() => {
-  const total = rows.value.length
-  const active = rows.value.filter((r) => r.is_active).length
-  return { total, active }
-})
+function resetFilters() {
+  q.value = "";
+  typeFilter.value = "all";
+  statusFilter.value = "all";
+  currencyFilter.value = "all";
+}
 
-// slideDown modal (one form for create/edit)
-const modalOpen = ref(false)
-const mode = ref("create") // create | edit
-const selected = ref(null)
-const panelRef = ref(null)
+/** ---------- Helpers ---------- */
+function labelType(type) {
+  const found = typeOptions.find((x) => x.value === type);
+  return found ? found.label : (type || "-");
+}
+function hasFee(m) {
+  return (Number(m?.fee_percent) || 0) > 0 || (Number(m?.fee_fixed) || 0) > 0;
+}
+function feeLabel(m) {
+  const p = Number(m?.fee_percent) || 0;
+  const f = Number(m?.fee_fixed) || 0;
+  if (p && f) return `${p}% + ${f}`;
+  if (p) return `${p}%`;
+  if (f) return `${f}`;
+  return "0";
+}
 
-const form = reactive({
+/** ---------- Summary ---------- */
+const totalCount = computed(() => methods.value.length);
+const activeCount = computed(() => methods.value.filter((m) => !!m.is_active).length);
+const onlineCount = computed(() => methods.value.filter((m) => m.type === "online").length);
+const feeCount = computed(() => methods.value.filter((m) => hasFee(m)).length);
+
+/** ---------- Selection ---------- */
+const selectedId = ref(null);
+const selected = computed(() => methods.value.find((m) => m.id === selectedId.value) || null);
+
+function select(id) {
+  selectedId.value = id;
+}
+
+function toggleActive(id, val) {
+  const idx = methods.value.findIndex((m) => m.id === id);
+  if (idx >= 0) methods.value[idx].is_active = !!val;
+}
+
+/** ---------- Modal (Create/Edit) ---------- */
+const modalOpen = ref(false);
+const allCurrencies = ["USD", "KHR"];
+
+const iconOptions = [
+  "payments",
+  "qr_code",
+  "qr_code_2",
+  "credit_card",
+  "account_balance",
+  "account_balance_wallet",
+  "receipt_long",
+];
+
+const emptyForm = () => ({
+  id: null,
   code: "",
-  label: "",
-  db_value: "cash",
+  name: "",
   icon: "payments",
   description: "",
+  type: "offline",
+  currency: ["USD", "KHR"],
+  fee_percent: 0,
+  fee_fixed: 0,
+  auto_confirm: true,
+  require_reference: false,
   is_active: true,
-})
+});
 
-function resetForm() {
-  form.code = ""
-  form.label = ""
-  form.db_value = "cash"
-  form.icon = "payments"
-  form.description = ""
-  form.is_active = true
-}
-
-const dbEnumOptions = [
-  "cash",
-  "credit_card",
-  "debit_card",
-  "bank_transfer",
-  "mobile_payment",
-  "check",
-  "other",
-]
+const form = ref(emptyForm());
 
 function openCreate() {
-  mode.value = "create"
-  selected.value = null
-  resetForm()
-  modalOpen.value = true
-  slideDownPanel()
+  form.value = emptyForm();
+  modalOpen.value = true;
 }
 
-function openEdit(r) {
-  mode.value = "edit"
-  selected.value = r
-  form.code = r.code || ""
-  form.label = r.label || ""
-  form.db_value = r.db_value || "cash"
-  form.icon = r.icon || "payments"
-  form.description = r.description || ""
-  form.is_active = !!r.is_active
-  modalOpen.value = true
-  slideDownPanel()
+function openEdit(m) {
+  form.value = JSON.parse(JSON.stringify(m));
+  modalOpen.value = true;
 }
 
 function closeModal() {
-  slideUpPanel(() => {
-    modalOpen.value = false
-    selected.value = null
-  })
+  modalOpen.value = false;
 }
 
-function slideDownPanel() {
-  nextTick(() => {
-    const el = panelRef.value
-    if (!el) return
-    $(el).stop(true, true).css("display", "none").slideDown(240)
-  })
-}
-function slideUpPanel(cb) {
-  const el = panelRef.value
-  if (!el) return cb?.()
-  $(el).stop(true, true).slideUp(200, () => cb?.())
-}
+function toggleCurrency(c, val) {
+  const arr = Array.isArray(form.value.currency) ? form.value.currency : [];
+  const has = arr.includes(c);
 
-const canSave = computed(() => {
-  return String(form.code).trim() && String(form.label).trim() && String(form.db_value).trim()
-})
+  if (val && !has) arr.push(c);
+  if (!val && has) form.value.currency = arr.filter((x) => x !== c);
+
+  if (!form.value.currency || form.value.currency.length === 0) {
+    form.value.currency = ["USD"];
+  }
+}
 
 function save() {
-  if (!canSave.value) return alert("Please fill Code, Label, and DB Value.")
+  if (!form.value.name.trim()) return;
+  if (!form.value.code.trim()) return;
 
-  const payload = {
-    code: String(form.code).trim(),
-    label: String(form.label).trim(),
-    db_value: String(form.db_value).trim(),
-    icon: String(form.icon || "").trim() || "payments",
-    description: String(form.description || "").trim(),
-    is_active: !!form.is_active,
-  }
+  form.value.code = form.value.code.trim().toUpperCase();
 
-  if (mode.value === "create") {
-    if (rows.value.some((x) => safe(x.code) === safe(payload.code))) {
-      return alert("Code already exists. Please use another code.")
-    }
-    rows.value.unshift(payload)
+  if (form.value.id) {
+    const idx = methods.value.findIndex((m) => m.id === form.value.id);
+    if (idx >= 0) methods.value[idx] = JSON.parse(JSON.stringify(form.value));
+    selectedId.value = form.value.id;
   } else {
-    const idx = rows.value.findIndex((x) => x === selected.value)
-    if (idx === -1) return
-    rows.value.splice(idx, 1, { ...rows.value[idx], ...payload })
+    const nextId = Math.max(0, ...methods.value.map((m) => Number(m.id) || 0)) + 1;
+    const newItem = { ...form.value, id: nextId };
+    methods.value.unshift(newItem);
+    selectedId.value = nextId;
   }
 
-  closeModal()
+  modalOpen.value = false;
 }
 
-function toggleActive(r) {
-  r.is_active = !r.is_active
+function remove(id) {
+  methods.value = methods.value.filter((m) => m.id !== id);
+  if (selectedId.value === id) selectedId.value = null;
 }
-
-function resetFilters() {
-  q.value = ""
-  activeF.value = ""
-  sort.value = "label"
-}
-
-function exportCSV() {
-  const header = ["code", "label", "db_value", "icon", "description", "is_active"]
-  const toCSV = (v) => `"${String(v ?? "").replaceAll('"', '""')}"`
-  const lines = [
-    header.join(","),
-    ...filtered.value.map((r) =>
-      [
-        r.code,
-        r.label,
-        r.db_value,
-        r.icon,
-        r.description,
-        r.is_active ? 1 : 0,
-      ].map(toCSV).join(",")
-    ),
-  ]
-
-  const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement("a")
-  a.href = url
-  a.download = "payment_methods.csv"
-  a.click()
-  URL.revokeObjectURL(url)
-}
-
-watch(modalOpen, (v) => (document.body.style.overflow = v ? "hidden" : ""))
 </script>
 
-<template>
-  <div class="page">
-    <!-- header -->
-    <div class="head">
-      <div>
-        <h1>Payment Methods</h1>
-        <p>POS methods • map UI code → DB enum • create/edit with jQuery slideDown</p>
-      </div>
-
-      <div class="headBtns">
-        <VaButton preset="secondary" icon="refresh" @click="resetFilters">Reset</VaButton>
-        <VaButton preset="secondary" icon="download" @click="exportCSV">Export</VaButton>
-        <VaButton color="success" icon="add" @click="openCreate">New Method</VaButton>
-      </div>
-    </div>
-
-    <!-- summary -->
-    <div class="stats">
-      <div class="stat">
-        <div class="k">Total</div>
-        <div class="v">{{ stats.total }}</div>
-      </div>
-      <div class="stat ok">
-        <div class="k">Active</div>
-        <div class="v">{{ stats.active }}</div>
-      </div>
-      <div class="stat blue">
-        <div class="k">DB ENUM</div>
-        <div class="v">{{ dbEnumOptions.length }} types</div>
-      </div>
-    </div>
-
-    <!-- filters -->
-    <VaCard class="filters">
-      <VaInput v-model="q" placeholder="Search label / code / db value..." />
-      <VaSelect v-model="activeF" :options="['', 'active', 'inactive']" label="Status" />
-      <VaSelect
-        v-model="sort"
-        :options="[
-          { text: 'Label A-Z', value: 'label' },
-          { text: 'Code', value: 'code' },
-          { text: 'DB Value', value: 'db' },
-          { text: 'Active First', value: 'active' },
-        ]"
-        text-by="text"
-        value-by="value"
-        label="Sort"
-      />
-    </VaCard>
-
-    <!-- table -->
-    <VaCard class="tableCard">
-      <div class="tableWrap">
-        <table class="tbl">
-          <thead>
-            <tr>
-              <th>Method</th>
-              <th>UI Code</th>
-              <th>DB ENUM</th>
-              <th>Description</th>
-              <th class="center">Status</th>
-              <th class="right">Action</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            <tr v-if="filtered.length === 0">
-              <td colspan="6" class="empty">No payment methods found.</td>
-            </tr>
-
-            <tr v-for="r in filtered" :key="r.code">
-              <td>
-                <div class="main">
-                  <span class="iconTag">{{ r.icon || "payments" }}</span>
-                  {{ r.label }}
-                </div>
-                <div class="sub mono">icon: {{ r.icon || "-" }}</div>
-              </td>
-
-              <td class="mono">{{ r.code }}</td>
-
-              <td>
-                <span class="pill soft">{{ r.db_value }}</span>
-              </td>
-
-              <td>
-                <div class="desc">{{ r.description || "-" }}</div>
-              </td>
-
-              <td class="center">
-                <span class="pill" :class="r.is_active ? 'ok' : 'danger'">
-                  {{ r.is_active ? "ACTIVE" : "INACTIVE" }}
-                </span>
-              </td>
-
-              <td class="right">
-                <div class="btns">
-                  <VaButton size="small" color="primary" @click="openEdit(r)">Edit</VaButton>
-                  <VaButton
-                    size="small"
-                    preset="secondary"
-                    :color="r.is_active ? 'danger' : 'success'"
-                    @click="toggleActive(r)"
-                  >
-                    {{ r.is_active ? "Disable" : "Enable" }}
-                  </VaButton>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </VaCard>
-
-    <!-- slideDown modal -->
-    <Teleport to="body">
-      <div v-if="modalOpen" class="overlay" @click="closeModal">
-        <div class="drawer" @click.stop>
-          <header class="drawerHead">
-            <div>
-              <div class="drawerTitle">{{ mode === "create" ? "Create Payment Method" : "Edit Payment Method" }}</div>
-              <div class="drawerSub">UI Code → DB ENUM mapping</div>
-            </div>
-            <VaButton preset="secondary" icon="close" @click="closeModal">Close</VaButton>
-          </header>
-
-          <section class="drawerBody">
-            <!-- jQuery slideDown target -->
-            <div ref="panelRef" class="drawerInner">
-              <div class="formGrid">
-                <VaInput v-model="form.label" label="Label *" placeholder="ex: ABA Transfer" />
-                <VaInput v-model="form.code" label="UI Code *" placeholder="ex: aba" />
-
-                <VaSelect v-model="form.db_value" :options="dbEnumOptions" label="DB Value (ENUM) *" />
-
-                <VaInput v-model="form.icon" label="Icon (Material)" placeholder="ex: account_balance" />
-
-                <VaTextarea
-                  v-model="form.description"
-                  class="wide"
-                  label="Description"
-                  :max-rows="4"
-                  placeholder="Explain how cashier should use this method..."
-                />
-
-                <div class="switchWrap wide">
-                  <div class="sw">
-                    <div>
-                      <div class="swTitle">Active</div>
-                      <div class="swHint">Show this method in POS payment options</div>
-                    </div>
-                    <VaSwitch v-model="form.is_active" />
-                  </div>
-                </div>
-
-                <div class="preview wide">
-                  <div class="t">Preview</div>
-                  <div class="prevRow">
-                    <span class="iconTag">{{ form.icon || "payments" }}</span>
-                    <div>
-                      <div class="main">{{ form.label || "-" }}</div>
-                      <div class="sub mono">code: {{ form.code || "-" }} • db: {{ form.db_value || "-" }}</div>
-                    </div>
-                    <span class="pill" :class="form.is_active ? 'ok' : 'danger'">
-                      {{ form.is_active ? "ACTIVE" : "INACTIVE" }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <footer class="drawerFoot">
-            <VaButton preset="secondary" @click="closeModal">Cancel</VaButton>
-            <VaButton color="success" icon="save" :disabled="!canSave" @click="save">
-              {{ mode === "create" ? "Save" : "Save Changes" }}
-            </VaButton>
-          </footer>
-        </div>
-      </div>
-    </Teleport>
-  </div>
-</template>
-
 <style scoped>
-.page {
-  padding: 20px 24px;
-  background: #f6f8fb;
-  min-height: 100vh;
+.pm-page {
+  min-height: calc(100vh - 60px);
+  background: #f8fafc;
+  padding: 18px 18px 28px;
+  color: #0f172a;
+  font-family: Inter, system-ui, sans-serif;
 }
-.head {
+
+/* Header */
+.pm-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 14px;
+  align-items: flex-end;
+  gap: 16px;
   margin-bottom: 14px;
 }
-.head h1 {
+.pm-title {
+  margin: 0;
   font-size: 22px;
   font-weight: 900;
-  color: #0f172a;
-  margin: 0;
 }
-.head p {
+.pm-subtitle {
   margin: 6px 0 0;
+  color: #64748b;
   font-size: 13px;
-  color: #475569;
+  line-height: 1.5;
+  max-width: 720px;
 }
-.headBtns {
+.pm-actions {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-  justify-content: flex-end;
 }
 
-/* summary stats */
-.stats {
+/* Summary */
+.pm-summary {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
-@media (max-width: 860px) {
-  .stats {
-    grid-template-columns: 1fr;
-  }
-}
-.stat {
+.pm-card {
   background: #fff;
-  border: 1px solid #eef2f6;
+  border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 14px;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
-  padding: 14px;
+  padding: 14px 14px 12px;
+  box-shadow: 0 1px 2px rgba(2, 6, 23, 0.04);
 }
-.stat .k {
+.pm-card-label {
   font-size: 12px;
-  color: #64748b;
   font-weight: 800;
+  color: #64748b;
 }
-.stat .v {
+.pm-card-value {
   margin-top: 6px;
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 900;
-  color: #0f172a;
 }
-.stat.ok .v {
-  color: #166534;
-}
-.stat.blue .v {
-  color: #1d4ed8;
-}
-
-/* filters */
-.filters {
-  background: #fff;
-  border: 1px solid #eef2f6;
-  border-radius: 14px;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
-  padding: 14px;
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-@media (max-width: 860px) {
-  .filters {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* table */
-.tableCard {
-  border-radius: 14px;
-  border: 1px solid #eef2f6;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
-}
-.tableWrap {
-  overflow-x: auto;
-}
-.tbl {
-  width: 100%;
-  border-collapse: collapse;
-  background: #fff;
-}
-.tbl th {
-  text-align: left;
-  padding: 12px 14px;
-  font-size: 12px;
-  color: #475569;
-  border-bottom: 1px solid #eef2f6;
-  background: #fbfcfe;
-  white-space: nowrap;
-}
-.tbl td {
-  padding: 12px 14px;
-  border-bottom: 1px solid #f1f5f9;
-  vertical-align: top;
-}
-.tbl tr:hover td {
-  background: #fafcff;
-}
-
-.right {
-  text-align: right;
-}
-.center {
-  text-align: center;
-}
-.main {
-  font-weight: 900;
-  color: #0f172a;
-  font-size: 13px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.sub {
+.pm-card-meta {
   margin-top: 4px;
   font-size: 12px;
-  color: #64748b;
-}
-.mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
-    monospace;
-  font-size: 12px;
-  color: #334155;
-  white-space: nowrap;
-}
-.desc {
-  color: #334155;
-  font-size: 12px;
-  line-height: 1.35;
-}
-.empty {
-  text-align: center;
-  padding: 20px !important;
-  font-weight: 800;
-  color: #64748b;
-}
-.btns {
-  display: inline-flex;
-  gap: 8px;
-  justify-content: flex-end;
-  flex-wrap: wrap;
+  color: #94a3b8;
 }
 
-/* pills + tags */
-.pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 900;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
-  color: #334155;
+/* Filters */
+.pm-filters {
+  display: grid;
+  grid-template-columns: 1.4fr 220px 220px 180px;
+  gap: 10px;
+  margin-bottom: 14px;
+  align-items: end;
 }
-.pill.soft {
-  background: #f1f5f9;
+.pm-search {
+  background: #fff;
+  border-radius: 14px;
 }
-.pill.ok {
-  background: #dcfce7;
-  border-color: #bbf7d0;
-  color: #166534;
-}
-.pill.danger {
-  background: #fee2e2;
-  border-color: #fecaca;
-  color: #991b1b;
-}
-.iconTag {
-  font-size: 11px;
-  font-weight: 900;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
-  padding: 4px 8px;
-  border-radius: 999px;
-  color: #334155;
+.pm-select {
+  background: #fff;
+  border-radius: 14px;
 }
 
-/* modal */
-.overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 99999;
-  background: rgba(15, 23, 42, 0.45);
+/* Content layout */
+.pm-content {
+  display: grid;
+  grid-template-columns: 1.35fr 0.9fr;
+  gap: 12px;
+  align-items: start;
+}
+
+/* List cards */
+.pm-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pm-item {
+  border-radius: 16px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 1px 2px rgba(2, 6, 23, 0.04);
+  padding: 14px;
+  cursor: pointer;
+  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+}
+.pm-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 26px rgba(2, 6, 23, 0.08);
+  border-color: rgba(14, 165, 233, 0.35);
+}
+.pm-item--inactive {
+  opacity: 0.72;
+}
+.pm-item--selected {
+  border-color: rgba(14, 165, 233, 0.55);
+  box-shadow: 0 10px 26px rgba(14, 165, 233, 0.08);
+}
+
+.pm-item-left {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.pm-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
   display: grid;
   place-items: center;
-  padding: 18px;
+  background: rgba(14, 165, 233, 0.10);
+  border: 1px solid rgba(14, 165, 233, 0.18);
+  color: #0284c7;
+  flex: 0 0 auto;
 }
-.drawer {
-  width: min(960px, 100%);
-  max-height: 95vh;
-  background: #fff;
-  border-radius: 16px;
-  border: 1px solid #eef2f6;
-  box-shadow: 0 30px 90px rgba(15, 23, 42, 0.22);
-  overflow: hidden;
+.pm-item-main {
+  flex: 1;
+  min-width: 0;
 }
-.drawerHead {
-  padding: 14px 16px;
-  border-bottom: 1px solid #eef2f6;
-  background: #fbfcfe;
+.pm-item-top {
   display: flex;
+  gap: 10px;
   justify-content: space-between;
   align-items: center;
+}
+.pm-name {
+  font-weight: 900;
+  font-size: 15px;
+}
+.pm-badges {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.pm-badge {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  background: rgba(15, 23, 42, 0.03);
+}
+.b-active {
+  border-color: rgba(16, 185, 129, 0.25);
+  background: rgba(16, 185, 129, 0.10);
+  color: #047857;
+}
+.b-inactive {
+  border-color: rgba(148, 163, 184, 0.35);
+  background: rgba(148, 163, 184, 0.12);
+  color: #475569;
+}
+.b-type {
+  border-color: rgba(14, 165, 233, 0.22);
+  background: rgba(14, 165, 233, 0.10);
+  color: #0369a1;
+}
+
+.pm-desc {
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.pm-meta {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pm-pill {
+  font-size: 11px;
+  color: #475569;
+  background: rgba(2, 6, 23, 0.04);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  padding: 4px 8px;
+  border-radius: 999px;
+}
+
+.pm-item-right {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Detail */
+.pm-detail {
+  position: sticky;
+  top: 14px;
+}
+.pm-detail-card {
+  border-radius: 16px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 10px 28px rgba(2, 6, 23, 0.06);
+  padding: 14px;
+}
+.pm-detail-empty {
+  padding: 18px;
+  text-align: center;
+}
+.pm-detail-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+.pm-detail-title {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.pm-detail-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba(14, 165, 233, 0.10);
+  border: 1px solid rgba(14, 165, 233, 0.18);
+  color: #0284c7;
+}
+.pm-detail-name {
+  font-weight: 900;
+  font-size: 16px;
+}
+.pm-detail-sub {
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 12px;
+}
+.pm-detail-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.pm-detail-grid {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.pm-kv .k {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 800;
+}
+.pm-kv .v {
+  margin-top: 4px;
+  font-weight: 800;
+  color: #0f172a;
+  font-size: 13px;
+}
+.pm-detail-note {
+  margin-top: 12px;
+  font-size: 12px;
+  color: #64748b;
+  background: rgba(2, 6, 23, 0.03);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+
+/* Modal */
+.pm-modal-title {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-weight: 900;
+}
+.pm-modal-body {
+  padding: 6px 2px 2px;
+}
+.pm-form-grid {
+  display: grid;
   gap: 12px;
 }
-.drawerTitle {
-  font-size: 16px;
-  font-weight: 900;
-  color: #0f172a;
+.pm-form-row {
+  display: grid;
+  gap: 8px;
 }
-.drawerSub {
-  margin-top: 2px;
+.pm-form-split {
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.pm-form-switches {
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  align-items: center;
+}
+.pm-label {
+  font-weight: 900;
   font-size: 12px;
   color: #64748b;
 }
-.drawerBody {
-  padding: 16px;
-  overflow: auto;
-  max-height: calc(92vh - 118px);
+.pm-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
-.drawerFoot {
-  padding: 14px 16px;
-  border-top: 1px solid #eef2f6;
+.pm-modal-footer {
+  margin-top: 14px;
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  background: #fff;
 }
 
-/* slideDown target */
-.drawerInner {
-  display: none; /* IMPORTANT: jQuery slideDown */
-}
-
-.formGrid {
+/* Empty */
+.pm-empty {
+  border: 1px dashed rgba(15, 23, 42, 0.18);
+  background: rgba(255, 255, 255, 0.65);
+  border-radius: 16px;
+  padding: 22px;
+  text-align: center;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 8px;
 }
-@media (max-width: 760px) {
-  .formGrid {
+.pm-empty-title {
+  font-weight: 900;
+  font-size: 14px;
+}
+.pm-empty-sub {
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* Responsive */
+@media (max-width: 1100px) {
+  .pm-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .pm-filters {
+    grid-template-columns: 1fr 1fr;
+  }
+  .pm-content {
     grid-template-columns: 1fr;
   }
-}
-.wide {
-  grid-column: 1 / -1;
-}
-.switchWrap {
-  border: 1px dashed #cbd5e1;
-  background: #f8fafc;
-  border-radius: 14px;
-  padding: 12px;
-}
-.sw {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-}
-.swTitle {
-  font-weight: 900;
-  color: #0f172a;
-}
-.swHint {
-  font-size: 12px;
-  color: #64748b;
-  margin-top: 3px;
-}
-
-/* preview */
-.preview {
-  border: 1px solid #eef2f6;
-  background: #fbfcfe;
-  border-radius: 14px;
-  padding: 12px;
-}
-.preview .t {
-  font-size: 12px;
-  color: #64748b;
-  font-weight: 800;
-  margin-bottom: 8px;
-}
-.prevRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-/* vuestic polish */
-:deep(.va-input__container),
-:deep(.va-select__container),
-:deep(.va-textarea__container) {
-  border-radius: 10px;
-  background: #f9fafb;
-}
-:deep(.va-button) {
-  border-radius: 10px;
-  font-weight: 800;
+  .pm-detail {
+    position: static;
+  }
 }
 </style>

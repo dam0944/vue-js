@@ -1,8 +1,8 @@
 <script setup>
 import { computed } from "vue"
 import { useRoute, useRouter } from "vue-router"
-import { housekeeping_Task } from "@/data/housekeeping/housekeeping_Task"
-import { housekeeping_today } from "@/data/housekeeping/housekeeping_today"
+import { housekeepingTasks } from "@/data/housekeeping/housekeeping_Task"
+import { housekeepingToday } from "@/data/housekeeping/housekeeping_today"
 
 const route = useRoute()
 const router = useRouter()
@@ -10,7 +10,7 @@ const router = useRouter()
 const staffId = computed(() => Number(route.params.staffId))
 
 // demo: merge today + tasks then filter by assigned_to
-const allTasks = computed(() => [...housekeeping_Task, ...housekeeping_today])
+const allTasks = computed(() => [...housekeepingTasks, ...housekeepingToday])
 
 const rows = computed(() =>
   allTasks.value

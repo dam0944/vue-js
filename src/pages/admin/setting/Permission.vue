@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, nextTick, watch } from "vue"
 import $ from "jquery"
-import { setting_permission as seed } from "@/data/setting/permission"
+import { permission as seed } from "@/data/setting/permission"
 
 // table data
 const rows = ref(seed.map((x) => ({ ...x })))

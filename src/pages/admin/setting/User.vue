@@ -1,817 +1,582 @@
+<template>
+  <div class="page">
+    <!-- Header -->
+    <div class="header">
+      <div class="head-left">
+        <h1 class="title">Settings · Users</h1>
+        <p class="subtitle">Manage staff accounts, roles, status, and access by property.</p>
+      </div>
+
+      <div class="head-right">
+        <VaButton color="primary" preset="primary" @click="openCreate">
+          <VaIcon name="person_add" class="mr-2" />
+          New User
+        </VaButton>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters">
+      <VaInput
+        v-model="q"
+        class="control"
+        placeholder="Search name, email, username, phone..."
+        clearable
+      >
+        <template #prependInner>
+          <VaIcon name="search" color="primary" />
+        </template>
+      </VaInput>
+
+      <VaSelect
+        v-model="status"
+        class="control"
+        label="Status"
+        :options="statusOptions"
+        text-by="text"
+        value-by="value"
+        clearable
+      />
+
+      <VaSelect
+        v-model="position"
+        class="control"
+        label="Position"
+        :options="positionOptions"
+        text-by="text"
+        value-by="value"
+        clearable
+      />
+
+      <VaSelect
+        v-model="property"
+        class="control"
+        label="Property Access"
+        :options="propertyOptions"
+        text-by="text"
+        value-by="value"
+        clearable
+      />
+
+      <VaButton preset="secondary" color="primary" @click="resetFilters">
+        Reset
+      </VaButton>
+    </div>
+
+    <!-- Summary line -->
+    <div class="meta">
+      <div class="meta-left">
+        <VaChip color="primary" square size="small">{{ filtered.length }}</VaChip>
+        <span class="meta-text">users found</span>
+      </div>
+
+      <div class="meta-right">
+        <VaButton preset="secondary" color="primary" @click="toggleCompact">
+          <VaIcon :name="compact ? 'view_agenda' : 'view_list'" class="mr-2" />
+          {{ compact ? "Comfort" : "Compact" }}
+        </VaButton>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <VaDataTable
+      class="table"
+      :items="filtered"
+      :columns="columns"
+      :per-page="8"
+      striped
+      hoverable
+    >
+      <!-- avatar + name -->
+      <template #cell(name)="{ rowData }">
+        <div class="name-cell">
+          <VaAvatar :src="rowData.profile_image" size="36px" />
+          <div class="name-block">
+            <div class="name">
+              {{ rowData.first_name }} {{ rowData.last_name }}
+              <VaChip v-if="rowData.property_id === null" size="small" square color="primary" class="ml-2">
+                ALL
+              </VaChip>
+            </div>
+            <div class="sub">
+              @{{ rowData.username }} · {{ rowData.email }}
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- status -->
+      <template #cell(status)="{ value }">
+        <VaChip :color="statusColor(value)" size="small" square>
+          {{ value }}
+        </VaChip>
+      </template>
+
+      <!-- position -->
+      <template #cell(position)="{ value }">
+        <VaChip color="secondary" size="small" square>
+          {{ value }}
+        </VaChip>
+      </template>
+
+      <!-- property -->
+      <template #cell(property_id)="{ value }">
+        <span class="muted">
+          {{ value === null ? "All properties" : `Property #${value}` }}
+        </span>
+      </template>
+
+      <!-- security -->
+      <template #cell(security)="{ rowData }">
+        <div class="sec">
+          <span class="muted">Failed:</span>
+          <b class="num">{{ rowData.failed_login_attempts }}</b>
+
+          <span class="dot"></span>
+
+          <span class="muted">Locked:</span>
+          <b class="num">{{ rowData.account_locked_until ? "Yes" : "No" }}</b>
+
+          <span v-if="rowData.must_change_password" class="dot"></span>
+          <VaChip
+            v-if="rowData.must_change_password"
+            size="small"
+            square
+            color="warning"
+          >
+            Must Change Password
+          </VaChip>
+        </div>
+      </template>
+
+      <!-- actions -->
+      <template #cell(actions)="{ rowData }">
+        <div class="row-actions" :class="{ compact }">
+          <VaButton preset="secondary" color="primary" size="small" @click="openEdit(rowData)">
+            <VaIcon name="edit" class="mr-1" />
+            Edit
+          </VaButton>
+          <VaButton preset="secondary" color="danger" size="small" @click="softDelete(rowData)">
+            <VaIcon name="delete" class="mr-1" />
+            Disable
+          </VaButton>
+        </div>
+      </template>
+    </VaDataTable>
+
+    <!-- Create/Edit Modal -->
+    <VaModal
+      v-model="modal"
+      size="large"
+      hide-default-actions
+      :title="formMode === 'create' ? 'Create User' : 'Edit User'"
+    >
+      <div class="modal-body">
+        <div class="form-grid">
+          <VaInput v-model="form.username" label="Username" placeholder="e.g. receptionist01" />
+          <VaInput v-model="form.email" label="Email" placeholder="name@example.com" />
+
+          <VaInput v-model="form.first_name" label="First Name" placeholder="First name" />
+          <VaInput v-model="form.last_name" label="Last Name" placeholder="Last name" />
+
+          <VaInput v-model="form.phone" label="Phone" placeholder="+855..." />
+          <VaInput v-model="form.employee_id" label="Employee ID" placeholder="EMP-001" />
+
+          <VaSelect
+            v-model="form.position"
+            label="Position"
+            :options="positionOptions"
+            text-by="text"
+            value-by="value"
+          />
+
+          <VaSelect
+            v-model="form.status"
+            label="Status"
+            :options="statusOptions"
+            text-by="text"
+            value-by="value"
+          />
+
+          <VaSelect
+            v-model="form.property_id"
+            label="Property Access"
+            :options="propertyOptions"
+            text-by="text"
+            value-by="value"
+          />
+
+          <VaInput
+            v-model="form.profile_image"
+            label="Profile Image URL"
+            placeholder="https://..."
+          />
+        </div>
+
+        <div class="toggles">
+          <VaSwitch v-model="form.must_change_password" label="Must change password on next login" />
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <VaButton preset="secondary" color="primary" @click="closeModal">Cancel</VaButton>
+        <VaButton color="primary" preset="primary" @click="saveUser">
+          {{ formMode === "create" ? "Create" : "Save Changes" }}
+        </VaButton>
+      </div>
+    </VaModal>
+  </div>
+</template>
+
 <script setup>
-import { ref, computed, reactive, nextTick, watch } from "vue"
-import $ from "jquery"
+import { computed, ref } from "vue"
+import { users as seed } from "@/data/setting/user"
 
-// static (your data)
-import { setting_user as seed } from "@/data/setting/user"
+// local editable list (static demo)
+const users = ref(seed.map(u => ({ ...u })))
 
-// local rows (demo)
-const rows = ref(seed.map((x) => ({ ...x })))
-
-/* ---------------- Filters ---------------- */
+/** Filters */
 const q = ref("")
-const role = ref("")
-const status = ref("")
-const sort = ref("newest")
+const status = ref(null)
+const position = ref(null)
+const property = ref(null)
+const compact = ref(false)
 
-const safe = (v) => (v ?? "").toString().toLowerCase()
-const fullName = (u) => `${u.first_name || ""} ${u.last_name || ""}`.trim() || u.username || "-"
-const label = (s) => (s ? String(s).replaceAll("_", " ").toUpperCase() : "-")
+const statusOptions = [
+  { text: "Active", value: "active" },
+  { text: "Inactive", value: "inactive" },
+  { text: "Suspended", value: "suspended" },
+]
 
-const roleOptions = computed(() => {
-  const s = new Set()
-  rows.value.forEach((u) => (u.roles || []).forEach((r) => s.add(r)))
-  return ["", ...Array.from(s).filter(Boolean)]
-})
+const positionOptions = [
+  { text: "Owner", value: "owner" },
+  { text: "Manager", value: "manager" },
+  { text: "Receptionist", value: "receptionist" },
+  { text: "Housekeeping", value: "housekeeping" },
+  { text: "Accountant", value: "accountant" },
+  { text: "Maintenance", value: "maintenance" },
+]
+
+const propertyOptions = [
+  { text: "All properties", value: null },
+  { text: "Property #1", value: 1 },
+  { text: "Property #2", value: 2 },
+]
 
 const filtered = computed(() => {
-  const key = safe(q.value)
+  const query = q.value.trim().toLowerCase()
 
-  let list = rows.value.filter((u) => {
-    const hit =
-      !key ||
-      safe(u.username).includes(key) ||
-      safe(fullName(u)).includes(key) ||
-      safe(u.email).includes(key) ||
-      safe(u.phone).includes(key)
+  return users.value.filter((u) => {
+    const matchesQuery = !query
+      ? true
+      : [
+          u.first_name,
+          u.last_name,
+          u.username,
+          u.email,
+          u.phone,
+          u.employee_id,
+        ]
+          .filter(Boolean)
+          .some((x) => String(x).toLowerCase().includes(query))
 
-    const okStatus = !status.value || u.status === status.value
-    const okRole = !role.value || (u.roles || []).includes(role.value)
+    const matchesStatus = !status.value ? true : u.status === status.value
+    const matchesPosition = !position.value ? true : u.position === position.value
 
-    return hit && okStatus && okRole
+    // property filter: null means “All properties”
+    const matchesProperty =
+      property.value === null
+        ? true
+        : u.property_id === property.value
+
+    return matchesQuery && matchesStatus && matchesPosition && matchesProperty
   })
-
-  if (sort.value === "newest") list.sort((a, b) => (b.user_id || 0) - (a.user_id || 0))
-  if (sort.value === "oldest") list.sort((a, b) => (a.user_id || 0) - (b.user_id || 0))
-  if (sort.value === "name") list.sort((a, b) => safe(fullName(a)).localeCompare(safe(fullName(b))))
-  if (sort.value === "username") list.sort((a, b) => safe(a.username).localeCompare(safe(b.username)))
-
-  return list
 })
 
-/* ---------------- Modal + slideDown form ---------------- */
-const modalOpen = ref(false)
-const mode = ref("view") // view | create | edit
-const selected = ref(null)
+/** Table columns */
+const columns = computed(() => [
+  { key: "name", label: "User", sortable: false },
+  { key: "phone", label: "Phone" },
+  { key: "position", label: "Position" },
+  { key: "status", label: "Status" },
+  { key: "property_id", label: "Property" },
+  { key: "security", label: "Security", sortable: false },
+  { key: "actions", label: "", width: compact.value ? "180px" : "220px", sortable: false },
+])
 
-const formWrapRef = ref(null)
+/** Color helpers */
+function statusColor(s) {
+  if (s === "active") return "success"
+  if (s === "inactive") return "secondary"
+  return "danger"
+}
 
-const roleAllOptions = computed(() => {
-  // if you have roles table later, replace with API
-  const s = new Set(["admin", "manager", "reception", "housekeeping", "staff"])
-  rows.value.forEach((u) => (u.roles || []).forEach((r) => s.add(r)))
-  return Array.from(s)
-})
+/** UI actions */
+function resetFilters() {
+  q.value = ""
+  status.value = null
+  position.value = null
+  property.value = null
+}
 
-const form = reactive({
+function toggleCompact() {
+  compact.value = !compact.value
+}
+
+/** Modal create/edit */
+const modal = ref(false)
+const formMode = ref("create") // create | edit
+const editId = ref(null)
+
+const blank = () => ({
   user_id: null,
+  property_id: null,
   username: "",
   email: "",
+  password_hash: "$2y$10$staticDemoHash",
   first_name: "",
   last_name: "",
   phone: "",
   profile_image: "",
   status: "active",
-  roles: [],
-  created_by: null,
+  employee_id: "",
+  position: "receptionist",
+  failed_login_attempts: 0,
+  last_failed_login: null,
+  account_locked_until: null,
+  password_changed_at: null,
+  must_change_password: false,
   last_login: null,
+  last_login_ip: null,
+  created_at: new Date().toISOString().slice(0, 19).replace("T", " "),
+  updated_at: new Date().toISOString().slice(0, 19).replace("T", " "),
+  deleted_at: null,
 })
 
-function slideFormDown() {
-  nextTick(() => {
-    const el = formWrapRef.value
-    if (!el) return
-    $(el).stop(true, true).css("display", "none").slideDown(240)
-  })
-}
-function slideFormUp(cb) {
-  const el = formWrapRef.value
-  if (!el) return cb?.()
-  $(el).stop(true, true).slideUp(200, () => cb?.())
+const form = ref(blank())
+
+function openCreate() {
+  formMode.value = "create"
+  editId.value = null
+  form.value = blank()
+  modal.value = true
 }
 
-function openModal(m, u = null) {
-  mode.value = m
-  selected.value = u
-
-  if (m === "create") {
-    form.user_id = null
-    form.username = ""
-    form.email = ""
-    form.first_name = ""
-    form.last_name = ""
-    form.phone = ""
-    form.profile_image = ""
-    form.status = "active"
-    form.roles = []
-    form.created_by = 1
-    form.last_login = null
-  }
-
-  if (m === "edit" && u) {
-    form.user_id = u.user_id
-    form.username = u.username || ""
-    form.email = u.email || ""
-    form.first_name = u.first_name || ""
-    form.last_name = u.last_name || ""
-    form.phone = u.phone || ""
-    form.profile_image = u.profile_image || ""
-    form.status = u.status || "active"
-    form.roles = Array.isArray(u.roles) ? [...u.roles] : []
-    form.created_by = u.created_by ?? null
-    form.last_login = u.last_login ?? null
-  }
-
-  modalOpen.value = true
-  if (m === "create" || m === "edit") slideFormDown()
+function openEdit(row) {
+  formMode.value = "edit"
+  editId.value = row.user_id
+  form.value = { ...row }
+  modal.value = true
 }
 
 function closeModal() {
-  if (mode.value === "create" || mode.value === "edit") {
-    slideFormUp(() => {
-      modalOpen.value = false
-      selected.value = null
+  modal.value = false
+}
+
+function saveUser() {
+  const now = new Date().toISOString().slice(0, 19).replace("T", " ")
+  form.value.updated_at = now
+
+  if (formMode.value === "create") {
+    const nextId = Math.max(0, ...users.value.map((u) => u.user_id || 0)) + 1
+    users.value.unshift({
+      ...form.value,
+      user_id: nextId,
+      created_at: now,
     })
   } else {
-    modalOpen.value = false
-    selected.value = null
+    const idx = users.value.findIndex((u) => u.user_id === editId.value)
+    if (idx !== -1) users.value[idx] = { ...form.value }
   }
+
+  modal.value = false
 }
 
-/* ---------------- Save (demo local) ---------------- */
-const canSave = computed(() => {
-  return (
-    String(form.username).trim() &&
-    String(form.email).trim() &&
-    String(form.first_name).trim() &&
-    String(form.last_name).trim()
-  )
-})
-
-function saveCreate() {
-  if (!canSave.value) return alert("Please fill required fields.")
-  const nextId = Math.max(...rows.value.map((x) => x.user_id || 0), 0) + 1
-
-  rows.value.unshift({
-    user_id: nextId,
-    username: form.username,
-    email: form.email,
-    first_name: form.first_name,
-    last_name: form.last_name,
-    phone: form.phone || null,
-    profile_image: form.profile_image || null,
-    status: form.status,
-    created_at: new Date().toISOString().slice(0, 19).replace("T", " "),
-    updated_at: new Date().toISOString().slice(0, 19).replace("T", " "),
-    last_login: null,
-    created_by: form.created_by ?? null,
-    roles: [...(form.roles || [])],
-  })
-
-  closeModal()
-}
-
-function saveEdit() {
-  if (!canSave.value) return alert("Please fill required fields.")
-  const idx = rows.value.findIndex((x) => x.user_id === form.user_id)
+/** “Disable” = soft delete style (matches deleted_at pattern) */
+function softDelete(row) {
+  const now = new Date().toISOString().slice(0, 19).replace("T", " ")
+  const idx = users.value.findIndex((u) => u.user_id === row.user_id)
   if (idx === -1) return
 
-  const old = rows.value[idx]
-  rows.value.splice(idx, 1, {
-    ...old,
-    username: form.username,
-    email: form.email,
-    first_name: form.first_name,
-    last_name: form.last_name,
-    phone: form.phone || null,
-    profile_image: form.profile_image || null,
-    status: form.status,
-    updated_at: new Date().toISOString().slice(0, 19).replace("T", " "),
-    roles: [...(form.roles || [])],
-  })
-
-  closeModal()
+  users.value[idx] = {
+    ...users.value[idx],
+    status: "inactive",
+    deleted_at: now,
+    updated_at: now,
+  }
 }
-
-/* ---------------- Export CSV ---------------- */
-function exportCSV() {
-  const cols = ["user_id", "username", "email", "first_name", "last_name", "phone", "status", "roles"]
-  const lines = [
-    cols.join(","),
-    ...filtered.value.map((u) =>
-      [
-        u.user_id,
-        `"${(u.username || "").replaceAll('"', '""')}"`,
-        `"${(u.email || "").replaceAll('"', '""')}"`,
-        `"${(u.first_name || "").replaceAll('"', '""')}"`,
-        `"${(u.last_name || "").replaceAll('"', '""')}"`,
-        `"${(u.phone || "").replaceAll('"', '""')}"`,
-        u.status,
-        `"${(u.roles || []).join("|")}"`,
-      ].join(",")
-    ),
-  ].join("\n")
-
-  const blob = new Blob([lines], { type: "text/csv;charset=utf-8;" })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement("a")
-  a.href = url
-  a.download = `users_${new Date().toISOString().slice(0, 10)}.csv`
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  URL.revokeObjectURL(url)
-}
-
-watch(modalOpen, (v) => (document.body.style.overflow = v ? "hidden" : ""))
 </script>
 
-<template>
-  <div class="page">
-    <!-- header -->
-    <div class="head">
-      <div>
-        <h1>Users</h1>
-        <p>Manage users • roles • status • slide-down create/edit</p>
-      </div>
-
-      <div class="headBtns">
-        <VaButton preset="secondary" icon="download" @click="exportCSV">Export</VaButton>
-        <!-- <VaButton color="success" icon="add" @click="openModal('create')">New User</VaButton> -->
-        <VaButton
-            color="success"
-            icon="add"
-            @click="$router.push({ name: 'admin.setting.create' })"
-            >
-            New User
-        </VaButton>
-      </div>
-    </div>
-
-    <!-- stats -->
-    <div class="stats">
-      <div class="stat">
-        <div class="k">Total</div>
-        <div class="v">{{ rows.length }}</div>
-      </div>
-      <div class="stat ok">
-        <div class="k">Active</div>
-        <div class="v">{{ rows.filter(x => x.status === 'active').length }}</div>
-      </div>
-      <div class="stat warn">
-        <div class="k">Suspended</div>
-        <div class="v">{{ rows.filter(x => x.status === 'suspended').length }}</div>
-      </div>
-    </div>
-
-    <!-- filters -->
-    <VaCard class="filters">
-      <VaInput v-model="q" placeholder="Search username / name / email / phone..." />
-      <VaSelect v-model="role" :options="roleOptions" label="Role" />
-      <VaSelect v-model="status" :options="['', 'active', 'inactive', 'suspended']" label="Status" />
-      <VaSelect
-        v-model="sort"
-        :options="[
-          { text: 'Newest', value: 'newest' },
-          { text: 'Oldest', value: 'oldest' },
-          { text: 'Name A-Z', value: 'name' },
-          { text: 'Username', value: 'username' },
-        ]"
-        text-by="text"
-        value-by="value"
-        label="Sort"
-      />
-    </VaCard>
-
-    <!-- table -->
-    <VaCard class="tableCard">
-      <div class="tableWrap">
-        <table class="tbl">
-          <thead>
-            <tr>
-              <th>User</th>
-              <th>Contact</th>
-              <th>Roles</th>
-              <th>Status</th>
-              <th>Last Login</th>
-              <th class="right">Action</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            <tr v-if="filtered.length === 0">
-              <td colspan="6" class="empty">No users found.</td>
-            </tr>
-
-            <tr v-for="u in filtered" :key="u.user_id">
-              <td>
-                <div class="who">
-                  <div class="avatar">
-                    {{ (fullName(u) || "U").slice(0, 1).toUpperCase() }}
-                  </div>
-                  <div>
-                    <div class="main">{{ fullName(u) }}</div>
-                    <div class="sub">@{{ u.username }}</div>
-                  </div>
-                </div>
-              </td>
-
-              <td>
-                <div class="main">{{ u.email }}</div>
-                <div class="sub">{{ u.phone || "-" }}</div>
-              </td>
-
-              <td>
-                <div class="chips">
-                  <span v-for="r in (u.roles || [])" :key="r" class="chip soft">
-                    {{ label(r) }}
-                  </span>
-                  <span v-if="!u.roles || u.roles.length === 0" class="chip">-</span>
-                </div>
-              </td>
-
-              <td>
-                <span class="pill" :class="u.status">{{ label(u.status) }}</span>
-              </td>
-
-              <td class="mono">{{ u.last_login || "-" }}</td>
-
-              <td class="right">
-                <div class="btns">
-                  <VaButton size="small" preset="secondary" @click="openModal('view', u)">View</VaButton>
-                  <VaButton size="small" color="primary" @click="openModal('edit', u)">Edit</VaButton>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </VaCard>
-
-    <!-- Modal -->
-    <Teleport to="body">
-      <div v-if="modalOpen" class="m-wrap" @click="closeModal">
-        <div class="m" @click.stop>
-          <header class="m-head">
-            <div>
-              <div class="m-title">
-                {{
-                  mode === "create" ? "Create User" : mode === "edit" ? "Edit User" : "User Details"
-                }}
-              </div>
-              <div class="m-sub">
-                {{ mode === "view" ? (selected?.username || "-") : (form.username || "New User") }}
-              </div>
-            </div>
-            <VaButton preset="secondary" icon="close" @click="closeModal">Close</VaButton>
-          </header>
-
-          <section class="m-body">
-            <!-- VIEW -->
-            <div v-if="mode === 'view' && selected" class="viewGrid">
-              <div class="card">
-                <div class="t">User</div>
-                <div class="big">{{ fullName(selected) }}</div>
-                <div class="muted">@{{ selected.username }}</div>
-              </div>
-
-              <div class="card">
-                <div class="t">Contact</div>
-                <div class="line"><b>Email:</b> {{ selected.email }}</div>
-                <div class="line"><b>Phone:</b> {{ selected.phone || "-" }}</div>
-              </div>
-
-              <div class="card">
-                <div class="t">Status</div>
-                <span class="pill" :class="selected.status">{{ label(selected.status) }}</span>
-                <div class="muted mt">Created: {{ selected.created_at || "-" }}</div>
-              </div>
-
-              <div class="card wide">
-                <div class="t">Roles</div>
-                <div class="chips">
-                  <span v-for="r in (selected.roles || [])" :key="r" class="chip soft">{{ label(r) }}</span>
-                  <span v-if="!selected.roles || selected.roles.length === 0" class="chip">-</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- CREATE / EDIT (slideDown) -->
-            <div v-else ref="formWrapRef" class="formWrap">
-              <div class="formGrid">
-                <VaInput v-model="form.username" label="Username *" placeholder="ex: reception01" />
-                <VaInput v-model="form.email" label="Email *" placeholder="ex: user@mail.com" />
-
-                <VaInput v-model="form.first_name" label="First Name *" />
-                <VaInput v-model="form.last_name" label="Last Name *" />
-
-                <VaInput v-model="form.phone" label="Phone" placeholder="ex: 012345678" />
-
-                <VaSelect
-                  v-model="form.status"
-                  :options="['active', 'inactive', 'suspended']"
-                  label="Status"
-                />
-
-                <VaSelect
-                  v-model="form.roles"
-                  :options="roleAllOptions"
-                  label="Roles"
-                  multiple
-                />
-
-                <VaInput v-model="form.profile_image" label="Profile Image URL" placeholder="https://..." />
-
-                <div class="summary wide">
-                  <div>
-                    <div class="t">Preview</div>
-                    <div class="main">
-                      {{ (form.first_name || '-') }} {{ (form.last_name || '') }}
-                      <span class="muted"> • @{{ form.username || '-' }}</span>
-                    </div>
-                  </div>
-                  <div class="chips">
-                    <span v-for="r in form.roles" :key="r" class="chip soft">{{ label(r) }}</span>
-                    <span v-if="!form.roles.length" class="chip">No roles</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <footer class="m-foot">
-            <VaButton preset="secondary" @click="closeModal">Cancel</VaButton>
-
-            <template v-if="mode === 'view'">
-              <VaButton color="primary" @click="openModal('edit', selected)">Edit</VaButton>
-            </template>
-
-            <template v-else-if="mode === 'create'">
-              <VaButton color="success" icon="save" :disabled="!canSave" @click="saveCreate">Save</VaButton>
-            </template>
-
-            <template v-else>
-              <VaButton color="success" icon="save" :disabled="!canSave" @click="saveEdit">Save Changes</VaButton>
-            </template>
-          </footer>
-        </div>
-      </div>
-    </Teleport>
-  </div>
-</template>
-
 <style scoped>
+/* White background, clean, not too many colors */
 .page {
-  padding: 20px 24px;
-  background: #f6f8fb;
+  background: #ffffff;
   min-height: 100vh;
-}
-
-.head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 14px;
-  margin-bottom: 14px;
-}
-.head h1 {
-  font-size: 22px;
-  font-weight: 900;
-  color: #0f172a;
-  margin: 0;
-}
-.head p {
-  margin: 6px 0 0;
-  font-size: 13px;
-  color: #475569;
-}
-.headBtns {
-  display: inline-flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-/* stats */
-.stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 14px;
-}
-@media (max-width: 760px) {
-  .stats {
-    grid-template-columns: 1fr;
-  }
-}
-.stat {
-  border: 1px solid #eef2f6;
-  background: #fff;
-  border-radius: 14px;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
-  padding: 14px;
-}
-.stat .k {
-  font-size: 12px;
-  font-weight: 900;
-  color: #64748b;
-}
-.stat .v {
-  margin-top: 6px;
-  font-size: 22px;
-  font-weight: 900;
-  color: #0f172a;
-}
-.stat.ok .v {
-  color: #166534;
-}
-.stat.warn .v {
-  color: #854d0e;
-}
-
-/* filters */
-.filters {
-  background: #fff;
-  border: 1px solid #eef2f6;
-  border-radius: 14px;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
-  padding: 14px;
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-@media (max-width: 1000px) {
-  .filters {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-@media (max-width: 520px) {
-  .filters {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* table */
-.tableCard {
-  border-radius: 14px;
-  border: 1px solid #eef2f6;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
-}
-.tableWrap {
-  overflow-x: auto;
-}
-.tbl {
-  width: 100%;
-  border-collapse: collapse;
-  background: #fff;
-}
-.tbl th {
-  text-align: left;
-  padding: 12px 14px;
-  font-size: 12px;
-  color: #475569;
-  border-bottom: 1px solid #eef2f6;
-  background: #fbfcfe;
-  white-space: nowrap;
-}
-.tbl td {
-  padding: 12px 14px;
-  border-bottom: 1px solid #f1f5f9;
-  vertical-align: top;
-}
-.tbl tr:hover td {
-  background: #fafcff;
-}
-.right {
-  text-align: right;
-}
-.main {
-  font-weight: 900;
-  color: #0f172a;
-  font-size: 13px;
-}
-.sub {
-  margin-top: 4px;
-  font-size: 12px;
-  color: #64748b;
-}
-.mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
-    monospace;
-  font-size: 12px;
-  color: #334155;
-  white-space: nowrap;
-}
-.empty {
-  text-align: center;
-  padding: 20px !important;
-  font-weight: 800;
-  color: #64748b;
-}
-.btns {
-  display: inline-flex;
-  gap: 8px;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-}
-
-/* user cell */
-.who {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.avatar {
-  width: 34px;
-  height: 34px;
-  border-radius: 12px;
-  display: grid;
-  place-items: center;
-  font-weight: 900;
-  color: #0f172a;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
-}
-
-/* chips */
-.chips {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 900;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
-  color: #334155;
-}
-.chip.soft {
-  background: #f1f5f9;
-}
-
-/* status pill */
-.pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 900;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
-  color: #334155;
-}
-.pill.active {
-  background: #dcfce7;
-  border-color: #bbf7d0;
-  color: #166534;
-}
-.pill.inactive {
-  background: #f1f5f9;
-  border-color: #e2e8f0;
-  color: #475569;
-}
-.pill.suspended {
-  background: #fee2e2;
-  border-color: #fecaca;
-  color: #991b1b;
-}
-
-/* modal */
-.m-wrap {
-  position: fixed;
-  inset: 0;
-  z-index: 99999;
-  background: rgba(15, 23, 42, 0.45);
-  display: grid;
-  place-items: center;
   padding: 18px;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
 }
-.m {
-  width: min(980px, 100%);
-  max-height: 95vh;
-  background: #fff;
-  border-radius: 16px;
-  border: 1px solid #eef2f6;
-  box-shadow: 0 30px 90px rgba(15, 23, 42, 0.22);
-  overflow: hidden;
+
+/* Header */
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(2, 6, 23, 0.06);
 }
-.m-head {
-  padding: 14px 16px;
-  border-bottom: 1px solid #eef2f6;
-  background: #fbfcfe;
+
+.title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.subtitle {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.head-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Filters row */
+.filters {
+  display: grid;
+  grid-template-columns: 1.6fr 0.7fr 0.7fr 0.8fr auto;
+  gap: 10px;
+  padding: 14px 0 10px;
+}
+
+.control {
+  min-width: 140px;
+}
+
+/* Meta */
+.meta {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
-}
-.m-title {
-  font-size: 16px;
-  font-weight: 900;
-  color: #0f172a;
-}
-.m-sub {
-  margin-top: 2px;
-  font-size: 12px;
-  color: #64748b;
-}
-.m-body {
-  padding: 16px;
-  overflow: auto;
-  max-height: calc(92vh - 118px);
-}
-.m-foot {
-  padding: 14px 16px;
-  border-top: 1px solid #eef2f6;
-  display: flex;
-  justify-content: flex-end;
   gap: 10px;
-  background: #fff;
+  padding: 8px 0 12px;
 }
 
-/* view */
-.viewGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+.meta-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
-@media (max-width: 760px) {
-  .viewGrid {
-    grid-template-columns: 1fr;
-  }
-}
-.card {
-  border: 1px solid #eef2f6;
-  border-radius: 14px;
-  background: #fbfcfe;
-  padding: 14px;
-}
-.card.wide {
-  grid-column: 1 / -1;
-}
-.t {
-  font-size: 12px;
+
+.meta-text {
   color: #64748b;
-  font-weight: 800;
-  margin-bottom: 8px;
+  font-size: 13px;
 }
-.big {
-  font-size: 18px;
+
+/* Table */
+.table {
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(2, 6, 23, 0.06);
+  box-shadow: 0 6px 18px rgba(2, 6, 23, 0.06); /* little shadow */
+}
+
+.name-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.name-block {
+  display: grid;
+  gap: 2px;
+  min-width: 220px;
+}
+
+.name {
   font-weight: 900;
   color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
-.line {
-  margin: 6px 0 0;
+
+.sub {
+  font-size: 12px;
+  color: #64748b;
 }
+
 .muted {
   color: #64748b;
-  font-weight: 800;
-}
-.mt {
-  margin-top: 8px;
+  font-size: 13px;
 }
 
-/* form */
-.formWrap {
-  display: none; /* jQuery slideDown target */
+.sec {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
-.formGrid {
+
+.num {
+  color: #0f172a;
+}
+
+.dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(100, 116, 139, 0.5);
+}
+
+/* actions */
+.row-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.row-actions.compact {
+  gap: 6px;
+}
+
+/* Modal */
+.modal-body {
+  padding: 6px 2px 10px;
+}
+
+.form-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, 1fr);
   gap: 12px;
 }
-@media (max-width: 760px) {
-  .formGrid {
+
+.toggles {
+  padding-top: 10px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(2, 6, 23, 0.06);
+}
+
+/* Responsive */
+@media (max-width: 980px) {
+  .filters {
     grid-template-columns: 1fr;
   }
-}
-.summary {
-  border: 1px dashed #cbd5e1;
-  background: #f8fafc;
-  border-radius: 14px;
-  padding: 14px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-}
-.summary.wide {
-  grid-column: 1 / -1;
-}
-
-/* vuestic polish */
-:deep(.va-input__container),
-:deep(.va-select__container) {
-  border-radius: 10px;
-  background: #f9fafb;
-}
-:deep(.va-button) {
-  border-radius: 10px;
-  font-weight: 800;
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .name-block {
+    min-width: unset;
+  }
 }
 </style>

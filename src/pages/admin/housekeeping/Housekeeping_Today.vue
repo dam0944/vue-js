@@ -1,642 +1,785 @@
-<script setup>
-import { ref, computed, reactive, nextTick, watch } from "vue"
-import $ from "jquery"
-import { housekeeping_today as seed } from "@/data/housekeeping/housekeeping_today"
-
-// -------------------- data --------------------
-const tasks = ref(seed.map((x) => ({ ...x })))
-
-// -------------------- filters --------------------
-const q = ref("")
-const status = ref("")
-const taskType = ref("")
-const priority = ref("")
-const sort = ref("newest")
-
-const safe = (v) => (v ?? "").toString().toLowerCase()
-const label = (s) => (s ? s.replaceAll("_", " ").toUpperCase() : "-")
-
-const statusOptions = ["", "pending", "in_progress", "completed", "skipped"]
-const typeOptions = ["", "checkout_cleaning", "daily_cleaning", "deep_cleaning", "turndown", "inspection"]
-const priorityOptions = ["", "low", "normal", "high", "urgent"]
-
-const filtered = computed(() => {
-  const key = safe(q.value)
-
-  let list = tasks.value.filter((t) => {
-    const hit =
-      !key ||
-      safe(t.task_id).includes(key) ||
-      safe(t.room_id).includes(key) ||
-      safe(t.task_type).includes(key) ||
-      safe(t.notes).includes(key) ||
-      safe(t.task_date).includes(key)
-
-    const okStatus = !status.value || t.status === status.value
-    const okType = !taskType.value || t.task_type === taskType.value
-    const okPri = !priority.value || t.priority === priority.value
-    return hit && okStatus && okType && okPri
-  })
-
-  if (sort.value === "newest") list.sort((a, b) => (b.task_id || 0) - (a.task_id || 0))
-  if (sort.value === "oldest") list.sort((a, b) => (a.task_id || 0) - (b.task_id || 0))
-  if (sort.value === "room") list.sort((a, b) => String(a.room_id).localeCompare(String(b.room_id)))
-  if (sort.value === "date") list.sort((a, b) => String(b.task_date).localeCompare(String(a.task_date)))
-  return list
-})
-
-// -------------------- quick stats --------------------
-const stats = computed(() => {
-  const total = tasks.value.length
-  const pending = tasks.value.filter((x) => x.status === "pending").length
-  const inProgress = tasks.value.filter((x) => x.status === "in_progress").length
-  const completed = tasks.value.filter((x) => x.status === "completed").length
-  return { total, pending, inProgress, completed }
-})
-
-// -------------------- modal + slideDown --------------------
-const modalOpen = ref(false)
-const modalMode = ref("view") // view | create | edit
-const selected = ref(null)
-
-// element that slides down
-const formWrapRef = ref(null)
-
-// form (create/edit)
-const form = reactive({
-  task_id: null,
-  room_id: "",
-  task_date: "",
-  task_type: "daily_cleaning",
-  priority: "normal",
-  status: "pending",
-  assigned_to: "",
-  started_at: null,
-  completed_at: null,
-  notes: "",
-})
-
-function pad2(n) {
-  return String(n).padStart(2, "0")
-}
-function nowTS() {
-  const d = new Date()
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(
-    d.getMinutes()
-  )}:00`
-}
-function todayISO() {
-  const d = new Date()
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
-}
-
-function slideDownForm() {
-  nextTick(() => {
-    const el = formWrapRef.value
-    if (!el) return
-    $(el).stop(true, true).css("display", "none").slideDown(260)
-  })
-}
-function slideUpForm(cb) {
-  const el = formWrapRef.value
-  if (!el) return cb?.()
-  $(el).stop(true, true).slideUp(200, () => cb?.())
-}
-
-function openModal(mode, row = null) {
-  modalMode.value = mode
-  selected.value = row
-
-  if (mode === "create") {
-    form.task_id = null
-    form.room_id = ""
-    form.task_date = todayISO()
-    form.task_type = "daily_cleaning"
-    form.priority = "normal"
-    form.status = "pending"
-    form.assigned_to = ""
-    form.started_at = null
-    form.completed_at = null
-    form.notes = ""
-  }
-
-  if (mode === "edit" && row) {
-    form.task_id = row.task_id
-    form.room_id = row.room_id ?? ""
-    form.task_date = row.task_date ?? todayISO()
-    form.task_type = row.task_type ?? "daily_cleaning"
-    form.priority = row.priority ?? "normal"
-    form.status = row.status ?? "pending"
-    form.assigned_to = row.assigned_to ?? ""
-    form.started_at = row.started_at ?? null
-    form.completed_at = row.completed_at ?? null
-    form.notes = row.notes ?? ""
-  }
-
-  modalOpen.value = true
-  if (mode === "create" || mode === "edit") slideDownForm()
-}
-
-function closeModal() {
-  if (modalMode.value === "create" || modalMode.value === "edit") {
-    slideUpForm(() => {
-      modalOpen.value = false
-      selected.value = null
-    })
-  } else {
-    modalOpen.value = false
-    selected.value = null
-  }
-}
-
-// -------------------- save (local demo) --------------------
-function saveCreate() {
-  if (!String(form.room_id).trim() || !String(form.task_date).trim()) {
-    alert("Room ID and Task Date are required.")
-    return
-  }
-  const nextId = Math.max(...tasks.value.map((x) => x.task_id || 0), 0) + 1
-
-  tasks.value.unshift({
-    task_id: nextId,
-    room_id: Number(form.room_id),
-    task_date: form.task_date,
-    task_type: form.task_type,
-    priority: form.priority,
-    status: form.status,
-    assigned_to: form.assigned_to ? Number(form.assigned_to) : null,
-    started_at: form.status === "in_progress" ? (form.started_at || nowTS()) : form.started_at,
-    completed_at: form.status === "completed" ? (form.completed_at || nowTS()) : form.completed_at,
-    notes: form.notes,
-  })
-
-  closeModal()
-}
-
-function saveEdit() {
-  const idx = tasks.value.findIndex((x) => x.task_id === form.task_id)
-  if (idx === -1) return closeModal()
-
-  const old = tasks.value[idx]
-  tasks.value.splice(idx, 1, {
-    ...old,
-    room_id: Number(form.room_id),
-    task_date: form.task_date,
-    task_type: form.task_type,
-    priority: form.priority,
-    status: form.status,
-    assigned_to: form.assigned_to ? Number(form.assigned_to) : null,
-    started_at:
-      form.status === "in_progress"
-        ? (form.started_at || old.started_at || nowTS())
-        : form.started_at || null,
-    completed_at:
-      form.status === "completed"
-        ? (form.completed_at || old.completed_at || nowTS())
-        : form.completed_at || null,
-    notes: form.notes,
-  })
-
-  closeModal()
-}
-
-// lock scroll
-watch(modalOpen, (v) => (document.body.style.overflow = v ? "hidden" : ""))
-</script>
-
+<!-- src/pages/housekeeping/HousekeepingToday.vue -->
 <template>
   <div class="page">
-    <!-- header -->
-    <div class="head">
+    <!-- Header -->
+    <div class="header">
       <div>
-        <h1>Housekeeping Tasks</h1>
-        <p>Today overview • filter • quick view • create/edit slides down</p>
+        <h1 class="title">Housekeeping · Today</h1>
+        <p class="subtitle">Manage cleaning, inspections, maintenance and turndown for today.</p>
       </div>
 
-      <div class="headActions">
-        <VaButton preset="secondary" icon="refresh" @click="q=''; status=''; taskType=''; priority=''; sort='newest'">
-          Reset
-        </VaButton>
-        <VaButton color="success" icon="add" @click="openModal('create')">New Task</VaButton>
+      <div class="header-actions">
+        <VaButton preset="secondary" @click="resetFilters">Reset</VaButton>
+        <RouterLink class="no-underline" :to="{ name: 'housekeeping-assign' }">
+          <VaButton icon="add" color="primary">New Task</VaButton>
+        </RouterLink>
       </div>
     </div>
 
-    <!-- stats -->
+    <!-- Stats -->
     <div class="stats">
-      <div class="sCard">
-        <div class="sLabel">Total</div>
-        <div class="sValue">{{ stats.total }}</div>
-      </div>
-      <div class="sCard soft">
-        <div class="sLabel">Pending</div>
-        <div class="sValue">{{ stats.pending }}</div>
-      </div>
-      <div class="sCard warn">
-        <div class="sLabel">In Progress</div>
-        <div class="sValue">{{ stats.inProgress }}</div>
-      </div>
-      <div class="sCard ok">
-        <div class="sLabel">Completed</div>
-        <div class="sValue">{{ stats.completed }}</div>
-      </div>
+      <VaCard class="card shadow">
+        <VaCardContent>
+          <div class="stat-label">Total</div>
+          <div class="stat-value">{{ todayTasks.length }}</div>
+        </VaCardContent>
+      </VaCard>
+
+      <VaCard class="card shadow">
+        <VaCardContent>
+          <div class="stat-label">Pending</div>
+          <div class="stat-value">{{ countByStatus.pending }}</div>
+        </VaCardContent>
+      </VaCard>
+
+      <VaCard class="card shadow">
+        <VaCardContent>
+          <div class="stat-label">In Progress</div>
+          <div class="stat-value">{{ countByStatus.in_progress }}</div>
+        </VaCardContent>
+      </VaCard>
+
+      <VaCard class="card shadow">
+        <VaCardContent>
+          <div class="stat-label">Completed</div>
+          <div class="stat-value">{{ countByStatus.completed }}</div>
+        </VaCardContent>
+      </VaCard>
+
+      <VaCard class="card shadow">
+        <VaCardContent>
+          <div class="stat-label">Urgent</div>
+          <div class="stat-value">{{ urgentCount }}</div>
+        </VaCardContent>
+      </VaCard>
     </div>
 
-    <!-- filters -->
-    <VaCard class="filters">
-      <VaInput v-model="q" placeholder="Search task id / room / date / notes..." />
-      <VaSelect v-model="status" :options="statusOptions" label="Status" />
-      <VaSelect v-model="taskType" :options="typeOptions" label="Task Type" />
-      <VaSelect v-model="priority" :options="priorityOptions" label="Priority" />
-      <VaSelect
-        v-model="sort"
-        :options="[
-          { text: 'Newest', value: 'newest' },
-          { text: 'Oldest', value: 'oldest' },
-          { text: 'Room', value: 'room' },
-          { text: 'Task Date', value: 'date' },
-        ]"
-        text-by="text"
-        value-by="value"
-        label="Sort"
-      />
-    </VaCard>
+    <!-- Toolbar -->
+    <VaCard class="card shadow">
+      <VaCardContent>
+        <div class="toolbar">
+          <VaInput
+            v-model.trim="q"
+            label="Search"
+            placeholder="Search room (101), notes, issues..."
+            clearable
+          />
 
-    <!-- table -->
-    <VaCard class="tableCard">
-      <div class="tableWrap">
-        <table class="tbl">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Room</th>
-              <th>Task</th>
-              <th>Date</th>
-              <th>Status</th>
-              <th>Priority</th>
-              <th>Assigned</th>
-              <th class="right">Action</th>
-            </tr>
-          </thead>
+          <VaSelect
+            v-model="status"
+            label="Status"
+            :options="STATUS_OPTIONS"
+            :text-by="(v) => (v.value === '' ? 'All status' : v.text)"
+            :value-by="(v) => v.value"
+          />
 
-          <tbody>
-            <tr v-if="filtered.length === 0">
-              <td colspan="8" class="empty">No tasks found.</td>
-            </tr>
+          <VaSelect
+            v-model="type"
+            label="Type"
+            :options="TYPE_OPTIONS"
+            :text-by="(v) => (v.value === '' ? 'All type' : v.text)"
+            :value-by="(v) => v.value"
+          />
 
-            <tr v-for="t in filtered" :key="t.task_id">
-              <td class="mono">#{{ t.task_id }}</td>
-
-              <td>
-                <div class="main">Room {{ t.room_id }}</div>
-                <div class="sub" v-if="t.notes">{{ t.notes }}</div>
-              </td>
-
-              <td>
-                <span class="badge">{{ label(t.task_type) }}</span>
-              </td>
-
-              <td class="mono">{{ t.task_date }}</td>
-
-              <td>
-                <span class="badge" :class="'st-' + (t.status || 'pending')">
-                  {{ label(t.status) }}
-                </span>
-              </td>
-
-              <td>
-                <span class="badge" :class="'pr-' + (t.priority || 'normal')">
-                  {{ label(t.priority) }}
-                </span>
-              </td>
-
-              <td>
-                <div class="main">{{ t.assigned_to ? `User #${t.assigned_to}` : "-" }}</div>
-                <div class="sub">
-                  <span v-if="t.started_at">Start: <span class="mono">{{ t.started_at }}</span></span>
-                  <span v-if="t.completed_at" class="ml">Done: <span class="mono">{{ t.completed_at }}</span></span>
-                </div>
-              </td>
-
-              <td class="right">
-                <div class="btns">
-                  <VaButton size="small" preset="secondary" @click="openModal('view', t)">View</VaButton>
-                  <VaButton size="small" color="primary" @click="openModal('edit', t)">Edit</VaButton>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </VaCard>
-
-    <!-- modal -->
-    <Teleport to="body">
-      <div v-if="modalOpen" class="m-wrap" @click="closeModal">
-        <div class="m" @click.stop>
-          <header class="m-head">
-            <div>
-              <div class="m-title">
-                {{
-                  modalMode === "create"
-                    ? "Create Housekeeping Task"
-                    : modalMode === "edit"
-                    ? "Edit Housekeeping Task"
-                    : "Task Details"
-                }}
-              </div>
-              <div class="m-sub">
-                {{
-                  modalMode === "view"
-                    ? `Task #${selected?.task_id ?? "-"} • Room ${selected?.room_id ?? "-"}`
-                    : "Form slideDown from top"
-                }}
-              </div>
-            </div>
-
-            <VaButton preset="secondary" icon="close" @click="closeModal">Close</VaButton>
-          </header>
-
-          <section class="m-body">
-            <!-- view -->
-            <div v-if="modalMode === 'view' && selected" class="viewGrid">
-              <div class="card">
-                <div class="t">Task</div>
-                <div class="big">{{ label(selected.task_type) }}</div>
-                <div class="muted">Date: <span class="mono">{{ selected.task_date }}</span></div>
-              </div>
-
-              <div class="card">
-                <div class="t">Room</div>
-                <div class="big">Room {{ selected.room_id }}</div>
-                <div class="muted">Assigned: {{ selected.assigned_to ? `User #${selected.assigned_to}` : "-" }}</div>
-              </div>
-
-              <div class="card">
-                <div class="t">Status</div>
-                <span class="badge" :class="'st-' + (selected.status || 'pending')">{{ label(selected.status) }}</span>
-                <div class="mt muted">Priority: <b>{{ label(selected.priority) }}</b></div>
-              </div>
-
-              <div class="card">
-                <div class="t">Time</div>
-                <div>Started: <b class="mono">{{ selected.started_at || "-" }}</b></div>
-                <div>Completed: <b class="mono">{{ selected.completed_at || "-" }}</b></div>
-              </div>
-
-              <div class="card wide">
-                <div class="t">Notes</div>
-                <div class="note">{{ selected.notes || "-" }}</div>
-              </div>
-            </div>
-
-            <!-- create/edit (slideDown) -->
-            <div v-else ref="formWrapRef" class="formWrap">
-              <div class="formGrid">
-                <VaInput v-model="form.room_id" label="Room ID *" placeholder="ex: 101" />
-                <VaInput v-model="form.task_date" type="date" label="Task Date *" />
-
-                <VaSelect v-model="form.task_type" :options="typeOptions.filter(Boolean)" label="Task Type" />
-                <VaSelect v-model="form.priority" :options="priorityOptions.filter(Boolean)" label="Priority" />
-
-                <VaSelect v-model="form.status" :options="statusOptions.filter(Boolean)" label="Status" />
-                <VaInput v-model="form.assigned_to" label="Assigned To (user_id)" placeholder="ex: 3" />
-
-                <VaInput v-model="form.started_at" label="Started At (YYYY-MM-DD HH:mm:ss)" placeholder="auto when in_progress" />
-                <VaInput v-model="form.completed_at" label="Completed At (YYYY-MM-DD HH:mm:ss)" placeholder="auto when completed" />
-
-                <VaTextarea v-model="form.notes" label="Notes" :max-rows="3" class="wide" />
-              </div>
-            </div>
-          </section>
-
-          <footer class="m-foot">
-            <VaButton preset="secondary" @click="closeModal">Cancel</VaButton>
-
-            <template v-if="modalMode === 'create'">
-              <VaButton color="success" icon="save" @click="saveCreate">Save</VaButton>
-            </template>
-
-            <template v-else-if="modalMode === 'edit'">
-              <VaButton color="success" icon="save" @click="saveEdit">Save Changes</VaButton>
-            </template>
-
-            <template v-else>
-              <VaButton color="primary" @click="openModal('edit', selected)">Edit</VaButton>
-            </template>
-          </footer>
+          <VaSelect
+            v-model="priority"
+            label="Priority"
+            :options="PRIORITY_OPTIONS"
+            :text-by="(v) => (v.value === '' ? 'All priority' : v.text)"
+            :value-by="(v) => v.value"
+          />
         </div>
-      </div>
-    </Teleport>
+      </VaCardContent>
+    </VaCard>
+
+    <!-- List -->
+    <VaCard class="card shadow">
+      <VaCardContent>
+        <div class="list-top">
+          <div class="list-title">Tasks: <b>{{ filtered.length }}</b></div>
+          <div class="list-sub">Today only • Click row for detail</div>
+        </div>
+
+        <div v-if="filtered.length === 0" class="empty">
+          <div class="empty-title">No tasks for today</div>
+          <div class="empty-sub">Try clearing filters or assign a new task.</div>
+        </div>
+
+        <div v-else class="rows">
+          <VaCard
+            v-for="t in filtered"
+            :key="t.task_id"
+            class="row-card"
+            @click="openDetail(t)"
+          >
+            <VaCardContent>
+              <div class="row">
+                <div class="left">
+                  <div class="room">
+                    <div class="room-label">Room</div>
+                    <div class="room-number">{{ t.room_id }}</div>
+                  </div>
+
+                  <div class="main">
+                    <div class="topline">
+                      <VaBadge
+                        :text="labelTaskType(t.task_type)"
+                        :color="typeColor(t.task_type)"
+                        class="badge"
+                      />
+                      <VaBadge
+                        :text="labelPriority(t.priority)"
+                        :color="priorityColor(t.priority)"
+                        class="badge"
+                      />
+                      <VaBadge
+                        :text="labelStatus(t.status)"
+                        :color="statusColor(t.status)"
+                        class="badge"
+                      />
+                    </div>
+
+                    <div class="notes">
+                      {{ shortText(t.notes || "—", 90) }}
+                      <span v-if="t.issues_found" class="issue">
+                        • Issues: {{ shortText(t.issues_found, 70) }}
+                      </span>
+                    </div>
+
+                    <div class="meta">
+                      <span>Assigned: {{ userName(t.assigned_to) }}</span>
+                      <span class="dot"></span>
+                      <span>Updated: {{ t.updated_at || "—" }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="right" @click.stop>
+                  <VaButton
+                    v-if="t.status === 'pending'"
+                    size="small"
+                    color="primary"
+                    @click="startTask(t)"
+                  >
+                    Start
+                  </VaButton>
+
+                  <VaButton
+                    v-if="t.status === 'in_progress'"
+                    size="small"
+                    color="success"
+                    @click="completeTask(t)"
+                  >
+                    Complete
+                  </VaButton>
+
+                  <VaButton
+                    v-if="t.status !== 'completed' && t.status !== 'cancelled'"
+                    size="small"
+                    preset="secondary"
+                    @click="cancelTask(t)"
+                  >
+                    Cancel
+                  </VaButton>
+
+                  <RouterLink
+                    class="no-underline"
+                    :to="{ name: 'housekeeping-edit', params: { taskId: t.task_id } }"
+                  >
+                    <VaButton size="small" preset="secondary">Edit</VaButton>
+                  </RouterLink>
+                </div>
+              </div>
+            </VaCardContent>
+          </VaCard>
+        </div>
+      </VaCardContent>
+    </VaCard>
+
+    <!-- Detail modal -->
+    <VaModal v-model="detailOpen" size="large" hide-default-actions>
+      <VaCard class="detail-card">
+        <VaCardContent v-if="selected">
+          <div class="detail-head">
+            <div>
+              <div class="detail-title">Task #{{ selected.task_id }}</div>
+              <div class="detail-sub">Room {{ selected.room_id }} · Property {{ selected.property_id }}</div>
+            </div>
+            <VaButton preset="secondary" @click="closeDetail">Close</VaButton>
+          </div>
+
+          <div class="detail-grid">
+            <div class="kv">
+              <div class="k">Type</div>
+              <div class="v">{{ labelTaskType(selected.task_type) }}</div>
+            </div>
+            <div class="kv">
+              <div class="k">Priority</div>
+              <div class="v">{{ labelPriority(selected.priority) }}</div>
+            </div>
+            <div class="kv">
+              <div class="k">Status</div>
+              <div class="v">{{ labelStatus(selected.status) }}</div>
+            </div>
+
+            <div class="kv">
+              <div class="k">Assigned to</div>
+              <div class="v">{{ userName(selected.assigned_to) }}</div>
+            </div>
+            <div class="kv">
+              <div class="k">Assigned at</div>
+              <div class="v">{{ selected.assigned_at || "—" }}</div>
+            </div>
+            <div class="kv">
+              <div class="k">Started at</div>
+              <div class="v">{{ selected.started_at || "—" }}</div>
+            </div>
+            <div class="kv">
+              <div class="k">Completed at</div>
+              <div class="v">{{ selected.completed_at || "—" }}</div>
+            </div>
+          </div>
+
+          <div class="blocks">
+            <VaCard class="block">
+              <VaCardContent>
+                <div class="block-title">Notes</div>
+                <div class="block-text">{{ selected.notes || "—" }}</div>
+              </VaCardContent>
+            </VaCard>
+
+            <VaCard class="block">
+              <VaCardContent>
+                <div class="block-title">Issues found</div>
+                <div class="block-text">{{ selected.issues_found || "—" }}</div>
+              </VaCardContent>
+            </VaCard>
+
+            <VaCard class="block">
+              <VaCardContent>
+                <div class="block-title">Completion notes</div>
+                <div class="block-text">{{ selected.completion_notes || "—" }}</div>
+              </VaCardContent>
+            </VaCard>
+          </div>
+
+          <div class="detail-actions">
+            <VaButton
+              v-if="selected.status === 'pending'"
+              color="primary"
+              @click="startTask(selected)"
+            >
+              Start task
+            </VaButton>
+
+            <VaButton
+              v-if="selected.status === 'in_progress'"
+              color="success"
+              @click="completeTask(selected)"
+            >
+              Mark completed
+            </VaButton>
+
+            <VaButton
+              v-if="selected.status !== 'completed' && selected.status !== 'cancelled'"
+              preset="secondary"
+              @click="cancelTask(selected)"
+            >
+              Cancel task
+            </VaButton>
+
+            <RouterLink
+              class="no-underline"
+              :to="{ name: 'housekeeping-edit', params: { taskId: selected.task_id } }"
+            >
+              <VaButton preset="secondary">Edit details</VaButton>
+            </RouterLink>
+          </div>
+        </VaCardContent>
+      </VaCard>
+    </VaModal>
   </div>
 </template>
 
-<style scoped>
-.page {
-  padding: 20px 24px;
-  background: #f6f8fb;
-  min-height: 100vh;
+<script setup>
+import { computed, ref } from "vue"
+import { RouterLink } from "vue-router"
+import { housekeepingToday as seed } from "@/data/housekeeping/housekeeping_today"
+
+const tasks = ref(seed.map((x) => ({ ...x })))
+
+const users = {
+  6: { name: "Sokha (Housekeeping)" },
+  7: { name: "Dara (Housekeeping)" },
+  8: { name: "Vanna (Maintenance)" },
+  3: { name: "Reception (Admin)" },
+  4: { name: "Manager" },
 }
 
-/* header */
-.head {
+const q = ref("")
+const status = ref("")
+const type = ref("")
+const priority = ref("")
+
+const STATUS_OPTIONS = [
+  { value: "", text: "All status" },
+  { value: "pending", text: "Pending" },
+  { value: "in_progress", text: "In progress" },
+  { value: "completed", text: "Completed" },
+  { value: "cancelled", text: "Cancelled" },
+]
+const TYPE_OPTIONS = [
+  { value: "", text: "All type" },
+  { value: "cleaning", text: "Cleaning" },
+  { value: "maintenance", text: "Maintenance" },
+  { value: "inspection", text: "Inspection" },
+  { value: "deep_clean", text: "Deep clean" },
+  { value: "turndown", text: "Turndown" },
+]
+const PRIORITY_OPTIONS = [
+  { value: "", text: "All priority" },
+  { value: "low", text: "Low" },
+  { value: "normal", text: "Normal" },
+  { value: "high", text: "High" },
+  { value: "urgent", text: "Urgent" },
+]
+
+function todayISO() {
+  const d = new Date()
+  const pad = (x) => String(x).padStart(2, "0")
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+function taskISODate(t) {
+  const raw =
+    t.task_date ||
+    t.scheduled_for ||
+    t.schedule_date ||
+    t.assigned_at ||
+    t.started_at ||
+    t.created_at ||
+    t.updated_at
+
+  if (!raw) return ""
+  return String(raw).slice(0, 10)
+}
+
+const todayTasks = computed(() => {
+  const iso = todayISO()
+  return tasks.value.filter((t) => taskISODate(t) === iso)
+})
+
+const filtered = computed(() => {
+  const kw = q.value.toLowerCase()
+
+  return todayTasks.value.filter((t) => {
+    if (status.value && t.status !== status.value) return false
+    if (type.value && t.task_type !== type.value) return false
+    if (priority.value && t.priority !== priority.value) return false
+
+    if (!kw) return true
+
+    const hay = [t.room_id, t.task_type, t.priority, t.status, t.notes, t.issues_found]
+      .join(" ")
+      .toLowerCase()
+
+    return hay.includes(kw)
+  })
+})
+
+const countByStatus = computed(() => {
+  const base = { pending: 0, in_progress: 0, completed: 0, cancelled: 0 }
+  todayTasks.value.forEach((t) => {
+    base[t.status] = (base[t.status] || 0) + 1
+  })
+  return base
+})
+
+const urgentCount = computed(() => todayTasks.value.filter((t) => t.priority === "urgent").length)
+
+const detailOpen = ref(false)
+const selected = ref(null)
+
+function openDetail(t) {
+  selected.value = t
+  detailOpen.value = true
+}
+function closeDetail() {
+  detailOpen.value = false
+  selected.value = null
+}
+
+function resetFilters() {
+  q.value = ""
+  status.value = ""
+  type.value = ""
+  priority.value = ""
+}
+
+function labelTaskType(v) {
+  return (
+    {
+      cleaning: "Cleaning",
+      maintenance: "Maintenance",
+      inspection: "Inspection",
+      deep_clean: "Deep Clean",
+      turndown: "Turndown",
+    }[v] || v
+  )
+}
+function labelPriority(v) {
+  return ({ low: "Low", normal: "Normal", high: "High", urgent: "Urgent" }[v] || v)
+}
+function labelStatus(v) {
+  return (
+    {
+      pending: "Pending",
+      in_progress: "In Progress",
+      completed: "Completed",
+      cancelled: "Cancelled",
+    }[v] || v
+  )
+}
+function userName(id) {
+  return users[id]?.name || `User #${id ?? "—"}`
+}
+function shortText(text, n) {
+  const s = String(text || "")
+  return s.length > n ? s.slice(0, n).trim() + "…" : s
+}
+
+function nowSQL() {
+  const d = new Date()
+  const pad = (x) => String(x).padStart(2, "0")
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(
+    d.getMinutes()
+  )}:${pad(d.getSeconds())}`
+}
+
+function startTask(t) {
+  if (t.status !== "pending") return
+  t.status = "in_progress"
+  t.started_at = nowSQL()
+  t.updated_at = nowSQL()
+  selected.value = t
+}
+
+function completeTask(t) {
+  if (t.status !== "in_progress") return
+  t.status = "completed"
+  t.completed_at = nowSQL()
+  if (!t.completion_notes) t.completion_notes = "Completed"
+  t.updated_at = nowSQL()
+  selected.value = t
+}
+
+function cancelTask(t) {
+  if (t.status === "completed" || t.status === "cancelled") return
+  t.status = "cancelled"
+  t.updated_at = nowSQL()
+  selected.value = t
+}
+
+/* Colors for VaBadge */
+function statusColor(s) {
+  if (s === "completed") return "success"
+  if (s === "in_progress") return "info"
+  if (s === "pending") return "warning"
+  if (s === "cancelled") return "danger"
+  return "secondary"
+}
+function priorityColor(p) {
+  if (p === "urgent") return "warning"
+  if (p === "high") return "info"
+  if (p === "low") return "secondary"
+  return "primary"
+}
+function typeColor(t) {
+  if (t === "maintenance") return "info"
+  if (t === "cleaning") return "success"
+  if (t === "inspection") return "secondary"
+  if (t === "deep_clean") return "warning"
+  if (t === "turndown") return "primary"
+  return "secondary"
+}
+</script>
+
+<style scoped>
+.page {
+  padding: 18px 18px 40px;
+  background: #f8fafc;
+  color: #0f172a;
+  min-height: calc(100vh - 60px);
+}
+
+/* Header */
+.header {
   display: flex;
+  align-items: end;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 14px;
+  gap: 12px;
   margin-bottom: 14px;
 }
-.headActions {
+.title {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+.subtitle {
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 13px;
+}
+.header-actions {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
 }
-.head h1 {
-  font-size: 22px;
-  font-weight: 900;
-  color: #0f172a;
-  margin: 0;
+
+/* Shadow like config page */
+.card {
+  border-radius: 14px;
 }
-.head p {
-  margin: 6px 0 0;
-  font-size: 13px;
-  color: #475569;
+.shadow {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
 }
 
-/* stats */
+/* Stats */
 .stats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  margin-bottom: 14px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
 }
-@media (max-width: 900px) {
-  .stats { grid-template-columns: 1fr 1fr; }
-}
-@media (max-width: 520px) {
-  .stats { grid-template-columns: 1fr; }
-}
-.sCard {
-  border: 1px solid #eef2f6;
-  background: #fff;
-  border-radius: 14px;
-  padding: 12px 14px;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
-}
-.sCard.soft { background: #f8fafc; }
-.sCard.warn { background: #fef9c3; border-color: #fde68a; }
-.sCard.ok { background: #dcfce7; border-color: #bbf7d0; }
-.sLabel { font-size: 12px; font-weight: 900; color: #64748b; }
-.sValue { margin-top: 6px; font-size: 22px; font-weight: 900; color: #0f172a; }
-
-/* filters */
-.filters {
-  background: #fff;
-  border: 1px solid #eef2f6;
-  border-radius: 14px;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
-  padding: 14px;
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-@media (max-width: 1000px) {
-  .filters { grid-template-columns: 1fr 1fr; }
-}
-@media (max-width: 520px) {
-  .filters { grid-template-columns: 1fr; }
-}
-
-/* table */
-.tableCard {
-  border-radius: 14px;
-  border: 1px solid #eef2f6;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
-}
-.tableWrap { overflow-x: auto; }
-.tbl {
-  width: 100%;
-  border-collapse: collapse;
-  background: #fff;
-}
-.tbl th {
-  text-align: left;
-  padding: 12px 14px;
+.stat-label {
   font-size: 12px;
-  color: #475569;
-  border-bottom: 1px solid #eef2f6;
-  background: #fbfcfe;
-  white-space: nowrap;
+  color: #64748b;
+  font-weight: 800;
 }
-.tbl td {
-  padding: 12px 14px;
-  border-bottom: 1px solid #f1f5f9;
-  vertical-align: top;
-}
-.tbl tr:hover td { background: #fafcff; }
-.right { text-align: right; }
-.main { font-weight: 900; color: #0f172a; font-size: 13px; }
-.sub { margin-top: 4px; font-size: 12px; color: #64748b; }
-.ml { margin-left: 10px; }
-.mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size: 12px;
-  color: #334155;
-  white-space: nowrap;
-}
-.empty { text-align: center; padding: 20px !important; font-weight: 800; color: #64748b; }
-.btns { display: inline-flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
-
-/* badges */
-.badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 11px;
+.stat-value {
+  margin-top: 6px;
+  font-size: 18px;
   font-weight: 900;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
-  color: #334155;
 }
-.st-pending { background: #f1f5f9; }
-.st-in_progress { background: #fef9c3; border-color: #fde68a; color: #854d0e; }
-.st-completed { background: #dcfce7; border-color: #bbf7d0; color: #166534; }
-.st-skipped { background: #fee2e2; border-color: #fecaca; color: #991b1b; }
 
-.pr-low { background: #f1f5f9; }
-.pr-normal { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
-.pr-high { background: #fef9c3; border-color: #fde68a; color: #854d0e; }
-.pr-urgent { background: #fee2e2; border-color: #fecaca; color: #991b1b; }
-
-/* modal */
-.m-wrap {
-  position: fixed;
-  inset: 0;
-  z-index: 99999;
-  background: rgba(15, 23, 42, 0.45);
+/* Toolbar */
+.toolbar {
   display: grid;
-  place-items: center;
-  padding: 18px;
+  grid-template-columns: 1.6fr 1fr 1fr 1fr;
+  gap: 12px;
 }
-.m {
-  width: min(1080px, 100%);
-  max-height: 95vh;
-  background: #fff;
+
+/* List */
+.list-top {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.list-title {
+  font-weight: 900;
+}
+.list-sub {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.empty {
+  padding: 24px;
+  border-radius: 14px;
+  background: #f1f5f9;
+  text-align: center;
+}
+.empty-title {
+  font-weight: 1000;
+  font-size: 16px;
+}
+.empty-sub {
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.row-card {
   border-radius: 16px;
-  border: 1px solid #eef2f6;
-  box-shadow: 0 30px 90px rgba(15, 23, 42, 0.22);
-  overflow: hidden;
+  cursor: pointer;
 }
-.m-head {
-  padding: 14px 16px;
-  border-bottom: 1px solid #eef2f6;
-  background: #fbfcfe;
+.row {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+.left {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 14px;
+}
+.room {
+  background: #fff;
+  border-radius: 14px;
+  padding: 12px;
+  min-width: 86px;
+}
+.room-label {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.room-number {
+  margin-top: 4px;
+  font-size: 18px;
+  font-weight: 1000;
+}
+.main {
+  min-width: 0;
+}
+.topline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.badge {
+  font-weight: 900;
+}
+.notes {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.issue {
+  color: #7c2d12;
+  margin-left: 6px;
+}
+.meta {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  color: #64748b;
+  font-size: 12px;
+}
+.dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: #cbd5e1;
+}
+.right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Detail modal */
+.detail-card {
+  border-radius: 16px;
+}
+.detail-head {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
+  margin-bottom: 12px;
 }
-.m-title { font-size: 16px; font-weight: 900; color: #0f172a; }
-.m-sub { margin-top: 2px; font-size: 12px; color: #64748b; }
-.m-body { padding: 16px; overflow: auto; max-height: calc(92vh - 118px); }
-.m-foot { padding: 14px 16px; border-top: 1px solid #eef2f6; display: flex; justify-content: flex-end; gap: 10px; background: #fff; }
-
-/* view cards */
-.viewGrid {
+.detail-title {
+  font-weight: 1000;
+  font-size: 16px;
+}
+.detail-sub {
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 12px;
+}
+.detail-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
 }
-@media (max-width: 760px) { .viewGrid { grid-template-columns: 1fr; } }
-.card { border: 1px solid #eef2f6; border-radius: 14px; background: #fbfcfe; padding: 14px; }
-.card.wide { grid-column: 1 / -1; }
-.t { font-size: 12px; color: #64748b; font-weight: 800; margin-bottom: 8px; }
-.big { font-size: 18px; font-weight: 900; color: #0f172a; }
-.muted { color: #64748b; font-weight: 800; }
-.mt { margin-top: 10px; }
-.note { font-weight: 800; color: #0f172a; }
-
-/* ✅ slide wrapper */
-.formWrap { display: none; } /* jQuery will slideDown */
-
-/* form */
-.formGrid {
+.kv {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #f1f5f9;
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 12px;
+  grid-template-columns: 120px 1fr;
+  gap: 10px;
 }
-@media (max-width: 860px) {
-  .formGrid { grid-template-columns: 1fr; }
+.k {
+  color: #64748b;
+  font-weight: 900;
+  font-size: 12px;
 }
-.wide { grid-column: 1 / -1; }
+.v {
+  font-weight: 900;
+  font-size: 13px;
+}
+.blocks {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+.block {
+  border-radius: 14px;
+}
+.block-title {
+  color: #64748b;
+  font-weight: 900;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.block-text {
+  font-size: 13px;
+  line-height: 1.6;
+}
+.detail-actions {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
 
-/* Vuestic polish */
-:deep(.va-input__container),
-:deep(.va-select__container),
-:deep(.va-textarea__container) {
-  border-radius: 10px;
-  background: #f9fafb;
+/* Responsive */
+@media (max-width: 980px) {
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+  .row {
+    flex-direction: column;
+  }
+  .right {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+  .kv {
+    grid-template-columns: 1fr;
+  }
 }
-:deep(.va-button) { border-radius: 10px; font-weight: 800; }
+@media (max-width: 520px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
 </style>

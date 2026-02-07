@@ -1,7 +1,7 @@
 <script setup>
 import { reactive, computed, watchEffect } from "vue"
 import { useRouter, useRoute } from "vue-router"
-import { setting_permission } from "@/data/setting/permission"
+import { permission } from "@/data/setting/permission"
 
 const router = useRouter()
 const route = useRoute()

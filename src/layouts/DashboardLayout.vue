@@ -10,7 +10,6 @@ const showSidebar = ref(true)
   <VaLayout class="layout-root">
     <!-- TOP -->
     <template #top>
-      <!-- IMPORTANT: remove overflow-hidden from header wrapper -->
       <Header class="w-full sticky top-0 z-50">
         <template #toggle>
           <VaButton preset="secondary" icon="menu" @click="showSidebar = !showSidebar" />
@@ -25,52 +24,63 @@ const showSidebar = ref(true)
 
     <!-- CONTENT -->
     <template #content>
-      <!-- This wrapper must own the scroll -->
+      <!-- IMPORTANT: this wrapper must take full height & allow children to shrink -->
       <div class="content-shell">
-        <main class="content-scroll">
-          <router-view />
-        </main>
+        <!-- Vuestic Scroll Container owns the scroll -->
+        <VaScrollContainer class="content-scroll" vertical>
+          <div class="content-inner">
+            <router-view />
+          </div>
+        </VaScrollContainer>
       </div>
     </template>
   </VaLayout>
 </template>
 
 <style scoped>
-/* keep Vuestic stable */
+/* Root must be 100vh so layout areas calculate correctly */
 .layout-root {
-  height: 100vh; /* IMPORTANT */
+  height: 100vh;
+  min-height: 0;
   transform: none !important;
   transition: none !important;
 }
 
-/* Make content area fill available height */
+/* Content area fill height */
 .content-shell {
   height: 100%;
-  min-height: 0; /* IMPORTANT for flex/overflow children */
+  min-height: 0; /* IMPORTANT */
   display: flex;
   flex-direction: column;
 }
 
-/* Scroll container */
+/* VaScrollContainer should be the ONLY scroll */
 .content-scroll {
   flex: 1;
   min-height: 0; /* IMPORTANT */
-  overflow-y: auto;
-  overflow-x: hidden;
-
-  /* spacing */
-  padding: 16px;
-
-  /* optional background */
-  background: #f4f7f9;
-
-  /* optional: hide scrollbar */
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE/Edge */
+  width: 100%;
 }
-.content-scroll::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-  display: none;
+
+.content-inner {
+  padding: 16px;
+  padding-bottom: 90px; /* ✅ important: allow last content to be visible */
+  background: #f4f7f9;
+  min-height: auto;     /* ✅ remove min-height: 100% */
+}
+
+/* Optional: smoother for anchor scroll / router transitions */
+:global(html) {
+  scroll-behavior: smooth;
+}
+/* Hide scrollbar for Vuestic ScrollContainer */
+.va-scroll-container__content {
+  scrollbar-width: none !important;       /* Firefox */
+  -ms-overflow-style: none !important;    /* IE/Edge */
+}
+
+.va-scroll-container__content::-webkit-scrollbar {
+  width: 0px !important;
+  height: 0px !important;
+  display: none !important;              /* Chrome/Safari */
 }
 </style>

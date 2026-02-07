@@ -1,626 +1,397 @@
-<script setup>
-import { ref, computed, reactive, watch, nextTick } from "vue"
-import $ from "jquery"
-import { housekeeping_Task as seed } from "@/data/housekeeping/housekeeping_Task"
-
-// ---------- data ----------
-const tasks = ref(seed.map((x) => ({ ...x })))
-
-// ---------- filters ----------
-const q = ref("")
-const status = ref("")
-const taskType = ref("")
-const priority = ref("")
-const sort = ref("newest")
-
-const safe = (v) => (v ?? "").toString().toLowerCase()
-const label = (s) => (s ? s.replaceAll("_", " ").toUpperCase() : "-")
-
-const statusOptions = ["", "pending", "in_progress", "completed", "skipped"]
-const typeOptions = ["", "checkout_cleaning", "daily_cleaning", "deep_cleaning", "turndown", "inspection"]
-const priorityOptions = ["", "low", "normal", "high", "urgent"]
-
-const filtered = computed(() => {
-  const key = safe(q.value)
-
-  let list = tasks.value.filter((t) => {
-    const hit =
-      !key ||
-      safe(t.task_id).includes(key) ||
-      safe(t.room_id).includes(key) ||
-      safe(t.task_type).includes(key) ||
-      safe(t.notes).includes(key)
-
-    const okStatus = !status.value || t.status === status.value
-    const okType = !taskType.value || t.task_type === taskType.value
-    const okPri = !priority.value || t.priority === priority.value
-    return hit && okStatus && okType && okPri
-  })
-
-  if (sort.value === "newest") list.sort((a, b) => (b.task_id || 0) - (a.task_id || 0))
-  if (sort.value === "oldest") list.sort((a, b) => (a.task_id || 0) - (b.task_id || 0))
-  if (sort.value === "room") list.sort((a, b) => String(a.room_id).localeCompare(String(b.room_id)))
-  if (sort.value === "date") list.sort((a, b) => String(b.task_date).localeCompare(String(a.task_date)))
-  return list
-})
-
-// ---------- modal + slideDown ----------
-const modalOpen = ref(false)
-const modalMode = ref("view") // view | create | edit
-const selected = ref(null)
-
-// element that slides down
-const formWrapRef = ref(null)
-
-function slideDownForm() {
-  nextTick(() => {
-    const el = formWrapRef.value
-    if (!el) return
-    $(el).stop(true, true).css("display", "none").slideDown(260)
-  })
-}
-
-function slideUpForm(cb) {
-  const el = formWrapRef.value
-  if (!el) return cb?.()
-  $(el).stop(true, true).slideUp(200, () => cb?.())
-}
-
-// ---------- form ----------
-const form = reactive({
-  task_id: null,
-  room_id: "",
-  task_date: "",
-  task_type: "daily_cleaning",
-  priority: "normal",
-  status: "pending",
-  assigned_to: "",
-  started_at: null,
-  completed_at: null,
-  notes: "",
-})
-
-function pad2(n) {
-  return String(n).padStart(2, "0")
-}
-function nowTS() {
-  const d = new Date()
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(
-    d.getMinutes()
-  )}:00`
-}
-function todayISO() {
-  const d = new Date()
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
-}
-
-function openModal(mode, row = null) {
-  modalMode.value = mode
-  selected.value = row
-
-  if (mode === "create") {
-    form.task_id = null
-    form.room_id = ""
-    form.task_date = todayISO()
-    form.task_type = "daily_cleaning"
-    form.priority = "normal"
-    form.status = "pending"
-    form.assigned_to = ""
-    form.started_at = null
-    form.completed_at = null
-    form.notes = ""
-  }
-
-  if (mode === "edit" && row) {
-    form.task_id = row.task_id
-    form.room_id = row.room_id ?? ""
-    form.task_date = row.task_date ?? todayISO()
-    form.task_type = row.task_type ?? "daily_cleaning"
-    form.priority = row.priority ?? "normal"
-    form.status = row.status ?? "pending"
-    form.assigned_to = row.assigned_to ?? ""
-    form.started_at = row.started_at ?? null
-    form.completed_at = row.completed_at ?? null
-    form.notes = row.notes ?? ""
-  }
-
-  modalOpen.value = true
-  if (mode === "create" || mode === "edit") slideDownForm()
-}
-
-function closeModal() {
-  if (modalMode.value === "create" || modalMode.value === "edit") {
-    slideUpForm(() => {
-      modalOpen.value = false
-      selected.value = null
-    })
-  } else {
-    modalOpen.value = false
-    selected.value = null
-  }
-}
-
-// ---------- save ----------
-function saveCreate() {
-  if (!String(form.room_id).trim() || !String(form.task_date).trim()) {
-    alert("Room ID and Task Date are required.")
-    return
-  }
-
-  const nextId = Math.max(...tasks.value.map((x) => x.task_id || 0), 0) + 1
-
-  tasks.value.unshift({
-    task_id: nextId,
-    room_id: Number(form.room_id),
-    task_date: form.task_date,
-    task_type: form.task_type,
-    priority: form.priority,
-    status: form.status,
-    assigned_to: form.assigned_to ? Number(form.assigned_to) : null,
-    started_at:
-      form.status === "in_progress" && !form.started_at ? nowTS() : form.started_at,
-    completed_at:
-      form.status === "completed" && !form.completed_at ? nowTS() : form.completed_at,
-    notes: form.notes,
-  })
-
-  closeModal()
-}
-
-function saveEdit() {
-  const idx = tasks.value.findIndex((x) => x.task_id === form.task_id)
-  if (idx === -1) return closeModal()
-
-  const old = tasks.value[idx]
-  tasks.value.splice(idx, 1, {
-    ...old,
-    room_id: Number(form.room_id),
-    task_date: form.task_date,
-    task_type: form.task_type,
-    priority: form.priority,
-    status: form.status,
-    assigned_to: form.assigned_to ? Number(form.assigned_to) : null,
-    started_at:
-      form.status === "in_progress"
-        ? (form.started_at || old.started_at || nowTS())
-        : form.started_at || null,
-    completed_at:
-      form.status === "completed"
-        ? (form.completed_at || old.completed_at || nowTS())
-        : form.completed_at || null,
-    notes: form.notes,
-  })
-
-  closeModal()
-}
-
-function viewRow(r) {
-  openModal("view", r)
-}
-
-watch(modalOpen, (v) => (document.body.style.overflow = v ? "hidden" : ""))
-</script>
-
 <template>
-  <div class="page">
-    <div class="head">
+  <div class="hk-page">
+    <!-- Header -->
+    <div class="hk-header">
       <div>
-        <h1>Housekeeping Tasks</h1>
-        <p>Task list • filters • view • create/edit slides down</p>
+        <h1>Housekeeping · Tasks</h1>
+        <p>All cleaning, inspection, maintenance and turndown activities</p>
       </div>
 
-      <div class="headActions">
-        <VaButton preset="secondary" icon="refresh" @click="q=''; status=''; taskType=''; priority=''; sort='newest'">
-          Reset
-        </VaButton>
-        <VaButton color="success" icon="add" @click="openModal('create')">
-          New Task
-        </VaButton>
+      <div class="hk-header-actions">
+        <RouterLink class="hk-btn hk-btn-primary" :to="{ name: 'housekeeping-assign' }">
+          + Assign Task
+        </RouterLink>
       </div>
     </div>
 
-    <!-- Filters -->
-    <VaCard class="filters">
-      <VaInput v-model="q" placeholder="Search task id / room id / notes / type..." />
-      <VaSelect v-model="status" :options="statusOptions" label="Status" />
-      <VaSelect v-model="taskType" :options="typeOptions" label="Task Type" />
-      <VaSelect v-model="priority" :options="priorityOptions" label="Priority" />
-      <VaSelect
-        v-model="sort"
-        :options="[
-          { text: 'Newest', value: 'newest' },
-          { text: 'Oldest', value: 'oldest' },
-          { text: 'Room', value: 'room' },
-          { text: 'Task Date', value: 'date' },
-        ]"
-        text-by="text"
-        value-by="value"
-        label="Sort"
-      />
-    </VaCard>
-
-    <!-- Table -->
-    <VaCard class="tableCard">
-      <div class="tableWrap">
-        <table class="tbl">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Room</th>
-              <th>Task</th>
-              <th>Date</th>
-              <th>Status</th>
-              <th>Priority</th>
-              <th>Assigned</th>
-              <th class="right">Action</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            <tr v-if="filtered.length === 0">
-              <td colspan="8" class="empty">No tasks found.</td>
-            </tr>
-
-            <tr v-for="t in filtered" :key="t.task_id">
-              <td class="mono">#{{ t.task_id }}</td>
-
-              <td>
-                <div class="main">Room {{ t.room_id }}</div>
-                <div class="sub" v-if="t.notes">{{ t.notes }}</div>
-              </td>
-
-              <td>
-                <span class="badge">{{ label(t.task_type) }}</span>
-              </td>
-
-              <td class="mono">{{ t.task_date }}</td>
-
-              <td>
-                <span class="badge" :class="'st-' + (t.status || 'pending')">
-                  {{ label(t.status) }}
-                </span>
-              </td>
-
-              <td>
-                <span class="badge" :class="'pr-' + (t.priority || 'normal')">
-                  {{ label(t.priority) }}
-                </span>
-              </td>
-
-              <td>
-                <div class="main">{{ t.assigned_to ? `User #${t.assigned_to}` : "-" }}</div>
-                <div class="sub">
-                  <span v-if="t.started_at">Start: <span class="mono">{{ t.started_at }}</span></span>
-                  <span v-if="t.completed_at" class="ml">
-                    Done: <span class="mono">{{ t.completed_at }}</span>
-                  </span>
-                </div>
-              </td>
-
-              <td class="right">
-                <div class="btns">
-                  <VaButton size="small" preset="secondary" @click="viewRow(t)">View</VaButton>
-                  <VaButton size="small" color="primary" @click="openModal('edit', t)">Edit</VaButton>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+    <!-- Stats -->
+    <section class="hk-stats" aria-label="All tasks summary">
+      <div class="hk-stat">
+        <div class="hk-stat-label">Total</div>
+        <div class="hk-stat-value">{{ tasks.length }}</div>
       </div>
-    </VaCard>
+      <div class="hk-stat">
+        <div class="hk-stat-label">Pending</div>
+        <div class="hk-stat-value">{{ countByStatus.pending }}</div>
+      </div>
+      <div class="hk-stat">
+        <div class="hk-stat-label">In Progress</div>
+        <div class="hk-stat-value">{{ countByStatus.in_progress }}</div>
+      </div>
+      <div class="hk-stat">
+        <div class="hk-stat-label">Completed</div>
+        <div class="hk-stat-value">{{ countByStatus.completed }}</div>
+      </div>
+      <div class="hk-stat">
+        <div class="hk-stat-label">Urgent</div>
+        <div class="hk-stat-value">{{ urgentCount }}</div>
+      </div>
+    </section>
 
-    <!-- Modal -->
-    <Teleport to="body">
-      <div v-if="modalOpen" class="m-wrap" @click="closeModal">
-        <div class="m" @click.stop>
-          <header class="m-head">
-            <div>
-              <div class="m-title">
-                {{
-                  modalMode === "create"
-                    ? "Create Housekeeping Task"
-                    : modalMode === "edit"
-                    ? "Edit Housekeeping Task"
-                    : "Task Details"
-                }}
-              </div>
-              <div class="m-sub">
-                {{
-                  modalMode === "view"
-                    ? `Task #${selected?.task_id ?? "-"}`
-                    : "Form slides down (jQuery)"
-                }}
-              </div>
-            </div>
+    <!-- Toolbar -->
+    <section class="hk-toolbar" aria-label="Filters">
+      <div class="hk-search">
+        <span class="hk-search-icon">⌕</span>
+        <input
+          v-model.trim="q"
+          class="hk-input"
+          type="text"
+          placeholder="Search by room, notes, issues..."
+        />
+      </div>
 
-            <VaButton preset="secondary" icon="close" @click="closeModal">Close</VaButton>
-          </header>
+      <div class="hk-filters">
+        <select v-model="filterStatus" class="hk-select">
+          <option value="">All Status</option>
+          <option value="pending">pending</option>
+          <option value="in_progress">in_progress</option>
+          <option value="completed">completed</option>
+          <option value="cancelled">cancelled</option>
+        </select>
 
-          <section class="m-body">
-            <!-- VIEW -->
-            <div v-if="modalMode === 'view' && selected" class="viewGrid">
-              <div class="card">
-                <div class="t">Task</div>
-                <div class="big">{{ label(selected.task_type) }}</div>
-                <div class="muted">Date: <span class="mono">{{ selected.task_date }}</span></div>
-              </div>
+        <select v-model="filterType" class="hk-select">
+          <option value="">All Types</option>
+          <option value="cleaning">cleaning</option>
+          <option value="maintenance">maintenance</option>
+          <option value="inspection">inspection</option>
+          <option value="deep_clean">deep_clean</option>
+          <option value="turndown">turndown</option>
+        </select>
 
-              <div class="card">
-                <div class="t">Room</div>
-                <div class="big">Room {{ selected.room_id }}</div>
-                <div class="muted">Assigned: {{ selected.assigned_to ? `User #${selected.assigned_to}` : "-" }}</div>
-              </div>
+        <select v-model="filterPriority" class="hk-select">
+          <option value="">All Priority</option>
+          <option value="low">low</option>
+          <option value="normal">normal</option>
+          <option value="high">high</option>
+          <option value="urgent">urgent</option>
+        </select>
 
-              <div class="card">
-                <div class="t">Status</div>
-                <span class="badge" :class="'st-' + (selected.status || 'pending')">
-                  {{ label(selected.status) }}
-                </span>
-                <div class="mt muted">
-                  Priority: <b>{{ label(selected.priority) }}</b>
-                </div>
-              </div>
+        <button class="hk-btn hk-btn-ghost" type="button" @click="resetFilters">
+          Reset
+        </button>
+      </div>
+    </section>
 
-              <div class="card">
-                <div class="t">Time</div>
-                <div>Started: <b class="mono">{{ selected.started_at || "-" }}</b></div>
-                <div>Completed: <b class="mono">{{ selected.completed_at || "-" }}</b></div>
-              </div>
+    <!-- Tasks List -->
+    <div class="hk-list">
+      <div v-if="filteredTasks.length === 0" class="hk-empty">
+        <div class="hk-empty-title">No tasks found</div>
+        <div class="hk-empty-sub">Try clearing filters or changing keyword.</div>
+      </div>
 
-              <div class="card wide">
-                <div class="t">Notes</div>
-                <div class="note">{{ selected.notes || "-" }}</div>
-              </div>
-            </div>
+      <div v-for="task in filteredTasks" :key="task.task_id" class="hk-card">
+        <div class="hk-room">Room {{ task.room_id }}</div>
 
-            <!-- CREATE / EDIT (SLIDE DOWN) -->
-            <div v-else ref="formWrapRef" class="formWrap">
-              <div class="formGrid">
-                <VaInput v-model="form.room_id" label="Room ID *" placeholder="ex: 101" />
-                <VaInput v-model="form.task_date" type="date" label="Task Date *" />
+        <div class="hk-main">
+          <div class="hk-top">
+            <span class="hk-type">{{ labelTaskType(task.task_type) }}</span>
 
-                <VaSelect v-model="form.task_type" :options="typeOptions.filter(Boolean)" label="Task Type" />
-                <VaSelect v-model="form.priority" :options="priorityOptions.filter(Boolean)" label="Priority" />
+            <span class="hk-priority" :class="task.priority">
+              {{ labelPriority(task.priority) }}
+            </span>
 
-                <VaSelect v-model="form.status" :options="statusOptions.filter(Boolean)" label="Status" />
-                <VaInput v-model="form.assigned_to" label="Assigned To (user_id)" placeholder="ex: 2" />
+            <span class="hk-status" :class="task.status">
+              {{ labelStatus(task.status) }}
+            </span>
+          </div>
 
-                <VaInput v-model="form.started_at" label="Started At (YYYY-MM-DD HH:mm:ss)" placeholder="auto for in_progress" />
-                <VaInput v-model="form.completed_at" label="Completed At (YYYY-MM-DD HH:mm:ss)" placeholder="auto for completed" />
+          <p class="hk-notes">{{ task.notes || "—" }}</p>
 
-                <VaTextarea v-model="form.notes" label="Notes" :max-rows="3" class="wide" />
-              </div>
-            </div>
-          </section>
+          <div class="hk-time">
+            Assigned: {{ format(task.assigned_at) }}
+            <span v-if="task.updated_at"> · Updated: {{ format(task.updated_at) }}</span>
+          </div>
+        </div>
 
-          <footer class="m-foot">
-            <VaButton preset="secondary" @click="closeModal">Cancel</VaButton>
-
-            <template v-if="modalMode === 'create'">
-              <VaButton color="success" icon="save" @click="saveCreate">Save</VaButton>
-            </template>
-
-            <template v-else-if="modalMode === 'edit'">
-              <VaButton color="success" icon="save" @click="saveEdit">Save Changes</VaButton>
-            </template>
-
-            <template v-else>
-              <VaButton color="primary" @click="openModal('edit', selected)">Edit</VaButton>
-            </template>
-          </footer>
+        <div class="hk-actions">
+          <button @click="startTask(task)" v-if="task.status === 'pending'">Start</button>
+          <button @click="completeTask(task)" v-if="task.status === 'in_progress'">Complete</button>
         </div>
       </div>
-    </Teleport>
+    </div>
   </div>
 </template>
 
+<script setup>
+import { ref, computed } from "vue"
+import { RouterLink } from "vue-router"
+
+// ✅ Make sure the file path/name is correct in your project
+// Example: "@/data/housekeeping/housekeeping_task"
+import { housekeepingTasks as seed } from "@/data/housekeeping/housekeeping_Task"
+
+const tasks = ref(seed.map(x => ({ ...x })))
+
+const q = ref("")
+const filterStatus = ref("")
+const filterType = ref("")
+const filterPriority = ref("")
+
+const filteredTasks = computed(() => {
+  const kw = q.value.trim().toLowerCase()
+
+  return tasks.value.filter(t => {
+    if (filterStatus.value && t.status !== filterStatus.value) return false
+    if (filterType.value && t.task_type !== filterType.value) return false
+    if (filterPriority.value && t.priority !== filterPriority.value) return false
+
+    if (!kw) return true
+
+    const hay = [
+      t.room_id,
+      t.task_type,
+      t.priority,
+      t.status,
+      t.notes,
+      t.issues_found,
+    ]
+      .join(" ")
+      .toLowerCase()
+
+    return hay.includes(kw)
+  })
+})
+
+const countByStatus = computed(() => {
+  const base = { pending: 0, in_progress: 0, completed: 0, cancelled: 0 }
+  tasks.value.forEach(t => {
+    base[t.status] = (base[t.status] || 0) + 1
+  })
+  return base
+})
+
+const urgentCount = computed(() => tasks.value.filter(t => t.priority === "urgent").length)
+
+function resetFilters() {
+  q.value = ""
+  filterStatus.value = ""
+  filterType.value = ""
+  filterPriority.value = ""
+}
+
+function nowSQL() {
+  const d = new Date()
+  const pad = (x) => String(x).padStart(2, "0")
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+
+function startTask(task) {
+  if (task.status !== "pending") return
+  task.status = "in_progress"
+  task.started_at = nowSQL()
+  task.updated_at = nowSQL()
+}
+
+function completeTask(task) {
+  if (task.status !== "in_progress") return
+  task.status = "completed"
+  task.completed_at = nowSQL()
+  task.updated_at = nowSQL()
+}
+
+function format(date) {
+  if (!date) return "-"
+  // supports SQL "YYYY-MM-DD HH:mm:ss" or Date
+  const s = String(date)
+  if (s.length >= 10 && s.includes("-")) return s
+  return new Date(date).toLocaleString()
+}
+
+function labelTaskType(v) {
+  return ({
+    cleaning: "Cleaning",
+    maintenance: "Maintenance",
+    inspection: "Inspection",
+    deep_clean: "Deep Clean",
+    turndown: "Turndown",
+  }[v] || v)
+}
+function labelPriority(v) {
+  return ({ low: "Low", normal: "Normal", high: "High", urgent: "Urgent" }[v] || v)
+}
+function labelStatus(v) {
+  return ({
+    pending: "Pending",
+    in_progress: "In Progress",
+    completed: "Completed",
+    cancelled: "Cancelled",
+  }[v] || String(v).replace("_", " "))
+}
+</script>
+
 <style scoped>
-.page {
-  padding: 20px 24px;
-  background: #f6f8fb;
+/* keep your original styles, plus a few small classes used above */
+.hk-page{
+  padding: 22px;
+  background: #f7fafc;
   min-height: 100vh;
-}
-
-/* header */
-.head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 14px;
-  margin-bottom: 14px;
-}
-.headActions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.head h1 {
-  font-size: 22px;
-  font-weight: 900;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   color: #0f172a;
-  margin: 0;
-}
-.head p {
-  margin: 6px 0 0;
-  font-size: 13px;
-  color: #475569;
 }
 
-/* filters */
-.filters {
-  background: #fff;
-  border: 1px solid #eef2f6;
-  border-radius: 14px;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
-  padding: 14px;
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-@media (max-width: 1000px) {
-  .filters { grid-template-columns: 1fr 1fr; }
-}
-@media (max-width: 520px) {
-  .filters { grid-template-columns: 1fr; }
-}
-
-/* table */
-.tableCard {
-  border-radius: 14px;
-  border: 1px solid #eef2f6;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
-}
-.tableWrap { overflow-x: auto; }
-.tbl {
-  width: 100%;
-  border-collapse: collapse;
-  background: #fff;
-}
-.tbl th {
-  text-align: left;
-  padding: 12px 14px;
-  font-size: 12px;
-  color: #475569;
-  border-bottom: 1px solid #eef2f6;
-  background: #fbfcfe;
-  white-space: nowrap;
-}
-.tbl td {
-  padding: 12px 14px;
-  border-bottom: 1px solid #f1f5f9;
-  vertical-align: top;
-}
-.tbl tr:hover td { background: #fafcff; }
-.right { text-align: right; }
-.main { font-weight: 900; color: #0f172a; font-size: 13px; }
-.sub { margin-top: 4px; font-size: 12px; color: #64748b; }
-.mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size: 12px;
-  color: #334155;
-  white-space: nowrap;
-}
-.empty { text-align: center; padding: 20px !important; font-weight: 800; color: #64748b; }
-
-/* badges */
-.badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 900;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
-  color: #334155;
-}
-.st-pending { background: #f1f5f9; }
-.st-in_progress { background: #fef9c3; border-color: #fde68a; color: #854d0e; }
-.st-completed { background: #dcfce7; border-color: #bbf7d0; color: #166534; }
-.st-skipped { background: #fee2e2; border-color: #fecaca; color: #991b1b; }
-
-.pr-low { background: #f1f5f9; }
-.pr-normal { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
-.pr-high { background: #fef9c3; border-color: #fde68a; color: #854d0e; }
-.pr-urgent { background: #fee2e2; border-color: #fecaca; color: #991b1b; }
-
-/* modal */
-.m-wrap {
-  position: fixed;
-  inset: 0;
-  z-index: 99999;
-  background: rgba(15, 23, 42, 0.45);
-  display: grid;
-  place-items: center;
-  padding: 18px;
-}
-.m {
-  width: min(1020px, 100%);
-  max-height: 95vh;
-  background: #fff;
-  border-radius: 16px;
-  border: 1px solid #eef2f6;
-  box-shadow: 0 30px 90px rgba(15, 23, 42, 0.22);
-  overflow: hidden;
-}
-.m-head {
-  padding: 14px 16px;
-  border-bottom: 1px solid #eef2f6;
-  background: #fbfcfe;
+.hk-header{
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  gap: 12px;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 12px;
 }
-.m-title { font-size: 16px; font-weight: 900; color: #0f172a; }
-.m-sub { margin-top: 2px; font-size: 12px; color: #64748b; }
 
-.m-body {
-  padding: 16px;
-  overflow: auto;
-  max-height: calc(92vh - 118px);
-}
-.m-foot {
-  padding: 14px 16px;
-  border-top: 1px solid #eef2f6;
+.hk-header-actions{
   display: flex;
-  justify-content: flex-end;
   gap: 10px;
+}
+
+.hk-btn{
+  border: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: none;
+}
+.hk-btn-primary{
+  background: #0ea5e9;
+  color: #fff;
+}
+.hk-btn-ghost{
   background: #fff;
+  border: 1px solid #e2e8f0;
+  color: #0f172a;
 }
 
-/* view cards */
-.viewGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+.hk-stats{
+  display:grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin: 8px 0 14px;
 }
-@media (max-width: 760px) {
-  .viewGrid { grid-template-columns: 1fr; }
-}
-.card {
-  border: 1px solid #eef2f6;
+.hk-stat{
+  background:#fff;
+  border: 1px solid #eef2f7;
   border-radius: 14px;
-  background: #fbfcfe;
+  padding: 12px 14px;
+  box-shadow: 0 1px 10px rgba(2,6,23,0.06);
+}
+.hk-stat-label{ font-size: 12px; color:#64748b; }
+.hk-stat-value{ margin-top: 6px; font-size: 18px; font-weight: 900; }
+
+.hk-toolbar{
+  display:flex;
+  gap:10px;
+  flex-wrap: wrap;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom: 14px;
+}
+.hk-search{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  background:#fff;
+  border:1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  flex: 1 1 320px;
+  min-width: 260px;
+  box-shadow: 0 1px 6px rgba(2,6,23,0.06);
+}
+.hk-search-icon{ color:#64748b; font-size: 14px; }
+.hk-input{ border:0; outline:none; background:transparent; width:100%; font-size:13px; }
+
+.hk-filters{
+  display:flex;
+  gap:10px;
+  flex-wrap: wrap;
+  align-items:center;
+}
+
+.hk-select{
+  appearance: none;
+  padding: 10px 12px;
+  min-width: 150px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  outline: none;
+  font-size: 13px;
+  box-shadow: 0 1px 6px rgba(2,6,23,0.06);
+}
+
+.hk-list{ display:grid; gap:12px; }
+
+.hk-empty{
+  background: #fff;
+  border: 1px solid #eef2f7;
+  border-radius: 14px;
+  padding: 22px;
+  text-align: center;
+  box-shadow: 0 1px 10px rgba(2,6,23,0.06);
+}
+.hk-empty-title{ font-weight: 900; font-size: 16px; }
+.hk-empty-sub{ margin-top: 6px; color:#64748b; font-size: 13px; }
+
+.hk-card{
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #fff;
   padding: 14px;
+  border-radius: 14px;
+  border: 1px solid #eef2f7;
+  box-shadow: 0 1px 10px rgba(2,6,23,0.06);
 }
-.card.wide { grid-column: 1 / -1; }
-.t {
+
+.hk-room{
+  width: 110px;
+  font-weight: 900;
+}
+
+.hk-main{ flex: 1; min-width: 0; }
+.hk-top{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom: 8px; }
+.hk-type{ font-weight: 800; }
+.hk-notes{ margin:0; color:#475569; font-size: 13px; line-height: 1.5; }
+.hk-time{ margin-top: 6px; font-size: 12px; color:#94a3b8; }
+
+.hk-priority,
+.hk-status{
   font-size: 12px;
-  color: #64748b;
   font-weight: 800;
-  margin-bottom: 8px;
-}
-.big { font-size: 18px; font-weight: 900; color: #0f172a; }
-.muted { color: #64748b; font-weight: 800; }
-.note { font-weight: 800; color: #0f172a; }
-
-/* ✅ slide wrapper */
-.formWrap {
-  display: none; /* jQuery will slideDown */
+  padding: 5px 10px;
+  border-radius: 999px;
+  text-transform: capitalize;
 }
 
-/* form grid */
-.formGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 12px;
-}
-@media (max-width: 860px) {
-  .formGrid { grid-template-columns: 1fr; }
-}
-.wide { grid-column: 1 / -1; }
+.hk-actions{ display:flex; gap:8px; }
 
-/* Vuestic polish */
-:deep(.va-input__container),
-:deep(.va-select__container),
-:deep(.va-textarea__container) {
-  border-radius: 10px;
-  background: #f9fafb;
-}
-:deep(.va-button) {
-  border-radius: 10px;
+.hk-actions button{
+  border: 0;
+  background: #0ea5e9;
+  color: #fff;
+  padding: 9px 12px;
+  border-radius: 12px;
+  cursor: pointer;
   font-weight: 800;
+  font-size: 13px;
+}
+
+/* responsive */
+@media (max-width: 980px){
+  .hk-stats{ grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 720px){
+  .hk-header{ flex-direction: column; align-items:flex-start; }
+  .hk-card{ flex-direction: column; align-items: stretch; }
+  .hk-room{ width: 100%; }
 }
 </style>
