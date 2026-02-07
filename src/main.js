@@ -8,7 +8,6 @@ import "vuestic-ui/styles/typography.css"
 
 import "./assets/main.css"
 import { initI18n } from "./i18n";
-
 async function setupApp() {
   await initI18n();
 }
