@@ -20,11 +20,13 @@
     "i18next-http-backend": "^3.0.2",
     "jquery": "^3.7.1",
     "qz-tray": "^2.2.5",
+    "sass": "^1.97.3",
     "tailwindcss": "^4.1.16",
     "vue": "^3.5.22",
     "vue-print-nb": "^1.7.5",
     "vue-router": "^4.6.3",
-    "vuestic-ui": "^1.10.3"
+    "vuestic-ui": "^1.10.3",
+    "vuetify": "^3.4.0"
   },
   "devDependencies": {
     "@vitejs/plugin-basic-ssl": "^2.1.4",

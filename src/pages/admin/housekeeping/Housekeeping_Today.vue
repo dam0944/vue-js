@@ -1,266 +1,303 @@
 <!-- src/pages/housekeeping/HousekeepingToday.vue -->
 <template>
-  <div class="hk-page">
+  <div class="page">
     <!-- Header -->
-    <header class="hk-header">
+    <div class="header">
       <div>
-        <h1 class="hk-title">Housekeeping · Today</h1>
-        <p class="hk-subtitle">
-          Manage cleaning, inspections, maintenance and turndown for today.
-        </p>
+        <h1 class="title">Housekeeping · Today</h1>
+        <p class="subtitle">Manage cleaning, inspections, maintenance and turndown for today.</p>
       </div>
 
-      <div class="hk-header-actions">
-        <button class="hk-btn hk-btn-ghost" type="button" @click="resetFilters">
-          Reset
-        </button>
-        <RouterLink class="hk-btn hk-btn-primary" :to="{ name: 'housekeeping-assign' }">
-          + New Task
+      <div class="header-actions">
+        <VaButton preset="secondary" @click="resetFilters">Reset</VaButton>
+        <RouterLink class="no-underline" :to="{ name: 'housekeeping-assign' }">
+          <VaButton icon="add" color="primary">New Task</VaButton>
         </RouterLink>
       </div>
-    </header>
+    </div>
 
     <!-- Stats -->
-    <section class="hk-stats" aria-label="Today summary">
-      <div class="hk-stat">
-        <div class="hk-stat-label">Total</div>
-        <div class="hk-stat-value">{{ todayTasks.length }}</div>
-      </div>
-      <div class="hk-stat">
-        <div class="hk-stat-label">Pending</div>
-        <div class="hk-stat-value">{{ countByStatus.pending }}</div>
-      </div>
-      <div class="hk-stat">
-        <div class="hk-stat-label">In Progress</div>
-        <div class="hk-stat-value">{{ countByStatus.in_progress }}</div>
-      </div>
-      <div class="hk-stat">
-        <div class="hk-stat-label">Completed</div>
-        <div class="hk-stat-value">{{ countByStatus.completed }}</div>
-      </div>
-      <div class="hk-stat">
-        <div class="hk-stat-label">Urgent</div>
-        <div class="hk-stat-value">{{ urgentCount }}</div>
-      </div>
-    </section>
+    <div class="stats">
+      <VaCard class="card shadow">
+        <VaCardContent>
+          <div class="stat-label">Total</div>
+          <div class="stat-value">{{ todayTasks.length }}</div>
+        </VaCardContent>
+      </VaCard>
+
+      <VaCard class="card shadow">
+        <VaCardContent>
+          <div class="stat-label">Pending</div>
+          <div class="stat-value">{{ countByStatus.pending }}</div>
+        </VaCardContent>
+      </VaCard>
+
+      <VaCard class="card shadow">
+        <VaCardContent>
+          <div class="stat-label">In Progress</div>
+          <div class="stat-value">{{ countByStatus.in_progress }}</div>
+        </VaCardContent>
+      </VaCard>
+
+      <VaCard class="card shadow">
+        <VaCardContent>
+          <div class="stat-label">Completed</div>
+          <div class="stat-value">{{ countByStatus.completed }}</div>
+        </VaCardContent>
+      </VaCard>
+
+      <VaCard class="card shadow">
+        <VaCardContent>
+          <div class="stat-label">Urgent</div>
+          <div class="stat-value">{{ urgentCount }}</div>
+        </VaCardContent>
+      </VaCard>
+    </div>
 
     <!-- Toolbar -->
-    <section class="hk-toolbar" aria-label="Filters">
-      <div class="hk-search">
-        <span class="hk-search-icon">⌕</span>
-        <input
-          v-model.trim="q"
-          class="hk-input"
-          type="text"
-          placeholder="Search by room (ex: 101), notes, issues..."
-        />
-      </div>
+    <VaCard class="card shadow">
+      <VaCardContent>
+        <div class="toolbar">
+          <VaInput
+            v-model.trim="q"
+            label="Search"
+            placeholder="Search room (101), notes, issues..."
+            clearable
+          />
 
-      <div class="hk-filters">
-        <select v-model="status" class="hk-select" aria-label="Filter by status">
-          <option value="">All status</option>
-          <option value="pending">Pending</option>
-          <option value="in_progress">In progress</option>
-          <option value="completed">Completed</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
+          <VaSelect
+            v-model="status"
+            label="Status"
+            :options="STATUS_OPTIONS"
+            :text-by="(v) => (v.value === '' ? 'All status' : v.text)"
+            :value-by="(v) => v.value"
+          />
 
-        <select v-model="type" class="hk-select" aria-label="Filter by type">
-          <option value="">All type</option>
-          <option value="cleaning">Cleaning</option>
-          <option value="maintenance">Maintenance</option>
-          <option value="inspection">Inspection</option>
-          <option value="deep_clean">Deep clean</option>
-          <option value="turndown">Turndown</option>
-        </select>
+          <VaSelect
+            v-model="type"
+            label="Type"
+            :options="TYPE_OPTIONS"
+            :text-by="(v) => (v.value === '' ? 'All type' : v.text)"
+            :value-by="(v) => v.value"
+          />
 
-        <select v-model="priority" class="hk-select" aria-label="Filter by priority">
-          <option value="">All priority</option>
-          <option value="low">Low</option>
-          <option value="normal">Normal</option>
-          <option value="high">High</option>
-          <option value="urgent">Urgent</option>
-        </select>
-      </div>
-    </section>
+          <VaSelect
+            v-model="priority"
+            label="Priority"
+            :options="PRIORITY_OPTIONS"
+            :text-by="(v) => (v.value === '' ? 'All priority' : v.text)"
+            :value-by="(v) => v.value"
+          />
+        </div>
+      </VaCardContent>
+    </VaCard>
 
     <!-- List -->
-    <section class="hk-list" aria-label="Task list">
-      <div v-if="filtered.length === 0" class="hk-empty">
-        <div class="hk-empty-title">No tasks for today</div>
-        <div class="hk-empty-sub">Try clearing filters or assign a new task.</div>
-      </div>
-
-      <article
-        v-for="t in filtered"
-        :key="t.task_id"
-        class="hk-row"
-        @click="openDetail(t)"
-        role="button"
-        tabindex="0"
-        @keydown.enter="openDetail(t)"
-      >
-        <div class="hk-row-left">
-          <div class="hk-room">
-            <div class="hk-room-label">Room</div>
-            <div class="hk-room-number">{{ t.room_id }}</div>
-          </div>
-
-          <div class="hk-main">
-            <div class="hk-topline">
-              <span class="hk-pill" :data-type="t.task_type">{{ labelTaskType(t.task_type) }}</span>
-              <span class="hk-pill" :data-priority="t.priority">{{ labelPriority(t.priority) }}</span>
-              <span class="hk-pill" :data-status="t.status">{{ labelStatus(t.status) }}</span>
-            </div>
-
-            <div class="hk-notes">
-              {{ shortText(t.notes || "—", 90) }}
-              <span v-if="t.issues_found" class="hk-issue">
-                • Issues: {{ shortText(t.issues_found, 70) }}
-              </span>
-            </div>
-
-            <div class="hk-meta">
-              <span>Assigned: {{ userName(t.assigned_to) }}</span>
-              <span class="hk-dot"></span>
-              <span>Updated: {{ t.updated_at || "—" }}</span>
-            </div>
-          </div>
+    <VaCard class="card shadow">
+      <VaCardContent>
+        <div class="list-top">
+          <div class="list-title">Tasks: <b>{{ filtered.length }}</b></div>
+          <div class="list-sub">Today only • Click row for detail</div>
         </div>
 
-        <div class="hk-row-right" @click.stop>
-          <button
-            v-if="t.status === 'pending'"
-            class="hk-mini hk-mini-primary"
-            type="button"
-            @click="startTask(t)"
-          >
-            Start
-          </button>
-
-          <button
-            v-if="t.status === 'in_progress'"
-            class="hk-mini hk-mini-primary"
-            type="button"
-            @click="completeTask(t)"
-          >
-            Complete
-          </button>
-
-          <button
-            v-if="t.status !== 'completed' && t.status !== 'cancelled'"
-            class="hk-mini hk-mini-ghost"
-            type="button"
-            @click="cancelTask(t)"
-          >
-            Cancel
-          </button>
-
-          <RouterLink
-            class="hk-mini hk-mini-link"
-            :to="{ name: 'housekeeping-edit', params: { taskId: t.task_id } }"
-          >
-            Edit →
-          </RouterLink>
-        </div>
-      </article>
-    </section>
-
-    <!-- Detail Drawer (simple) -->
-    <div v-if="detailOpen" class="hk-drawer" role="dialog" aria-modal="true">
-      <div class="hk-drawer-backdrop" @click="closeDetail"></div>
-
-      <aside class="hk-drawer-panel">
-        <div class="hk-drawer-head">
-          <div>
-            <div class="hk-drawer-title">Task #{{ selected?.task_id }}</div>
-            <div class="hk-drawer-sub">Room {{ selected?.room_id }} · Property {{ selected?.property_id }}</div>
-          </div>
-          <button class="hk-btn hk-btn-ghost" type="button" @click="closeDetail">Close</button>
+        <div v-if="filtered.length === 0" class="empty">
+          <div class="empty-title">No tasks for today</div>
+          <div class="empty-sub">Try clearing filters or assign a new task.</div>
         </div>
 
-        <div class="hk-drawer-body" v-if="selected">
-          <div class="hk-kv">
-            <div class="k">Type</div>
-            <div class="v">{{ labelTaskType(selected.task_type) }}</div>
-          </div>
-          <div class="hk-kv">
-            <div class="k">Priority</div>
-            <div class="v">{{ labelPriority(selected.priority) }}</div>
-          </div>
-          <div class="hk-kv">
-            <div class="k">Status</div>
-            <div class="v">{{ labelStatus(selected.status) }}</div>
+        <div v-else class="rows">
+          <VaCard
+            v-for="t in filtered"
+            :key="t.task_id"
+            class="row-card"
+            @click="openDetail(t)"
+          >
+            <VaCardContent>
+              <div class="row">
+                <div class="left">
+                  <div class="room">
+                    <div class="room-label">Room</div>
+                    <div class="room-number">{{ t.room_id }}</div>
+                  </div>
+
+                  <div class="main">
+                    <div class="topline">
+                      <VaBadge
+                        :text="labelTaskType(t.task_type)"
+                        :color="typeColor(t.task_type)"
+                        class="badge"
+                      />
+                      <VaBadge
+                        :text="labelPriority(t.priority)"
+                        :color="priorityColor(t.priority)"
+                        class="badge"
+                      />
+                      <VaBadge
+                        :text="labelStatus(t.status)"
+                        :color="statusColor(t.status)"
+                        class="badge"
+                      />
+                    </div>
+
+                    <div class="notes">
+                      {{ shortText(t.notes || "—", 90) }}
+                      <span v-if="t.issues_found" class="issue">
+                        • Issues: {{ shortText(t.issues_found, 70) }}
+                      </span>
+                    </div>
+
+                    <div class="meta">
+                      <span>Assigned: {{ userName(t.assigned_to) }}</span>
+                      <span class="dot"></span>
+                      <span>Updated: {{ t.updated_at || "—" }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="right" @click.stop>
+                  <VaButton
+                    v-if="t.status === 'pending'"
+                    size="small"
+                    color="primary"
+                    @click="startTask(t)"
+                  >
+                    Start
+                  </VaButton>
+
+                  <VaButton
+                    v-if="t.status === 'in_progress'"
+                    size="small"
+                    color="success"
+                    @click="completeTask(t)"
+                  >
+                    Complete
+                  </VaButton>
+
+                  <VaButton
+                    v-if="t.status !== 'completed' && t.status !== 'cancelled'"
+                    size="small"
+                    preset="secondary"
+                    @click="cancelTask(t)"
+                  >
+                    Cancel
+                  </VaButton>
+
+                  <RouterLink
+                    class="no-underline"
+                    :to="{ name: 'housekeeping-edit', params: { taskId: t.task_id } }"
+                  >
+                    <VaButton size="small" preset="secondary">Edit</VaButton>
+                  </RouterLink>
+                </div>
+              </div>
+            </VaCardContent>
+          </VaCard>
+        </div>
+      </VaCardContent>
+    </VaCard>
+
+    <!-- Detail modal -->
+    <VaModal v-model="detailOpen" size="large" hide-default-actions>
+      <VaCard class="detail-card">
+        <VaCardContent v-if="selected">
+          <div class="detail-head">
+            <div>
+              <div class="detail-title">Task #{{ selected.task_id }}</div>
+              <div class="detail-sub">Room {{ selected.room_id }} · Property {{ selected.property_id }}</div>
+            </div>
+            <VaButton preset="secondary" @click="closeDetail">Close</VaButton>
           </div>
 
-          <div class="hk-kv">
-            <div class="k">Assigned to</div>
-            <div class="v">{{ userName(selected.assigned_to) }}</div>
-          </div>
-          <div class="hk-kv">
-            <div class="k">Assigned at</div>
-            <div class="v">{{ selected.assigned_at || "—" }}</div>
-          </div>
-          <div class="hk-kv">
-            <div class="k">Started at</div>
-            <div class="v">{{ selected.started_at || "—" }}</div>
-          </div>
-          <div class="hk-kv">
-            <div class="k">Completed at</div>
-            <div class="v">{{ selected.completed_at || "—" }}</div>
+          <div class="detail-grid">
+            <div class="kv">
+              <div class="k">Type</div>
+              <div class="v">{{ labelTaskType(selected.task_type) }}</div>
+            </div>
+            <div class="kv">
+              <div class="k">Priority</div>
+              <div class="v">{{ labelPriority(selected.priority) }}</div>
+            </div>
+            <div class="kv">
+              <div class="k">Status</div>
+              <div class="v">{{ labelStatus(selected.status) }}</div>
+            </div>
+
+            <div class="kv">
+              <div class="k">Assigned to</div>
+              <div class="v">{{ userName(selected.assigned_to) }}</div>
+            </div>
+            <div class="kv">
+              <div class="k">Assigned at</div>
+              <div class="v">{{ selected.assigned_at || "—" }}</div>
+            </div>
+            <div class="kv">
+              <div class="k">Started at</div>
+              <div class="v">{{ selected.started_at || "—" }}</div>
+            </div>
+            <div class="kv">
+              <div class="k">Completed at</div>
+              <div class="v">{{ selected.completed_at || "—" }}</div>
+            </div>
           </div>
 
-          <div class="hk-block">
-            <div class="hk-block-title">Notes</div>
-            <div class="hk-block-text">{{ selected.notes || "—" }}</div>
+          <div class="blocks">
+            <VaCard class="block">
+              <VaCardContent>
+                <div class="block-title">Notes</div>
+                <div class="block-text">{{ selected.notes || "—" }}</div>
+              </VaCardContent>
+            </VaCard>
+
+            <VaCard class="block">
+              <VaCardContent>
+                <div class="block-title">Issues found</div>
+                <div class="block-text">{{ selected.issues_found || "—" }}</div>
+              </VaCardContent>
+            </VaCard>
+
+            <VaCard class="block">
+              <VaCardContent>
+                <div class="block-title">Completion notes</div>
+                <div class="block-text">{{ selected.completion_notes || "—" }}</div>
+              </VaCardContent>
+            </VaCard>
           </div>
 
-          <div class="hk-block">
-            <div class="hk-block-title">Issues found</div>
-            <div class="hk-block-text">{{ selected.issues_found || "—" }}</div>
-          </div>
-
-          <div class="hk-block">
-            <div class="hk-block-title">Completion notes</div>
-            <div class="hk-block-text">{{ selected.completion_notes || "—" }}</div>
-          </div>
-
-          <div class="hk-drawer-actions">
-            <button
+          <div class="detail-actions">
+            <VaButton
               v-if="selected.status === 'pending'"
-              class="hk-btn hk-btn-primary"
-              type="button"
+              color="primary"
               @click="startTask(selected)"
             >
               Start task
-            </button>
-            <button
+            </VaButton>
+
+            <VaButton
               v-if="selected.status === 'in_progress'"
-              class="hk-btn hk-btn-primary"
-              type="button"
+              color="success"
               @click="completeTask(selected)"
             >
               Mark completed
-            </button>
-            <button
+            </VaButton>
+
+            <VaButton
               v-if="selected.status !== 'completed' && selected.status !== 'cancelled'"
-              class="hk-btn hk-btn-ghost"
-              type="button"
+              preset="secondary"
               @click="cancelTask(selected)"
             >
               Cancel task
-            </button>
+            </VaButton>
 
             <RouterLink
-              class="hk-btn hk-btn-ghost"
+              class="no-underline"
               :to="{ name: 'housekeeping-edit', params: { taskId: selected.task_id } }"
             >
-              Edit details →
+              <VaButton preset="secondary">Edit details</VaButton>
             </RouterLink>
           </div>
-        </div>
-      </aside>
-    </div>
+        </VaCardContent>
+      </VaCard>
+    </VaModal>
   </div>
 </template>
 
@@ -269,23 +306,43 @@ import { computed, ref } from "vue"
 import { RouterLink } from "vue-router"
 import { housekeepingToday as seed } from "@/data/housekeeping/housekeeping_today"
 
-// All seed tasks
-const tasks = ref(seed.map(x => ({ ...x })))
+const tasks = ref(seed.map((x) => ({ ...x })))
 
-// users map (static)
 const users = {
   6: { name: "Sokha (Housekeeping)" },
   7: { name: "Dara (Housekeeping)" },
   8: { name: "Vanna (Maintenance)" },
   3: { name: "Reception (Admin)" },
-  4: { name: "Manager" }
+  4: { name: "Manager" },
 }
 
-// Filters
 const q = ref("")
 const status = ref("")
 const type = ref("")
 const priority = ref("")
+
+const STATUS_OPTIONS = [
+  { value: "", text: "All status" },
+  { value: "pending", text: "Pending" },
+  { value: "in_progress", text: "In progress" },
+  { value: "completed", text: "Completed" },
+  { value: "cancelled", text: "Cancelled" },
+]
+const TYPE_OPTIONS = [
+  { value: "", text: "All type" },
+  { value: "cleaning", text: "Cleaning" },
+  { value: "maintenance", text: "Maintenance" },
+  { value: "inspection", text: "Inspection" },
+  { value: "deep_clean", text: "Deep clean" },
+  { value: "turndown", text: "Turndown" },
+]
+const PRIORITY_OPTIONS = [
+  { value: "", text: "All priority" },
+  { value: "low", text: "Low" },
+  { value: "normal", text: "Normal" },
+  { value: "high", text: "High" },
+  { value: "urgent", text: "Urgent" },
+]
 
 function todayISO() {
   const d = new Date()
@@ -293,10 +350,6 @@ function todayISO() {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
-/**
- * Pick a date field from your task object and return yyyy-mm-dd
- * Works with: "YYYY-MM-DD", "YYYY-MM-DD HH:mm:ss", ISO strings.
- */
 function taskISODate(t) {
   const raw =
     t.task_date ||
@@ -311,48 +364,39 @@ function taskISODate(t) {
   return String(raw).slice(0, 10)
 }
 
-// ✅ Today-only tasks
 const todayTasks = computed(() => {
   const iso = todayISO()
-  return tasks.value.filter(t => taskISODate(t) === iso)
+  return tasks.value.filter((t) => taskISODate(t) === iso)
 })
 
-// ✅ Apply filters on todayTasks
 const filtered = computed(() => {
   const kw = q.value.toLowerCase()
 
-  return todayTasks.value.filter(t => {
+  return todayTasks.value.filter((t) => {
     if (status.value && t.status !== status.value) return false
     if (type.value && t.task_type !== type.value) return false
     if (priority.value && t.priority !== priority.value) return false
 
     if (!kw) return true
 
-    const hay = [
-      t.room_id,
-      t.task_type,
-      t.priority,
-      t.status,
-      t.notes,
-      t.issues_found
-    ].join(" ").toLowerCase()
+    const hay = [t.room_id, t.task_type, t.priority, t.status, t.notes, t.issues_found]
+      .join(" ")
+      .toLowerCase()
 
     return hay.includes(kw)
   })
 })
 
-// ✅ Stats use todayTasks
 const countByStatus = computed(() => {
   const base = { pending: 0, in_progress: 0, completed: 0, cancelled: 0 }
-  todayTasks.value.forEach(t => {
+  todayTasks.value.forEach((t) => {
     base[t.status] = (base[t.status] || 0) + 1
   })
   return base
 })
 
-const urgentCount = computed(() => todayTasks.value.filter(t => t.priority === "urgent").length)
+const urgentCount = computed(() => todayTasks.value.filter((t) => t.priority === "urgent").length)
 
-// Drawer
 const detailOpen = ref(false)
 const selected = ref(null)
 
@@ -372,26 +416,29 @@ function resetFilters() {
   priority.value = ""
 }
 
-// Labels
 function labelTaskType(v) {
-  return ({
-    cleaning: "Cleaning",
-    maintenance: "Maintenance",
-    inspection: "Inspection",
-    deep_clean: "Deep Clean",
-    turndown: "Turndown"
-  }[v] || v)
+  return (
+    {
+      cleaning: "Cleaning",
+      maintenance: "Maintenance",
+      inspection: "Inspection",
+      deep_clean: "Deep Clean",
+      turndown: "Turndown",
+    }[v] || v
+  )
 }
 function labelPriority(v) {
   return ({ low: "Low", normal: "Normal", high: "High", urgent: "Urgent" }[v] || v)
 }
 function labelStatus(v) {
-  return ({
-    pending: "Pending",
-    in_progress: "In Progress",
-    completed: "Completed",
-    cancelled: "Cancelled"
-  }[v] || v)
+  return (
+    {
+      pending: "Pending",
+      in_progress: "In Progress",
+      completed: "Completed",
+      cancelled: "Cancelled",
+    }[v] || v
+  )
 }
 function userName(id) {
   return users[id]?.name || `User #${id ?? "—"}`
@@ -401,11 +448,12 @@ function shortText(text, n) {
   return s.length > n ? s.slice(0, n).trim() + "…" : s
 }
 
-// Actions
 function nowSQL() {
   const d = new Date()
   const pad = (x) => String(x).padStart(2, "0")
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(
+    d.getMinutes()
+  )}:${pad(d.getSeconds())}`
 }
 
 function startTask(t) {
@@ -431,301 +479,307 @@ function cancelTask(t) {
   t.updated_at = nowSQL()
   selected.value = t
 }
+
+/* Colors for VaBadge */
+function statusColor(s) {
+  if (s === "completed") return "success"
+  if (s === "in_progress") return "info"
+  if (s === "pending") return "warning"
+  if (s === "cancelled") return "danger"
+  return "secondary"
+}
+function priorityColor(p) {
+  if (p === "urgent") return "warning"
+  if (p === "high") return "info"
+  if (p === "low") return "secondary"
+  return "primary"
+}
+function typeColor(t) {
+  if (t === "maintenance") return "info"
+  if (t === "cleaning") return "success"
+  if (t === "inspection") return "secondary"
+  if (t === "deep_clean") return "warning"
+  if (t === "turndown") return "primary"
+  return "secondary"
+}
 </script>
 
 <style scoped>
-/* Borderless, shadowless, clean */
-.hk-page{
-  --bg:#ffffff;
-  --muted:#6b7280;
-  --text:#0f172a;
-  --soft:#f6f7fb;
-  --soft2:#eef2f7;
-  --primary:#1b4332;
-  --primary2:#2d6a4f;
-
-  background: var(--bg);
-  color: var(--text);
+.page {
   padding: 18px 18px 40px;
+  background: #f8fafc;
+  color: #0f172a;
   min-height: calc(100vh - 60px);
-  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 }
 
-.hk-header{
-  display:flex;
-  align-items:flex-end;
-  justify-content:space-between;
-  gap:16px;
-  padding: 10px 6px 12px;
+/* Header */
+.header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
 }
-.hk-title{
-  font-size: 20px;
+.title {
+  font-size: 22px;
   font-weight: 900;
   letter-spacing: -0.02em;
-  margin: 0;
 }
-.hk-subtitle{
-  margin: 6px 0 0;
-  color: var(--muted);
+.subtitle {
+  margin-top: 6px;
+  color: #64748b;
   font-size: 13px;
 }
-.hk-header-actions{ display:flex; gap:10px; align-items:center; }
-
-.hk-btn{
-  border: 0;
-  background: transparent;
-  padding: 10px 14px;
-  border-radius: 999px;
-  cursor: pointer;
-  font-weight: 800;
-  font-size: 13px;
-  text-decoration: none;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  gap:8px;
-}
-.hk-btn-ghost{
-  background: var(--soft);
-  color: var(--text);
-}
-.hk-btn-primary{
-  background: var(--primary);
-  color: #fff;
+.header-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-.hk-stats{
-  display:grid;
+/* Shadow like config page */
+.card {
+  border-radius: 14px;
+}
+.shadow {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+/* Stats */
+.stats {
+  display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 10px;
-  padding: 8px 6px 16px;
+  margin-bottom: 12px;
 }
-.hk-stat{
-  background: var(--soft);
-  border-radius: 14px;
-  padding: 12px 14px;
+.stat-label {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 800;
 }
-.hk-stat-label{ font-size: 12px; color: var(--muted); }
-.hk-stat-value{ margin-top: 6px; font-size: 18px; font-weight: 900; }
-
-.hk-toolbar{
-  display:flex;
-  gap:10px;
-  align-items:center;
-  justify-content:space-between;
-  flex-wrap: wrap;
-  padding: 6px;
+.stat-value {
   margin-top: 6px;
-}
-.hk-search{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  background: var(--soft);
-  border-radius: 14px;
-  padding: 10px 12px;
-  flex: 1 1 320px;
-  min-width: 260px;
-}
-.hk-search-icon{ color: var(--muted); font-size: 14px; }
-.hk-input{
-  border: 0;
-  outline: none;
-  background: transparent;
-  width: 100%;
-  font-size: 13px;
-}
-.hk-filters{
-  display:flex;
-  gap:10px;
-  flex-wrap: wrap;
-  align-items:center;
-}
-.hk-select{
-  border: 0;
-  outline: none;
-  background: var(--soft);
-  padding: 10px 12px;
-  border-radius: 14px;
-  font-size: 13px;
-  min-width: 150px;
+  font-size: 18px;
+  font-weight: 900;
 }
 
-.hk-list{ margin-top: 10px; padding: 6px; display:flex; flex-direction:column; gap: 10px; }
+/* Toolbar */
+.toolbar {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr 1fr 1fr;
+  gap: 12px;
+}
 
-.hk-row{
-  background: var(--soft);
-  border-radius: 18px;
-  padding: 14px;
-  display:flex;
-  align-items: stretch;
+/* List */
+.list-top {
+  display: flex;
+  align-items: end;
   justify-content: space-between;
-  gap: 14px;
-  cursor: pointer;
-  transition: transform .15s ease;
+  gap: 10px;
+  margin-bottom: 10px;
 }
-.hk-row:hover{ transform: translateY(-1px); }
+.list-title {
+  font-weight: 900;
+}
+.list-sub {
+  font-size: 12px;
+  color: #64748b;
+}
 
-.hk-row-left{ display:flex; gap: 14px; align-items: center; min-width: 0; flex: 1; }
-.hk-room{
-  width: 84px;
+.empty {
+  padding: 24px;
+  border-radius: 14px;
+  background: #f1f5f9;
+  text-align: center;
+}
+.empty-title {
+  font-weight: 1000;
+  font-size: 16px;
+}
+.empty-sub {
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.row-card {
+  border-radius: 16px;
+  cursor: pointer;
+}
+.row {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+.left {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 14px;
+}
+.room {
   background: #fff;
   border-radius: 14px;
-  padding: 12px 12px;
-  display:flex;
-  flex-direction:column;
-  gap: 4px;
-  flex-shrink: 0;
+  padding: 12px;
+  min-width: 86px;
 }
-.hk-room-label{ font-size: 11px; color: var(--muted); font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
-.hk-room-number{ font-size: 18px; font-weight: 1000; }
-
-.hk-main{ min-width: 0; display:flex; flex-direction:column; gap: 8px; }
-.hk-topline{ display:flex; flex-wrap: wrap; gap: 8px; align-items:center; }
-.hk-pill{
+.room-label {
   font-size: 11px;
+  color: #64748b;
   font-weight: 900;
-  padding: 7px 10px;
-  border-radius: 999px;
-  background: rgba(255,255,255,.75);
-  color: var(--text);
   text-transform: uppercase;
-  letter-spacing: .06em;
+  letter-spacing: 0.08em;
 }
-.hk-pill[data-status="completed"]{ background: rgba(27, 67, 50, .14); color: var(--primary); }
-.hk-pill[data-status="in_progress"]{ background: rgba(45, 106, 79, .14); color: var(--primary2); }
-.hk-pill[data-status="cancelled"]{ background: rgba(239, 68, 68, .12); color: #b91c1c; }
-.hk-pill[data-status="pending"]{ background: rgba(107, 114, 128, .12); color: #374151; }
-
-.hk-pill[data-priority="urgent"]{ background: rgba(245, 158, 11, .16); color: #92400e; }
-.hk-pill[data-priority="high"]{ background: rgba(234, 179, 8, .14); color: #854d0e; }
-.hk-pill[data-priority="low"]{ background: rgba(148, 163, 184, .18); color: #334155; }
-
-.hk-pill[data-type="maintenance"]{ background: rgba(59, 130, 246, .14); color: #1d4ed8; }
-.hk-pill[data-type="cleaning"]{ background: rgba(16, 185, 129, .14); color: #065f46; }
-.hk-pill[data-type="inspection"]{ background: rgba(99, 102, 241, .14); color: #3730a3; }
-.hk-pill[data-type="deep_clean"]{ background: rgba(236, 72, 153, .12); color: #9d174d; }
-.hk-pill[data-type="turndown"]{ background: rgba(34, 197, 94, .14); color: #166534; }
-
-.hk-notes{
+.room-number {
+  margin-top: 4px;
+  font-size: 18px;
+  font-weight: 1000;
+}
+.main {
+  min-width: 0;
+}
+.topline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.badge {
+  font-weight: 900;
+}
+.notes {
+  margin-top: 8px;
   font-size: 13px;
-  color: #111827;
   line-height: 1.5;
-  word-break: break-word;
 }
-.hk-issue{
+.issue {
   color: #7c2d12;
   margin-left: 6px;
 }
-
-.hk-meta{
-  display:flex;
-  gap: 10px;
-  align-items:center;
+.meta {
+  margin-top: 8px;
+  display: flex;
   flex-wrap: wrap;
-  color: var(--muted);
+  gap: 10px;
+  align-items: center;
+  color: #64748b;
   font-size: 12px;
 }
-.hk-dot{
-  width: 4px; height: 4px; border-radius: 999px; background: #cbd5e1;
+.dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: #cbd5e1;
 }
-
-.hk-row-right{
-  display:flex;
+.right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
   gap: 8px;
-  align-items:center;
-  flex-wrap: wrap;
-  justify-content:flex-end;
   flex-shrink: 0;
 }
-.hk-mini{
-  border: 0;
-  border-radius: 999px;
-  padding: 9px 12px;
-  font-weight: 900;
-  font-size: 12px;
-  cursor: pointer;
-  text-decoration: none;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-}
-.hk-mini-primary{ background: var(--primary); color: #fff; }
-.hk-mini-ghost{ background: rgba(255,255,255,.75); color: var(--text); }
-.hk-mini-link{ background: transparent; color: var(--primary); padding: 9px 6px; }
 
-/* Empty */
-.hk-empty{
-  background: var(--soft);
-  border-radius: 18px;
-  padding: 30px 18px;
-  text-align: center;
+/* Detail modal */
+.detail-card {
+  border-radius: 16px;
 }
-.hk-empty-title{ font-weight: 1000; font-size: 16px; }
-.hk-empty-sub{ margin-top: 6px; color: var(--muted); font-size: 13px; }
-
-/* Drawer */
-.hk-drawer{ position: fixed; inset: 0; z-index: 50; display:flex; }
-.hk-drawer-backdrop{
-  position:absolute; inset:0; background: rgba(15,23,42,.25);
-}
-.hk-drawer-panel{
-  margin-left: auto;
-  position: relative;
-  width: min(520px, 92vw);
-  height: 100%;
-  background: #fff;
-  padding: 16px;
-  display:flex;
-  flex-direction:column;
-}
-.hk-drawer-head{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
+.detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   gap: 12px;
-  padding: 6px 4px 14px;
+  margin-bottom: 12px;
 }
-.hk-drawer-title{ font-weight: 1000; font-size: 16px; }
-.hk-drawer-sub{ margin-top: 4px; color: var(--muted); font-size: 12px; }
-.hk-drawer-body{ padding: 6px 4px; overflow:auto; display:flex; flex-direction:column; gap: 12px; }
-
-.hk-kv{
-  display:grid;
-  grid-template-columns: 140px 1fr;
+.detail-title {
+  font-weight: 1000;
+  font-size: 16px;
+}
+.detail-sub {
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 12px;
+}
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 10px;
+}
+.kv {
   padding: 10px 12px;
   border-radius: 14px;
-  background: var(--soft);
-}
-.hk-kv .k{ color: var(--muted); font-weight: 800; font-size: 12px; }
-.hk-kv .v{ font-weight: 900; font-size: 13px; }
-
-.hk-block{
-  padding: 12px 12px;
-  border-radius: 14px;
-  background: var(--soft);
-}
-.hk-block-title{ color: var(--muted); font-weight: 900; font-size: 12px; margin-bottom: 8px; }
-.hk-block-text{ font-size: 13px; line-height: 1.6; }
-
-.hk-drawer-actions{
-  margin-top: 8px;
-  display:flex;
+  background: #f1f5f9;
+  display: grid;
+  grid-template-columns: 120px 1fr;
   gap: 10px;
+}
+.k {
+  color: #64748b;
+  font-weight: 900;
+  font-size: 12px;
+}
+.v {
+  font-weight: 900;
+  font-size: 13px;
+}
+.blocks {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+.block {
+  border-radius: 14px;
+}
+.block-title {
+  color: #64748b;
+  font-weight: 900;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.block-text {
+  font-size: 13px;
+  line-height: 1.6;
+}
+.detail-actions {
+  margin-top: 14px;
+  display: flex;
   flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
 }
 
 /* Responsive */
-@media (max-width: 980px){
-  .hk-stats{ grid-template-columns: repeat(2, 1fr); }
-  .hk-room{ width: 76px; }
+@media (max-width: 980px) {
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+  .row {
+    flex-direction: column;
+  }
+  .right {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+  .kv {
+    grid-template-columns: 1fr;
+  }
 }
-@media (max-width: 520px){
-  .hk-header{ flex-direction: column; align-items:flex-start; }
-  .hk-header-actions{ width: 100%; }
-  .hk-btn{ width: 100%; }
-  .hk-row{ flex-direction: column; }
-  .hk-row-right{ justify-content:flex-start; }
+@media (max-width: 520px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 </style>

@@ -1,90 +1,87 @@
 <!-- src/pages/pos/CustomerView.vue -->
 <template>
-  <div class="min-h-screen w-screen overflow-hidden bg-slate-950 text-white">
-    <!-- TOP BAR (WHITE) - Only when NOT fullscreen -->
-    <div
-      v-if="!isFullscreen"
-      class="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur border-b border-slate-200"
-    >
-    </div>
+  <div class="relative h-full w-screen overflow-hidden  text-slate-900">
     <!-- ====== WAITING MODE ====== -->
     <div v-if="!hasRoom" class="relative h-screen w-full">
-      <!-- Background slider -->
-      <transition name="fade" mode="out-in">
-        <img
-          :key="activeSlide"
-          :src="slides[activeSlide]"
-          class="absolute inset-0 h-full w-full object-cover"
-          alt="slide"
-        />
-      </transition>
+      <!-- Background slider - only in WAITING MODE -->
+      <div class="absolute inset-0 -z-10">
+        <transition name="fade" mode="out-in">  
+          <img
+            :key="activeSlide"
+            :src="slides[activeSlide]"
+            class="h-full w-full object-cover"
+            alt="bg"
+          />
+        </transition>
 
-      <!-- Overlay (fix typo: to-black50 -> to-black/70) -->
-      <div class="absolute inset-0 bg-gradient-to-b from-black/10 via-black/40 to-black/70"></div>
-
-      <!-- Center content -->
-      <div class="relative h-full flex items-center justify-center px-6">
-        <VaButton
-                  preset="secondary"
-                  :icon="isFullscreen ? 'fullscreen_exit' : 'fullscreen'"
-                  class="pos-btn-icon bg-black p-3 rounded-full absolute top-6 right-6 "
-                  @click="toggleFullscreen"
-                />
-        <div class="w-full max-w-3xl text-center">
-          <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/15">
-            <span class="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span class="text-sm font-bold tracking-wide">READY</span>
-          </div>
-
-          <h1 class="mt-6 text-5xl sm:text-6xl font-black tracking-tight">
-            Please wait…
-          </h1>
-          <p class="mt-4 text-lg sm:text-xl text-white/80 font-semibold">
-            Reception is preparing your check-in.
-          </p>
-
-          <div class="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
-            <div class="rounded-3xl bg-white/10 border border-white/15 p-5">
-              <div class="text-xs uppercase tracking-[0.2em] text-white/60 font-black">Step 1</div>
-              <div class="mt-2 font-black text-xl">Select room</div>
-              <div class="mt-1 text-white/70 font-medium">Reception chooses available room.</div>
-            </div>
-            <div class="rounded-3xl bg-white/10 border border-white/15 p-5">
-              <div class="text-xs uppercase tracking-[0.2em] text-white/60 font-black">Step 2</div>
-              <div class="mt-2 font-black text-xl">Confirm guest</div>
-              <div class="mt-1 text-white/70 font-medium">Guest details will appear here.</div>
-            </div>
-            <div class="rounded-3xl bg-white/10 border border-white/15 p-5">
-              <div class="text-xs uppercase tracking-[0.2em] text-white/60 font-black">Step 3</div>
-              <div class="mt-2 font-black text-xl">Pay</div>
-              <div class="mt-1 text-white/70 font-medium">Scan QR or pay at counter.</div>
-            </div>
-          </div>
-
-          <div class="mt-10 text-white/60 font-semibold">
-            Tip: keep this screen open for faster check-in.
-          </div>
-        </div>
+        <!-- white overlay for clean/pro UI -->
+        <div class="absolute inset-0 bg-white/50"></div>
+        <!-- <div class="absolute inset-0 bg-linear-to-b from-white/65 via-white/80 to-white/92"></div> -->
       </div>
 
-      <!-- Bottom hint -->
-      <div class="absolute bottom-6 left-0 right-0 px-6">
-        <div class="mx-auto max-w-6xl flex items-center justify-between text-white/70">
-          <div class="text-sm font-semibold">Guesthouse • Customer Display</div>
-          <div class="text-sm font-semibold">{{ nowText }}</div>
+      <div class="relative h-full flex items-center justify-center px-6 pt-16">
+        <div class="w-full max-w-5xl">
+          <div class="flex items-center justify-between gap-4">
+            <div>
+              <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 border border-emerald-200">
+                <span class="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span class="text-sm font-black tracking-wide text-emerald-800">READY</span>
+              </div>
+
+              <h1 class="mt-5 text-4xl sm:text-5xl font-black tracking-tight text-slate-900">
+                Welcome 👋 Please wait…
+              </h1>
+              <p class="mt-3 text-lg sm:text-xl text-slate-600 font-semibold">
+                Reception is preparing your check-in.
+              </p>
+            </div>
+
+            <VaButton
+              preset="secondary"
+              :icon="isFullscreen ? 'fullscreen_exit' : 'fullscreen'"
+              class="pos-btn-icon hidden sm:inline-flex"
+              @click="toggleFullscreen"
+            />
+          </div>
+
+          <div class="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <VaCard class="rounded-2xl border border-slate-200 shadow-sm bg-white/85">
+              <VaCardContent class="p-5">
+                <div class="text-xs uppercase tracking-[0.2em] text-slate-500 font-black">Step 1</div>
+                <div class="mt-2 font-black text-xl text-slate-900">Select room</div>
+                <div class="mt-1 text-slate-600 font-medium">Reception chooses an available room.</div>
+              </VaCardContent>
+            </VaCard>
+
+            <VaCard class="rounded-2xl border border-slate-200 shadow-sm bg-white/85">
+              <VaCardContent class="p-5">
+                <div class="text-xs uppercase tracking-[0.2em] text-slate-500 font-black">Step 2</div>
+                <div class="mt-2 font-black text-xl text-slate-900">Confirm guest</div>
+                <div class="mt-1 text-slate-600 font-medium">Guest details will appear here.</div>
+              </VaCardContent>
+            </VaCard>
+
+            <VaCard class="rounded-2xl border border-slate-200 shadow-sm bg-white/85">
+              <VaCardContent class="p-5">
+                <div class="text-xs uppercase tracking-[0.2em] text-slate-500 font-black">Step 3</div>
+                <div class="mt-2 font-black text-xl text-slate-900">Pay</div>
+                <div class="mt-1 text-slate-600 font-medium">Scan QR or pay at counter.</div>
+              </VaCardContent>
+            </VaCard>
+          </div>
+
+          <div class="mt-10 flex items-center justify-between text-slate-500 font-semibold">
+            <div>Tip: keep this screen open for faster check-in.</div>
+            <div class="hidden sm:block">{{ nowText }}</div>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- CHECK-IN MODE (LIGHT THEME) -->
+    <!-- ====== CHECK-IN MODE ====== -->
     <div v-else class="relative h-screen w-full overflow-hidden">
-      <!-- background -->
-      <div class="absolute inset-0 bg-gradient-to-b from-white via-slate-50 to-slate-100"></div>
-      <div class="absolute -top-24 -left-24 h-96 w-96 rounded-full bg-sky-200/60 blur-3xl"></div>
-      <div class="absolute -bottom-24 -right-24 h-96 w-96 rounded-full bg-emerald-200/50 blur-3xl"></div>
-
       <div class="relative h-full">
-        <div class="mx-auto max-w-7xl px-6 lg:px-10 pt-10 pb-8 h-full flex flex-col">
+        <div class="mx-auto max-w-7xl px-6 lg:px-10 pt-16 pb-8 h-full flex flex-col">
           <!-- Header -->
           <div class="flex items-start justify-between gap-6">
             <div>
@@ -99,6 +96,11 @@
               <div class="mt-3 text-lg sm:text-xl text-slate-700 font-semibold">
                 Guest: <span class="text-slate-950 font-black">{{ guestName || "-" }}</span>
               </div>
+
+              <div v-if="rooms.length > 1" class="mt-2 text-sm font-semibold text-slate-500">
+                Additional rooms:
+                <span class="font-black text-slate-700">{{ rooms.slice(1).join(", ") }}</span>
+              </div>
             </div>
 
             <div class="text-right">
@@ -110,7 +112,9 @@
           <!-- Cards -->
           <div class="mt-10 grid grid-cols-1 lg:grid-cols-5 gap-6 flex-1">
             <!-- TOTAL -->
-            <div class="lg:col-span-3 rounded-[28px] bg-white/85 border border-slate-200 shadow-[0_18px_60px_rgba(2,6,23,.10)] p-8 sm:p-10">
+            <div
+              class="lg:col-span-3 rounded-[28px] bg-white/90 border border-slate-200 shadow-[0_18px_60px_rgba(2,6,23,.10)] p-8 sm:p-10"
+            >
               <div class="flex items-center justify-between gap-4">
                 <div>
                   <div class="text-slate-500 text-xs uppercase tracking-[0.25em] font-black">
@@ -147,7 +151,9 @@
             </div>
 
             <!-- QR -->
-            <div class="lg:col-span-2 rounded-[28px] bg-white/85 border border-slate-200 shadow-[0_18px_60px_rgba(2,6,23,.10)] p-8 sm:p-10 flex flex-col">
+            <div
+              class="lg:col-span-2 rounded-[28px] bg-white/90 border border-slate-200 shadow-[0_18px_60px_rgba(2,6,23,.10)] p-8 sm:p-10 flex flex-col"
+            >
               <div class="flex items-center justify-between">
                 <div>
                   <div class="text-slate-500 text-xs uppercase tracking-[0.25em] font-black">
@@ -155,6 +161,7 @@
                   </div>
                   <div class="mt-2 text-2xl font-black text-slate-900">QR Code</div>
                 </div>
+
                 <VaButton
                   preset="secondary"
                   :icon="isFullscreen ? 'fullscreen_exit' : 'fullscreen'"
@@ -162,15 +169,16 @@
                   @click="toggleFullscreen"
                 />
               </div>
+
               <div class="mt-7 flex-1 flex items-center justify-center">
                 <div class="rounded-3xl bg-white p-4 ring-1 ring-slate-200 shadow-xl">
                   <img
                     v-if="qrImageUrl"
                     :src="qrImageUrl"
-                    class="w-[300px] h-[300px] object-contain"
+                    class="w-[320px] h-80 object-contain"
                     alt="qr"
                   />
-                  <div v-else class="w-[300px] h-[300px] flex items-center justify-center text-slate-700">
+                  <div v-else class="w-[320px] h-80 flex items-center justify-center text-slate-700">
                     <div class="text-center">
                       <div class="text-xl font-black">QR not available</div>
                       <div class="mt-2 text-sm font-semibold text-slate-500">
@@ -180,11 +188,13 @@
                   </div>
                 </div>
               </div>
+
               <div class="mt-6 text-slate-600 font-semibold text-center">
                 Open banking app → Scan QR → Confirm payment
               </div>
             </div>
           </div>
+
           <!-- Footer -->
           <div class="mt-8 flex items-center justify-between text-slate-500">
             <div class="text-sm font-semibold">Guesthouse • Customer Display</div>
@@ -193,19 +203,21 @@
         </div>
       </div>
     </div>
-
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue"
-import p1 from "../../assets/images/customers/p1.jpg"
-import p2 from "../../assets/images/customers/p2.jpg"
-import p3 from "../../assets/images/customers/p3.jpg"
 
 const isFullscreen = ref(false)
 
-const slides = ref([p1, p2, p3])
+const slides = ref([
+  "https://i.pinimg.com/1200x/b2/d7/41/b2d741b639baecbb1723a08dbde52d55.jpg",
+  "https://www.phnompenhrealestate.net/wp-content/uploads/2022/10/PLaces-Feat.jpg",
+  "https://specialeducationcambodia.com/wp-content/uploads/2023/11/International-Schools-Phnom-Penh.jpg",
+  "https://www.phnompenhrealestate.net/wp-content/uploads/2022/09/PP-Jewel-Featured.jpg",
+])
+
 const activeSlide = ref(0)
 
 let sliderTimer = null
@@ -216,8 +228,9 @@ const roomNumber = ref("")
 const guestName = ref("")
 const total = ref(0)
 const qrImageUrl = ref("")
+const rooms = ref([])
 
-const hasRoom = computed(() => !!String(roomNumber.value || "").trim())
+const hasRoom = computed(() => !!String(roomNumber.value || "").trim() || rooms.value.length > 0)
 
 const nowText = ref("")
 function tickClock() {
@@ -249,17 +262,14 @@ function startSlider() {
   stopSlider()
   sliderTimer = setInterval(() => {
     activeSlide.value = (activeSlide.value + 1) % slides.value.length
-  }, 3500)
+  }, 4500)
 }
+
 function stopSlider() {
   if (sliderTimer) {
     clearInterval(sliderTimer)
     sliderTimer = null
   }
-}
-
-function enterFullscreen() {
-  document.documentElement.requestFullscreen?.().catch(() => {})
 }
 
 function readCustomerViewData() {
@@ -269,15 +279,26 @@ function readCustomerViewData() {
     guestName.value = ""
     total.value = 0
     qrImageUrl.value = ""
+    rooms.value = []
     return
   }
 
   try {
     const parsed = JSON.parse(raw)
-    roomNumber.value = parsed.room_number || ""
+
+    // ✅ Accept both formats:
+    // - room_number (direct)
+    // - rooms[0].room_number (array)
+    const roomFromArray = parsed?.rooms?.[0]?.room_number ? String(parsed.rooms[0].room_number) : ""
+    roomNumber.value = String(parsed.room_number || roomFromArray || "")
+
+    rooms.value = Array.isArray(parsed?.rooms)
+      ? parsed.rooms.map((r) => `#${r.room_number}`).filter(Boolean)
+      : []
+
     guestName.value = parsed.guest_name || ""
-    total.value = Number(parsed.total || 0)
-    qrImageUrl.value = parsed.qrImageUrl || ""
+    total.value = Number(parsed.total ?? parsed.grand_total ?? 0)
+    qrImageUrl.value = parsed.qrImageUrl || parsed.qr_image_url || ""
   } catch {
     // ignore bad json
   }
@@ -287,17 +308,32 @@ function onFullscreenChange() {
   isFullscreen.value = !!document.fullscreenElement
 }
 
+/**
+ * ✅ Slider behavior:
+ * - Only run slider in WAITING MODE (when !hasRoom)
+ * - Stop slider in CHECK-IN MODE (when hasRoom)
+ */
 watch(
   hasRoom,
-  (val) => {
-    if (!val) startSlider()
-    else stopSlider()
+  (newHasRoom) => {
+    if (!newHasRoom) {
+      // WAITING MODE - start slider
+      startSlider()
+    } else {
+      // CHECK-IN MODE - stop slider
+      stopSlider()
+    }
   },
   { immediate: true }
 )
 
 onMounted(() => {
   readCustomerViewData()
+
+  // start slider based on initial state
+  if (!hasRoom.value) {
+    startSlider()
+  }
 
   window.addEventListener("storage", readCustomerViewData)
   pollTimer = setInterval(readCustomerViewData, 500)
@@ -327,10 +363,16 @@ onBeforeUnmount(() => {
 <style scoped>
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.75s ease;
+  transition: opacity 1.2s ease;
 }
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+.pos-btn-icon {
+  height: 44px !important;
+  width: 44px !important;
+  border-radius: 14px !important;
 }
 </style>

@@ -255,7 +255,7 @@ CREATE TABLE room_types (
   room_type_id INT PRIMARY KEY AUTO_INCREMENT,
   property_id INT NOT NULL,
 
-  room_class ENUM('economy','standard','deluxe','suite','penthouse') NOT NULL DEFAULT 'standard',
+  room_class ENUM('simple','vip','deluxe','suite','penthouse') NOT NULL DEFAULT 'simple',
   bed_count TINYINT NOT NULL DEFAULT 1,
   bed_type ENUM('single','double','queen','king','twin') DEFAULT 'double',
 
@@ -638,7 +638,10 @@ CREATE TABLE payment_refunds (
   
   INDEX idx_payment (payment_id),
   INDEX idx_date (refund_date),
-  INDEX idx_status (status)
+  INDEX idx_status (status),
+
+  
+
 -- ============================================================================
 -- CONTINUATION FROM invoice_items
 -- ============================================================================

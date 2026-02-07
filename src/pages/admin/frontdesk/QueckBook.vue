@@ -1,12 +1,12 @@
 <!-- src/pages/frontdesk/QuickBook.vue -->
 <template>
-  <div class="min-h-[calc(100vh-60px)] bg-slate-50 p-4 sm:p-6">
-    <!-- Top -->
+  <div class="qb-page">
     <div class="mx-auto">
+      <!-- Top -->
       <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div class="flex items-center gap-2">
-            <span class="material-icons text-slate-700">flash_on</span>
+            <VaIcon name="flash_on" color="secondary" />
             <h1 class="text-xl font-bold text-slate-900">Front Desk • Quick Booking</h1>
           </div>
           <p class="mt-1 text-sm text-slate-500">
@@ -14,22 +14,21 @@
           </p>
         </div>
 
-        <div class="flex items-center gap-2">
-          <button
-            class="rounded-full bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800"
-            @click="saveDraft"
-          >
-            <span class="material-icons mr-1 text-[18px] align-middle">save</span>
+        <div class="flex flex-wrap items-center gap-2">
+          <VaButton preset="secondary" class="rounded-2xl font-extrabold" @click="saveDraft">
+            <VaIcon name="save" class="mr-1" />
             Save Draft
-          </button>
-          <button
-            class="rounded-full bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700"
-            @click="confirmBooking"
+          </VaButton>
+
+          <VaButton
+            color="primary"
+            class="rounded-2xl font-extrabold"
             :disabled="selectedRooms.length === 0"
+            @click="confirmBooking"
           >
-            <span class="material-icons mr-1 text-[18px] align-middle">check_circle</span>
+            <VaIcon name="check_circle" class="mr-1" />
             Confirm
-          </button>
+          </VaButton>
         </div>
       </div>
 
@@ -38,578 +37,533 @@
         <!-- Left -->
         <div class="space-y-6">
           <!-- Booking info -->
-          <section class="rounded-2xl bg-white p-4 sm:p-5">
-            <div class="flex items-center justify-between">
-              <div class="text-sm font-extrabold text-slate-900">Booking Info</div>
-              <div class="text-xs text-slate-500">
-                {{ data.property.name }} • {{ data.property.city }}
-              </div>
-            </div>
-
-            <div class="mt-4 grid gap-4 sm:grid-cols-2">
-              <div>
-                <div class="mb-2 text-xs font-bold text-slate-500">Booking source</div>
-                <div class="flex flex-wrap gap-2">
-                  <button
-                    v-for="s in data.bookingSources"
-                    :key="s.value"
-                    class="rounded-full px-3 py-1.5 text-sm font-bold"
-                    :class="draft.booking_source === s.value ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
-                    @click="draft.booking_source = s.value"
-                  >
-                    {{ s.label }}
-                  </button>
+          <VaCard class="soft-card rounded-2xl">
+            <VaCardContent class="p-4 sm:p-5">
+              <div class="flex items-center justify-between">
+                <div class="text-sm font-extrabold text-slate-900">Booking Info</div>
+                <div class="text-xs text-slate-500">
+                  {{ data.property.name }} • {{ data.property.city }}
                 </div>
               </div>
 
-              <div>
-                <div class="mb-2 text-xs font-bold text-slate-500">Stay type</div>
-                <div class="flex gap-2">
-                  <button
-                    class="flex-1 rounded-2xl px-3 py-2 text-sm font-extrabold"
-                    :class="draft.booking_type === 'hourly' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
-                    @click="setBookingType('hourly')"
-                  >
-                    Hourly
-                  </button>
-                  <button
-                    class="flex-1 rounded-2xl px-3 py-2 text-sm font-extrabold"
-                    :class="draft.booking_type === 'nightly' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
-                    @click="setBookingType('nightly')"
-                  >
-                    Nightly
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Hourly / Nightly controls -->
-            <div class="mt-4 grid gap-4 sm:grid-cols-2">
-              <div v-if="draft.booking_type === 'hourly'">
-                <div class="mb-2 text-xs font-bold text-slate-500">Hourly preset</div>
-                <div class="flex flex-wrap gap-2">
-                  <button
-                    v-for="h in data.hourlyPresets"
-                    :key="h.hours"
-                    class="rounded-full px-3 py-1.5 text-sm font-bold"
-                    :class="draft.hours === h.hours ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
-                    @click="setHours(h.hours)"
-                  >
-                    {{ h.label }}
-                  </button>
-                </div>
-
-                <div class="mt-3 grid grid-cols-2 gap-3">
-                  <div>
-                    <div class="mb-1 text-xs font-bold text-slate-500">Check-in</div>
-                    <input v-model="draft.check_in_at" class="w-full rounded-2xl bg-slate-100 px-3 py-2 text-sm outline-none" placeholder="YYYY-MM-DD HH:mm" />
-                  </div>
-                  <div>
-                    <div class="mb-1 text-xs font-bold text-slate-500">Check-out</div>
-                    <input v-model="draft.check_out_at" class="w-full rounded-2xl bg-slate-100 px-3 py-2 text-sm outline-none" placeholder="YYYY-MM-DD HH:mm" />
-                  </div>
-                </div>
-              </div>
-
-              <div v-else>
-                <div class="mb-2 text-xs font-bold text-slate-500">Nights</div>
-                <div class="flex items-center gap-2">
-                  <button class="rounded-xl bg-slate-100 px-3 py-2 font-extrabold" @click="draft.nights = Math.max(1, draft.nights - 1)">-</button>
-                  <div class="flex-1 rounded-2xl bg-slate-100 px-3 py-2 text-center text-sm font-extrabold text-slate-900">
-                    {{ draft.nights }} night(s)
-                  </div>
-                  <button class="rounded-xl bg-slate-100 px-3 py-2 font-extrabold" @click="draft.nights = draft.nights + 1">+</button>
-                </div>
-
-                <div class="mt-3 grid grid-cols-2 gap-3">
-                  <div>
-                    <div class="mb-1 text-xs font-bold text-slate-500">Check-in date</div>
-                    <input v-model="draft.check_in_date" class="w-full rounded-2xl bg-slate-100 px-3 py-2 text-sm outline-none" placeholder="YYYY-MM-DD" />
-                  </div>
-                  <div>
-                    <div class="mb-1 text-xs font-bold text-slate-500">Check-out date</div>
-                    <input v-model="draft.check_out_date" class="w-full rounded-2xl bg-slate-100 px-3 py-2 text-sm outline-none" placeholder="YYYY-MM-DD" />
-                  </div>
-                </div>
-              </div>
-
-              <!-- Guest -->
-              <div>
-                <div class="mb-2 flex items-center justify-between">
-                  <div class="text-xs font-bold text-slate-500">Guest</div>
-                  <div class="flex gap-2">
-                    <button
-                      class="rounded-full px-3 py-1 text-xs font-extrabold"
-                      :class="draft.guest_mode === 'existing' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
-                      @click="draft.guest_mode = 'existing'"
+              <div class="mt-4 grid gap-4 sm:grid-cols-2">
+                <!-- Booking source -->
+                <div>
+                  <div class="mb-2 text-xs font-bold text-slate-500">Booking source</div>
+                  <div class="flex flex-wrap gap-2">
+                    <VaChip
+                      v-for="s in data.bookingSources"
+                      :key="s.value"
+                      class="cursor-pointer qb-chip"
+                      :outline="draft.booking_source !== s.value"
+                      :color="draft.booking_source === s.value ? 'primary' : 'secondary'"
+                      @click="draft.booking_source = s.value"
                     >
-                      Existing
-                    </button>
-                    <button
-                      class="rounded-full px-3 py-1 text-xs font-extrabold"
-                      :class="draft.guest_mode === 'new' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
-                      @click="draft.guest_mode = 'new'"
-                    >
-                      New
-                    </button>
+                      {{ s.label }}
+                    </VaChip>
                   </div>
                 </div>
 
-                <div v-if="draft.guest_mode === 'existing'">
-                  <div class="flex items-center gap-2 rounded-2xl bg-slate-100 px-3 py-2">
-                    <span class="material-icons text-slate-500 text-[18px]">search</span>
-                    <input
-                      v-model.trim="guestQuery"
-                      class="w-full bg-transparent text-sm outline-none"
-                      placeholder="Search guest name / phone..."
+                <!-- Stay type -->
+                <div>
+                  <div class="mb-2 text-xs font-bold text-slate-500">Stay type</div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <VaButton
+                      :color="draft.booking_type === 'hourly' ? 'primary' : undefined"
+                      :preset="draft.booking_type === 'hourly' ? 'primary' : 'secondary'"
+                      class="rounded-2xl font-extrabold"
+                      @click="setBookingType('hourly')"
+                    >
+                      Hourly
+                    </VaButton>
+                    <VaButton
+                      :color="draft.booking_type === 'nightly' ? 'primary' : undefined"
+                      :preset="draft.booking_type === 'nightly' ? 'primary' : 'secondary'"
+                      class="rounded-2xl font-extrabold"
+                      @click="setBookingType('nightly')"
+                    >
+                      Nightly
+                    </VaButton>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Hourly / Nightly controls -->
+              <div class="mt-4 grid gap-4 sm:grid-cols-2">
+                <!-- Hourly -->
+                <div v-if="draft.booking_type === 'hourly'">
+                  <div class="mb-2 text-xs font-bold text-slate-500">Hourly preset</div>
+                  <div class="flex flex-wrap gap-2">
+                    <VaChip
+                      v-for="h in data.hourlyPresets"
+                      :key="h.hours"
+                      class="cursor-pointer qb-chip"
+                      :outline="draft.hours !== h.hours"
+                      :color="draft.hours === h.hours ? 'primary' : 'secondary'"
+                      @click="setHours(h.hours)"
+                    >
+                      {{ h.label }}
+                    </VaChip>
+                  </div>
+
+                  <div class="mt-3 grid grid-cols-2 gap-3">
+                    <VaInput
+                      v-model="draft.check_in_at"
+                      label="Check-in"
+                      placeholder="YYYY-MM-DD HH:mm"
+                    />
+                    <VaInput
+                      v-model="draft.check_out_at"
+                      label="Check-out"
+                      placeholder="YYYY-MM-DD HH:mm"
                     />
                   </div>
+                </div>
 
-                  <div class="mt-3 max-h-44 overflow-auto">
-                    <button
-                      v-for="g in filteredGuests"
-                      :key="g.guest_id"
-                      class="flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left hover:bg-slate-100"
-                      @click="selectGuest(g)"
-                    >
-                      <div>
-                        <div class="text-sm font-bold text-slate-900">{{ g.name }}</div>
-                        <div class="text-xs text-slate-500">{{ g.phone }} • {{ g.nationality }}</div>
-                      </div>
-                      <span v-if="selectedGuest?.guest_id === g.guest_id" class="material-icons text-emerald-600">check</span>
-                    </button>
+                <!-- Nightly -->
+                <div v-else>
+                  <div class="mb-2 text-xs font-bold text-slate-500">Nights</div>
+
+                  <VaCounter v-model="draft.nights" :min="1" class="w-full" />
+
+                  <div class="mt-3 grid grid-cols-2 gap-3">
+                    <VaInput v-model="draft.check_in_date" label="Check-in date" placeholder="YYYY-MM-DD" />
+                    <VaInput v-model="draft.check_out_date" label="Check-out date" placeholder="YYYY-MM-DD" />
                   </div>
                 </div>
 
-                <div v-else class="grid gap-2">
-                  <input v-model="draft.new_guest.name" class="w-full rounded-2xl bg-slate-100 px-3 py-2 text-sm outline-none" placeholder="Guest name" />
-                  <input v-model="draft.new_guest.phone" class="w-full rounded-2xl bg-slate-100 px-3 py-2 text-sm outline-none" placeholder="Phone" />
-                  <div class="grid grid-cols-2 gap-2">
-                    <input v-model="draft.new_guest.nationality" class="w-full rounded-2xl bg-slate-100 px-3 py-2 text-sm outline-none" placeholder="Nationality" />
-                    <input v-model="draft.new_guest.id_number" class="w-full rounded-2xl bg-slate-100 px-3 py-2 text-sm outline-none" placeholder="ID / Passport" />
+                <!-- Guest -->
+                <div>
+                  <div class="mb-2 flex items-center justify-between">
+                    <div class="text-xs font-bold text-slate-500">Guest</div>
+                    <div class="flex gap-2">
+                      <VaButton
+                        size="small"
+                        class="rounded-2xl font-extrabold"
+                        :preset="draft.guest_mode === 'existing' ? 'primary' : 'secondary'"
+                        @click="draft.guest_mode = 'existing'"
+                      >
+                        Existing
+                      </VaButton>
+                      <VaButton
+                        size="small"
+                        class="rounded-2xl font-extrabold"
+                        :preset="draft.guest_mode === 'new' ? 'primary' : 'secondary'"
+                        @click="draft.guest_mode = 'new'"
+                      >
+                        New
+                      </VaButton>
+                    </div>
                   </div>
-                  <textarea v-model="draft.new_guest.notes" class="w-full rounded-2xl bg-slate-100 px-3 py-2 text-sm outline-none" placeholder="Notes (optional)" rows="2"></textarea>
+
+                  <div v-if="draft.guest_mode === 'existing'">
+                    <VaInput v-model.trim="guestQuery" placeholder="Search guest name / phone..." clearable>
+                      <template #prependInner>
+                        <VaIcon name="search" color="secondary" />
+                      </template>
+                    </VaInput>
+
+                    <div class="mt-3 max-h-44 overflow-auto space-y-2 pr-1">
+                      <VaCard
+                        v-for="g in filteredGuests"
+                        :key="g.guest_id"
+                        class="soft-mini rounded-2xl cursor-pointer"
+                        :class="selectedGuest?.guest_id === g.guest_id ? 'mini-active' : ''"
+                        @click="selectGuest(g)"
+                      >
+                        <VaCardContent class="p-3">
+                          <div class="flex items-center justify-between gap-2">
+                            <div class="min-w-0">
+                              <div class="text-sm font-bold text-slate-900 truncate">{{ g.name }}</div>
+                              <div class="text-xs text-slate-500 truncate">
+                                {{ g.phone }} • {{ g.nationality }}
+                              </div>
+                            </div>
+                            <VaIcon
+                              v-if="selectedGuest?.guest_id === g.guest_id"
+                              name="check"
+                              color="success"
+                            />
+                          </div>
+                        </VaCardContent>
+                      </VaCard>
+                    </div>
+                  </div>
+
+                  <div v-else class="grid gap-2">
+                    <VaInput v-model="draft.new_guest.name" label="Guest name" placeholder="Guest name" />
+                    <VaInput v-model="draft.new_guest.phone" label="Phone" placeholder="Phone" />
+                    <div class="grid grid-cols-2 gap-2">
+                      <VaInput v-model="draft.new_guest.nationality" label="Nationality" placeholder="Nationality" />
+                      <VaInput v-model="draft.new_guest.id_number" label="ID / Passport" placeholder="ID / Passport" />
+                    </div>
+                    <VaTextarea v-model="draft.new_guest.notes" label="Notes" placeholder="Notes (optional)" :max-rows="3" />
+                  </div>
+                </div>
+
+                <!-- Notes -->
+                <div>
+                  <div class="mb-2 text-xs font-bold text-slate-500">Notes</div>
+                  <VaTextarea v-model="draft.notes" placeholder="Special request / staff note..." :max-rows="6" />
                 </div>
               </div>
-
-              <!-- Notes -->
-              <div>
-                <div class="mb-2 text-xs font-bold text-slate-500">Notes</div>
-                <textarea v-model="draft.notes" class="w-full rounded-2xl bg-slate-100 px-3 py-2 text-sm outline-none" rows="4" placeholder="Special request / staff note..."></textarea>
-              </div>
-            </div>
-          </section>
+            </VaCardContent>
+          </VaCard>
 
           <!-- Room filters + list -->
-          <section class="rounded-2xl bg-white p-4 sm:p-5">
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div class="text-sm font-extrabold text-slate-900">Select Rooms</div>
-                <div class="mt-1 text-xs text-slate-500">Choose room type (Simple/VIP) & beds. Pick multiple rooms.</div>
+          <VaCard class="soft-card rounded-2xl">
+            <VaCardContent class="p-4 sm:p-5">
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div class="text-sm font-extrabold text-slate-900">Select Rooms</div>
+                  <div class="mt-1 text-xs text-slate-500">
+                    Choose room type (Simple/VIP) & beds. Pick multiple rooms.
+                  </div>
+                </div>
+
+                <div class="flex flex-wrap gap-2">
+                  <VaChip class="cursor-pointer qb-chip" :outline="typeFilter !== 'all'" :color="typeFilter === 'all' ? 'primary' : 'secondary'" @click="typeFilter = 'all'">All</VaChip>
+                  <VaChip class="cursor-pointer qb-chip" :outline="typeFilter !== 'Simple'" :color="typeFilter === 'Simple' ? 'primary' : 'secondary'" @click="typeFilter = 'Simple'">Simple</VaChip>
+                  <VaChip class="cursor-pointer qb-chip" :outline="typeFilter !== 'VIP'" :color="typeFilter === 'VIP' ? 'primary' : 'secondary'" @click="typeFilter = 'VIP'">VIP</VaChip>
+
+                  <VaChip class="cursor-pointer qb-chip" :outline="bedFilter !== 'all'" :color="bedFilter === 'all' ? 'primary' : 'secondary'" @click="bedFilter = 'all'">Any bed</VaChip>
+                  <VaChip class="cursor-pointer qb-chip" :outline="bedFilter !== 1" :color="bedFilter === 1 ? 'primary' : 'secondary'" @click="bedFilter = 1">1 bed</VaChip>
+                  <VaChip class="cursor-pointer qb-chip" :outline="bedFilter !== 2" :color="bedFilter === 2 ? 'primary' : 'secondary'" @click="bedFilter = 2">2 beds</VaChip>
+                </div>
               </div>
 
-              <div class="flex flex-wrap gap-2">
-                <button
-                  class="rounded-full px-3 py-1.5 text-xs font-extrabold"
-                  :class="typeFilter === 'all' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
-                  @click="typeFilter = 'all'"
+              <!-- available rooms -->
+              <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <VaCard
+                  v-for="r in filteredRooms"
+                  :key="r.room_id"
+                  class="room-card rounded-2xl cursor-pointer"
+                  :class="isRoomSelected(r.room_id) ? 'room-card--active' : 'room-card--idle'"
+                  @click="toggleRoom(r)"
                 >
-                  All
-                </button>
-                <button
-                  class="rounded-full px-3 py-1.5 text-xs font-extrabold"
-                  :class="typeFilter === 'Simple' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
-                  @click="typeFilter = 'Simple'"
-                >
-                  Simple
-                </button>
-                <button
-                  class="rounded-full px-3 py-1.5 text-xs font-extrabold"
-                  :class="typeFilter === 'VIP' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
-                  @click="typeFilter = 'VIP'"
-                >
-                  VIP
-                </button>
+                  <VaCardContent class="p-3">
+                    <div class="flex items-start justify-between">
+                      <div>
+                        <div class="text-sm font-extrabold text-slate-900">Room {{ r.room_number }}</div>
+                        <div class="mt-1 text-xs text-slate-600">
+                          Floor {{ r.floor }} • {{ r.type_group }} • {{ r.beds }} bed(s)
+                        </div>
+                      </div>
 
-                <button
-                  class="rounded-full px-3 py-1.5 text-xs font-extrabold"
-                  :class="bedFilter === 'all' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
-                  @click="bedFilter = 'all'"
-                >
-                  Any bed
-                </button>
-                <button
-                  class="rounded-full px-3 py-1.5 text-xs font-extrabold"
-                  :class="bedFilter === 1 ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
-                  @click="bedFilter = 1"
-                >
-                  1 bed
-                </button>
-                <button
-                  class="rounded-full px-3 py-1.5 text-xs font-extrabold"
-                  :class="bedFilter === 2 ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
-                  @click="bedFilter = 2"
-                >
-                  2 beds
-                </button>
+                      <div class="text-right">
+                        <div class="text-[10px] font-bold text-slate-500">
+                          {{ draft.booking_type === "hourly" ? "Per hour" : "Per night" }}
+                        </div>
+                        <div class="text-sm font-extrabold text-slate-900">{{ money(r.unit_price) }}</div>
+                      </div>
+                    </div>
+
+                    <VaDivider class="my-3" />
+
+                    <div class="flex items-center justify-between">
+                      <div class="text-xs font-bold text-slate-500">Qty</div>
+
+                      <div class="flex items-center gap-2">
+                        <VaButton
+                          size="small"
+                          preset="secondary"
+                          icon="remove"
+                          :disabled="!isRoomSelected(r.room_id)"
+                          class="rounded-2xl"
+                          @click.stop="decQty(r.room_id)"
+                        />
+                        <div class="min-w-11 text-center text-sm font-extrabold text-slate-900">
+                          {{ qtyForRoom(r.room_id) }}
+                        </div>
+                        <VaButton
+                          size="small"
+                          preset="secondary"
+                          icon="add"
+                          :disabled="!isRoomSelected(r.room_id)"
+                          class="rounded-2xl"
+                          @click.stop="incQty(r.room_id)"
+                        />
+                      </div>
+                    </div>
+
+                    <div class="mt-2 text-right text-xs font-bold text-slate-600">
+                      Line total: <span class="text-slate-900">{{ money(lineTotalForRoom(r.room_id)) }}</span>
+                    </div>
+                  </VaCardContent>
+                </VaCard>
               </div>
-            </div>
 
-            <!-- available rooms -->
-            <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <button
-                v-for="r in filteredRooms"
-                :key="r.room_id"
-                class="rounded-2xl bg-slate-100 p-3 text-left hover:bg-slate-200"
-                :class="isRoomSelected(r.room_id) ? 'ring-2 ring-emerald-500 bg-emerald-50 hover:bg-emerald-100' : ''"
-                @click="toggleRoom(r)"
-              >
-                <div class="flex items-start justify-between">
-                  <div>
-                    <div class="text-sm font-extrabold text-slate-900">Room {{ r.room_number }}</div>
-                    <div class="mt-1 text-xs text-slate-600">
-                      Floor {{ r.floor }} • {{ r.type_group }} • {{ r.beds }} bed(s)
-                    </div>
-                  </div>
-                  <div class="text-right">
-                    <div class="text-[10px] font-bold text-slate-500">{{ draft.booking_type === 'hourly' ? 'Per hour' : 'Per night' }}</div>
-                    <div class="text-sm font-extrabold text-slate-900">{{ money(r.unit_price) }}</div>
-                  </div>
-                </div>
-
-                <div class="mt-3 flex items-center justify-between">
-                  <div class="text-xs font-bold text-slate-500">Qty</div>
-                  <div class="flex items-center gap-2">
-                    <button
-                      class="rounded-lg bg-white px-2 py-1 text-sm font-extrabold text-slate-900"
-                      @click.stop="decQty(r.room_id)"
-                      :disabled="!isRoomSelected(r.room_id)"
-                    >
-                      -
-                    </button>
-                    <div class="min-w-[44px] text-center text-sm font-extrabold text-slate-900">
-                      {{ qtyForRoom(r.room_id) }}
-                    </div>
-                    <button
-                      class="rounded-lg bg-white px-2 py-1 text-sm font-extrabold text-slate-900"
-                      @click.stop="incQty(r.room_id)"
-                      :disabled="!isRoomSelected(r.room_id)"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-
-                <div class="mt-2 text-right text-xs font-bold text-slate-600">
-                  Line total: <span class="text-slate-900">{{ money(lineTotalForRoom(r.room_id)) }}</span>
-                </div>
-              </button>
-            </div>
-
-            <div v-if="filteredRooms.length === 0" class="mt-4 rounded-2xl bg-slate-100 p-4 text-sm text-slate-600">
-              No available rooms match the filters.
-            </div>
-          </section>
+              <VaAlert v-if="filteredRooms.length === 0" class="mt-4" color="secondary" outline>
+                No available rooms match the filters.
+              </VaAlert>
+            </VaCardContent>
+          </VaCard>
 
           <!-- Recent -->
-          <section class="rounded-2xl bg-white p-4 sm:p-5">
-            <div class="flex items-center justify-between">
-              <div class="text-sm font-extrabold text-slate-900">Recent Quick Bookings</div>
-              <button class="text-xs font-extrabold text-slate-700 hover:text-slate-900" @click="toast('Demo only')">
-                View all
-              </button>
-            </div>
-
-            <div class="mt-4 grid gap-3">
-              <div
-                v-for="b in data.recentQuickBooks"
-                :key="b.booking_id"
-                class="rounded-2xl bg-slate-100 p-3"
-              >
-                <div class="flex items-start justify-between gap-3">
-                  <div>
-                    <div class="flex items-center gap-2">
-                      <div class="text-sm font-extrabold text-slate-900">{{ b.booking_number }}</div>
-                      <span class="rounded-full bg-white px-2 py-0.5 text-[10px] font-extrabold text-slate-700">
-                        {{ pretty(b.booking_source) }}
-                      </span>
-                      <span class="rounded-full bg-white px-2 py-0.5 text-[10px] font-extrabold text-slate-700">
-                        {{ pretty(b.stay.booking_type) }}
-                      </span>
-                    </div>
-                    <div class="mt-1 text-xs text-slate-600">
-                      {{ b.guest.name }} • {{ b.guest.phone }} • {{ b.created_at }}
-                    </div>
-                  </div>
-
-                  <div class="text-right">
-                    <div class="text-[10px] font-bold text-slate-500">Total</div>
-                    <div class="text-sm font-extrabold text-slate-900">{{ money(b.totals.total) }}</div>
-                    <div class="mt-1 text-[10px] font-bold text-slate-600">
-                      {{ b.payment.method }} • {{ pretty(b.payment.status) }}
-                    </div>
-                  </div>
-                </div>
-
-                <div class="mt-3 flex flex-wrap gap-2">
-                  <span
-                    v-for="rm in b.rooms"
-                    :key="rm.room_id"
-                    class="rounded-full bg-white px-3 py-1 text-[11px] font-extrabold text-slate-700"
-                  >
-                    Room {{ rm.room_number }} • {{ rm.type_group }} {{ rm.beds }} bed •
-                    {{ rm.qty }}{{ b.stay.booking_type === 'hourly' ? 'h' : 'n' }}
-                  </span>
-                </div>
+          <VaCard class="soft-card rounded-2xl">
+            <VaCardContent class="p-4 sm:p-5">
+              <div class="flex items-center justify-between">
+                <div class="text-sm font-extrabold text-slate-900">Recent Quick Bookings</div>
+                <VaButton preset="plain" size="small" @click="toast('Demo only')">View all</VaButton>
               </div>
-            </div>
-          </section>
+
+              <div class="mt-4 grid gap-3">
+                <VaCard
+                  v-for="b in data.recentQuickBooks"
+                  :key="b.booking_id"
+                  class="soft-mini rounded-2xl"
+                >
+                  <VaCardContent class="p-3">
+                    <div class="flex items-start justify-between gap-3">
+                      <div>
+                        <div class="flex flex-wrap items-center gap-2">
+                          <div class="text-sm font-extrabold text-slate-900">{{ b.booking_number }}</div>
+                          <VaBadge :text="pretty(b.booking_source)" color="secondary" />
+                          <VaBadge :text="pretty(b.stay.booking_type)" color="secondary" />
+                        </div>
+
+                        <div class="mt-1 text-xs text-slate-600">
+                          {{ b.guest.name }} • {{ b.guest.phone }} • {{ b.created_at }}
+                        </div>
+                      </div>
+
+                      <div class="text-right">
+                        <div class="text-[10px] font-bold text-slate-500">Total</div>
+                        <div class="text-sm font-extrabold text-slate-900">{{ money(b.totals.total) }}</div>
+                        <div class="mt-1 text-[10px] font-bold text-slate-600">
+                          {{ b.payment.method }} • {{ pretty(b.payment.status) }}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="mt-3 flex flex-wrap gap-2">
+                      <VaChip
+                        v-for="rm in b.rooms"
+                        :key="rm.room_id"
+                        size="small"
+                        color="secondary"
+                        outline
+                      >
+                        Room {{ rm.room_number }} • {{ rm.type_group }} {{ rm.beds }} bed •
+                        {{ rm.qty }}{{ b.stay.booking_type === "hourly" ? "h" : "n" }}
+                      </VaChip>
+                    </div>
+                  </VaCardContent>
+                </VaCard>
+              </div>
+            </VaCardContent>
+          </VaCard>
         </div>
 
         <!-- Right -->
         <div class="space-y-4">
-          <!-- Selected -->
-          <aside class="rounded-2xl bg-white p-4 sm:p-5">
-            <div class="flex items-center justify-between">
-              <div class="text-sm font-extrabold text-slate-900">Summary</div>
-              <button class="text-xs font-extrabold text-slate-700 hover:text-slate-900" @click="resetAll">
-                Reset all
-              </button>
-            </div>
-
-            <div class="mt-3 rounded-2xl bg-slate-100 p-3">
-              <div class="text-[11px] font-extrabold text-slate-600">Guest</div>
-              <div class="mt-1 text-sm font-extrabold text-slate-900">
-                {{ guestLabel }}
-              </div>
-              <div class="mt-1 text-xs text-slate-600">
-                {{ guestSub }}
-              </div>
-            </div>
-
-            <div class="mt-3 rounded-2xl bg-slate-100 p-3">
-              <div class="text-[11px] font-extrabold text-slate-600">Stay</div>
-              <div class="mt-1 text-sm font-extrabold text-slate-900">
-                {{ stayLabel }}
-              </div>
-              <div class="mt-1 text-xs text-slate-600">
-                {{ staySub }}
-              </div>
-            </div>
-
-            <div class="mt-3">
-              <div class="text-xs font-extrabold text-slate-500">Selected rooms</div>
-
-              <div v-if="selectedRooms.length === 0" class="mt-2 rounded-2xl bg-slate-100 p-3 text-sm text-slate-600">
-                No rooms selected yet.
-              </div>
-
-              <div v-else class="mt-2 space-y-2">
-                <div
-                  v-for="it in selectedRooms"
-                  :key="it.room_id"
-                  class="rounded-2xl bg-slate-100 p-3"
-                >
-                  <div class="flex items-start justify-between gap-2">
-                    <div>
-                      <div class="text-sm font-extrabold text-slate-900">Room {{ it.room_number }}</div>
-                      <div class="text-xs text-slate-600">{{ it.type_group }} • {{ it.beds }} bed(s)</div>
-                    </div>
-                    <button class="rounded-full bg-white p-1" @click="removeRoom(it.room_id)">
-                      <span class="material-icons text-slate-600 text-[18px]">close</span>
-                    </button>
-                  </div>
-
-                  <div class="mt-2 flex items-center justify-between text-xs font-bold text-slate-600">
-                    <span>Qty: <span class="text-slate-900">{{ it.qty }}</span></span>
-                    <span>Line: <span class="text-slate-900">{{ money(it.total) }}</span></span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Pricing -->
-            <div class="mt-4 rounded-2xl bg-slate-100 p-3">
-              <div class="flex items-center justify-between text-xs font-bold text-slate-600">
-                <span>Subtotal</span><span class="text-slate-900">{{ money(subtotal) }}</span>
-              </div>
-
-              <div class="mt-2 grid grid-cols-3 gap-2">
-                <div class="col-span-1">
-                  <div class="text-[11px] font-extrabold text-slate-600">Discount</div>
-                  <input v-model.number="draft.pricing.discount" type="number" min="0" class="mt-1 w-full rounded-xl bg-white px-3 py-2 text-sm outline-none" />
-                </div>
-                <div class="col-span-1">
-                  <div class="text-[11px] font-extrabold text-slate-600">Extra</div>
-                  <input v-model.number="draft.pricing.extra" type="number" min="0" class="mt-1 w-full rounded-xl bg-white px-3 py-2 text-sm outline-none" />
-                </div>
-                <div class="col-span-1">
-                  <div class="text-[11px] font-extrabold text-slate-600">Tax %</div>
-                  <input v-model.number="draft.pricing.tax_rate" type="number" min="0" class="mt-1 w-full rounded-xl bg-white px-3 py-2 text-sm outline-none" />
-                </div>
-              </div>
-
-              <div class="mt-3 flex items-center justify-between text-xs font-bold text-slate-600">
-                <span>Tax</span><span class="text-slate-900">{{ money(taxAmount) }}</span>
-              </div>
-              <div class="mt-2 flex items-center justify-between text-sm font-extrabold text-slate-900">
-                <span>Total</span><span>{{ money(grandTotal) }}</span>
-              </div>
-            </div>
-
-            <!-- Deposit -->
-            <div class="mt-4 rounded-2xl bg-slate-100 p-3">
+          <VaCard class="soft-card rounded-2xl">
+            <VaCardContent class="p-4 sm:p-5">
               <div class="flex items-center justify-between">
-                <div>
-                  <div class="text-xs font-extrabold text-slate-600">Deposit</div>
-                  <div class="text-[11px] text-slate-500">Optional for guesthouse</div>
-                </div>
-                <button
-                  class="rounded-full px-3 py-1 text-xs font-extrabold"
-                  :class="draft.deposit.enabled ? 'bg-slate-900 text-white' : 'bg-white text-slate-700'"
-                  @click="draft.deposit.enabled = !draft.deposit.enabled"
-                >
-                  {{ draft.deposit.enabled ? 'Enabled' : 'Off' }}
-                </button>
+                <div class="text-sm font-extrabold text-slate-900">Summary</div>
+                <VaButton preset="plain" size="small" @click="resetAll">Reset all</VaButton>
               </div>
 
-              <div class="mt-3 grid grid-cols-2 gap-2" v-if="draft.deposit.enabled">
-                <div>
-                  <div class="text-[11px] font-extrabold text-slate-600">Amount</div>
-                  <input v-model.number="draft.deposit.amount" type="number" min="0" class="mt-1 w-full rounded-xl bg-white px-3 py-2 text-sm outline-none" />
+              <div class="mt-3 soft-sub rounded-2xl p-3">
+                <div class="text-[11px] font-extrabold text-slate-600">Guest</div>
+                <div class="mt-1 text-sm font-extrabold text-slate-900">{{ guestLabel }}</div>
+                <div class="mt-1 text-xs text-slate-600">{{ guestSub }}</div>
+              </div>
+
+              <div class="mt-3 soft-sub rounded-2xl p-3">
+                <div class="text-[11px] font-extrabold text-slate-600">Stay</div>
+                <div class="mt-1 text-sm font-extrabold text-slate-900">{{ stayLabel }}</div>
+                <div class="mt-1 text-xs text-slate-600">{{ staySub }}</div>
+              </div>
+
+              <div class="mt-3">
+                <div class="text-xs font-extrabold text-slate-500">Selected rooms</div>
+
+                <VaAlert v-if="selectedRooms.length === 0" class="mt-2" color="secondary" outline>
+                  No rooms selected yet.
+                </VaAlert>
+
+                <div v-else class="mt-2 space-y-2">
+                  <VaCard v-for="it in selectedRooms" :key="it.room_id" class="soft-mini rounded-2xl">
+                    <VaCardContent class="p-3">
+                      <div class="flex items-start justify-between gap-2">
+                        <div>
+                          <div class="text-sm font-extrabold text-slate-900">Room {{ it.room_number }}</div>
+                          <div class="text-xs text-slate-600">{{ it.type_group }} • {{ it.beds }} bed(s)</div>
+                        </div>
+                        <VaButton preset="plain" icon="close" @click="removeRoom(it.room_id)" />
+                      </div>
+
+                      <div class="mt-2 flex items-center justify-between text-xs font-bold text-slate-600">
+                        <span>Qty: <span class="text-slate-900">{{ it.qty }}</span></span>
+                        <span>Line: <span class="text-slate-900">{{ money(it.total) }}</span></span>
+                      </div>
+                    </VaCardContent>
+                  </VaCard>
                 </div>
-                <div>
-                  <div class="text-[11px] font-extrabold text-slate-600">Paid?</div>
-                  <button
-                    class="mt-1 w-full rounded-xl bg-white px-3 py-2 text-sm font-extrabold"
-                    :class="draft.deposit.paid ? 'text-emerald-700' : 'text-slate-700'"
-                    @click="draft.deposit.paid = !draft.deposit.paid"
+              </div>
+
+              <!-- Pricing -->
+              <div class="mt-4 soft-sub rounded-2xl p-3">
+                <div class="flex items-center justify-between text-xs font-bold text-slate-600">
+                  <span>Subtotal</span><span class="text-slate-900">{{ money(subtotal) }}</span>
+                </div>
+
+                <div class="mt-2 grid grid-cols-3 gap-2">
+                  <VaInput v-model.number="draft.pricing.discount" type="number" min="0" label="Discount" />
+                  <VaInput v-model.number="draft.pricing.extra" type="number" min="0" label="Extra" />
+                  <VaInput v-model.number="draft.pricing.tax_rate" type="number" min="0" label="Tax %" />
+                </div>
+
+                <div class="mt-3 flex items-center justify-between text-xs font-bold text-slate-600">
+                  <span>Tax</span><span class="text-slate-900">{{ money(taxAmount) }}</span>
+                </div>
+                <div class="mt-2 flex items-center justify-between text-sm font-extrabold text-slate-900">
+                  <span>Total</span><span>{{ money(grandTotal) }}</span>
+                </div>
+              </div>
+
+              <!-- Deposit -->
+              <div class="mt-4 soft-sub rounded-2xl p-3">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <div class="text-xs font-extrabold text-slate-600">Deposit</div>
+                    <div class="text-[11px] text-slate-500">Optional for guesthouse</div>
+                  </div>
+                  <VaSwitch v-model="draft.deposit.enabled" />
+                </div>
+
+                <div class="mt-3 grid grid-cols-2 gap-2" v-if="draft.deposit.enabled">
+                  <VaInput v-model.number="draft.deposit.amount" type="number" min="0" label="Amount" />
+                  <div>
+                    <div class="text-[11px] font-extrabold text-slate-600 mb-1">Paid?</div>
+                    <VaButton
+                      class="w-full rounded-2xl font-extrabold"
+                      :preset="draft.deposit.paid ? 'primary' : 'secondary'"
+                      @click="draft.deposit.paid = !draft.deposit.paid"
+                    >
+                      {{ draft.deposit.paid ? "Yes" : "No" }}
+                    </VaButton>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Payment -->
+              <div class="mt-4 soft-sub rounded-2xl p-3">
+                <div class="text-xs font-extrabold text-slate-600">Payment</div>
+
+                <div class="mt-2 flex flex-wrap gap-2">
+                  <VaChip
+                    v-for="m in data.paymentMethods"
+                    :key="m.code"
+                    class="cursor-pointer qb-chip"
+                    :outline="draft.payment.method_code !== m.code"
+                    :color="draft.payment.method_code === m.code ? 'primary' : 'secondary'"
+                    @click="draft.payment.method_code = m.code; draft.payment.currency = m.currency"
                   >
-                    {{ draft.deposit.paid ? 'Yes' : 'No' }}
-                  </button>
+                    {{ m.label }}
+                  </VaChip>
                 </div>
-              </div>
-            </div>
 
-            <!-- Payment -->
-            <div class="mt-4 rounded-2xl bg-slate-100 p-3">
-              <div class="text-xs font-extrabold text-slate-600">Payment</div>
-
-              <div class="mt-2 flex flex-wrap gap-2">
-                <button
-                  v-for="m in data.paymentMethods"
-                  :key="m.code"
-                  class="rounded-full px-3 py-1.5 text-xs font-extrabold"
-                  :class="draft.payment.method_code === m.code ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 hover:bg-slate-200'"
-                  @click="draft.payment.method_code = m.code; draft.payment.currency = m.currency"
-                >
-                  {{ m.label }}
-                </button>
-              </div>
-
-              <div class="mt-3 grid grid-cols-2 gap-2">
-                <div>
-                  <div class="text-[11px] font-extrabold text-slate-600">Paid amount</div>
-                  <input
+                <div class="mt-3 grid grid-cols-2 gap-2">
+                  <VaInput
                     v-model.number="draft.payment.amount_paid"
                     type="number"
                     min="0"
-                    class="mt-1 w-full rounded-xl bg-white px-3 py-2 text-sm outline-none"
+                    label="Paid amount"
                     :placeholder="draft.payment.currency"
                   />
-                </div>
-                <div>
-                  <div class="text-[11px] font-extrabold text-slate-600">Status</div>
-                  <div class="mt-1 flex gap-2">
-                    <button
-                      class="flex-1 rounded-xl bg-white px-3 py-2 text-xs font-extrabold"
-                      :class="draft.payment.status === 'pending' ? 'text-slate-900' : 'text-slate-500'"
-                      @click="draft.payment.status = 'pending'"
-                    >
-                      Pending
-                    </button>
-                    <button
-                      class="flex-1 rounded-xl bg-white px-3 py-2 text-xs font-extrabold"
-                      :class="draft.payment.status === 'completed' ? 'text-emerald-700' : 'text-slate-500'"
-                      @click="draft.payment.status = 'completed'"
-                    >
-                      Paid
-                    </button>
+
+                  <div>
+                    <div class="text-[11px] font-extrabold text-slate-600 mb-1">Status</div>
+                    <div class="grid grid-cols-2 gap-2">
+                      <VaButton
+                        size="small"
+                        preset="secondary"
+                        class="rounded-2xl font-extrabold"
+                        :class="draft.payment.status === 'pending' ? '' : 'opacity-60'"
+                        @click="draft.payment.status = 'pending'"
+                      >
+                        Pending
+                      </VaButton>
+                      <VaButton
+                        size="small"
+                        :preset="draft.payment.status === 'completed' ? 'primary' : 'secondary'"
+                        class="rounded-2xl font-extrabold"
+                        @click="draft.payment.status = 'completed'"
+                      >
+                        Paid
+                      </VaButton>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div class="mt-2">
-                <div class="text-[11px] font-extrabold text-slate-600">Reference</div>
-                <input v-model.trim="draft.payment.reference" class="mt-1 w-full rounded-xl bg-white px-3 py-2 text-sm outline-none" placeholder="KHQR ref / receipt no..." />
-              </div>
+                <VaInput
+                  class="mt-2"
+                  v-model.trim="draft.payment.reference"
+                  label="Reference"
+                  placeholder="KHQR ref / receipt no..."
+                />
 
-              <div class="mt-3 flex items-center justify-between text-xs font-bold text-slate-600">
-                <span>Balance</span>
-                <span class="text-slate-900">{{ money(balance) }}</span>
-              </div>
-
-              <div v-if="draft.payment.method_code === 'ABA_KHQR'" class="mt-3 rounded-2xl bg-white p-3">
-                <div class="text-[11px] font-extrabold text-slate-600">ABA KHQR (Demo)</div>
-                <div class="mt-2 flex items-center gap-3">
-                  <div class="grid h-14 w-14 place-items-center rounded-2xl bg-slate-100">
-                    <span class="material-icons text-slate-600">qr_code_2</span>
-                  </div>
-                  <div class="text-xs text-slate-600">
-                    Show QR on screen for customer to scan.
-                    <div class="mt-1 font-extrabold text-slate-900">{{ money(grandTotal) }}</div>
-                  </div>
+                <div class="mt-3 flex items-center justify-between text-xs font-bold text-slate-600">
+                  <span>Balance</span>
+                  <span class="text-slate-900">{{ money(balance) }}</span>
                 </div>
-              </div>
-            </div>
 
-            <!-- Bottom actions -->
-            <div class="mt-4 grid gap-2">
-              <button
-                class="rounded-2xl bg-slate-900 py-3 text-sm font-extrabold text-white hover:bg-slate-800 disabled:opacity-50"
-                :disabled="selectedRooms.length === 0"
-                @click="confirmBooking"
-              >
-                Confirm Booking
-              </button>
-              <button class="rounded-2xl bg-slate-100 py-3 text-sm font-extrabold text-slate-900 hover:bg-slate-200" @click="printPreview">
-                Print Preview
-              </button>
-            </div>
-          </aside>
+                <VaCard v-if="draft.payment.method_code === 'ABA_KHQR'" class="soft-mini mt-3 rounded-2xl">
+                  <VaCardContent class="p-3">
+                    <div class="text-[11px] font-extrabold text-slate-600">ABA KHQR (Demo)</div>
+                    <div class="mt-2 flex items-center gap-3">
+                      <div class="grid h-14 w-14 place-items-center rounded-2xl qb-qr">
+                        <VaIcon name="qr_code_2" color="secondary" />
+                      </div>
+                      <div class="text-xs text-slate-600">
+                        Show QR on screen for customer to scan.
+                        <div class="mt-1 font-extrabold text-slate-900">{{ money(grandTotal) }}</div>
+                      </div>
+                    </div>
+                  </VaCardContent>
+                </VaCard>
+              </div>
+
+              <!-- Bottom actions -->
+              <div class="mt-4 grid gap-2">
+                <VaButton
+                  color="primary"
+                  class="rounded-2xl font-extrabold"
+                  :disabled="selectedRooms.length === 0"
+                  @click="confirmBooking"
+                >
+                  Confirm Booking
+                </VaButton>
+
+                <VaButton preset="secondary" class="rounded-2xl font-extrabold" @click="printPreview">
+                  Print Preview
+                </VaButton>
+              </div>
+            </VaCardContent>
+          </VaCard>
         </div>
       </div>
-    </div>
-
-    <!-- Toast -->
-    <div
-      v-if="toastState.show"
-      class="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-full px-4 py-2 text-sm font-extrabold"
-      :class="toastState.type === 'ok' ? 'bg-slate-900 text-white' : 'bg-rose-600 text-white'"
-    >
-      {{ toastState.msg }}
     </div>
   </div>
 </template>
 
 <script setup>
 import { computed, reactive, ref } from "vue"
+import { useToast } from "vuestic-ui"
 import { frontdeskQuickBookData as data } from "@/data/front/frontdeskQuickBook"
 
-// -----------------------------
-// State
-// -----------------------------
+const { init: toastInit } = useToast()
+
 const draft = reactive(structuredClone(data.draftQuickBook))
 const guestQuery = ref("")
-const typeFilter = ref("all") // all / Simple / VIP
-const bedFilter = ref("all") // all / 1 / 2
+const typeFilter = ref("all")
+const bedFilter = ref("all")
 const selectedGuest = ref(null)
 
-const toastState = reactive({ show: false, msg: "", type: "ok", t: null })
+const selectedRooms = ref([]) // {room_id, room_number, type_group, beds, unit_price, qty, total}
 
-// -----------------------------
-// Helpers
-// -----------------------------
 const money = (n) => {
   const v = Number(n || 0)
   return `$${v.toFixed(2)}`
@@ -617,34 +571,28 @@ const money = (n) => {
 const pretty = (s) => String(s || "").replaceAll("_", " ").replace(/\b\w/g, (m) => m.toUpperCase())
 
 function toast(msg, type = "ok") {
-  toastState.show = true
-  toastState.msg = msg
-  toastState.type = type
-  clearTimeout(toastState.t)
-  toastState.t = setTimeout(() => (toastState.show = false), 1600)
+  toastInit({
+    message: msg,
+    color: type === "ok" ? "primary" : "danger",
+    duration: 1600,
+    position: "bottom-center",
+  })
 }
 
 function setBookingType(t) {
   draft.booking_type = t
-  // reset room qty to match booking type default
-  selectedRooms.value = selectedRooms.value.map((x) => ({
-    ...x,
-    qty: t === "hourly" ? draft.hours : draft.nights,
-    total: (t === "hourly" ? draft.hours : draft.nights) * x.unit_price,
-  }))
+  const qty = t === "hourly" ? draft.hours : draft.nights
+  selectedRooms.value = selectedRooms.value.map((x) => ({ ...x, qty, total: qty * x.unit_price }))
 }
 
 function setHours(h) {
   draft.hours = h
   if (draft.booking_type === "hourly") {
-    // update selected rooms qty
     selectedRooms.value = selectedRooms.value.map((x) => ({ ...x, qty: h, total: h * x.unit_price }))
   }
 }
 
-// -----------------------------
-// Guests
-// -----------------------------
+/* Guests */
 const filteredGuests = computed(() => {
   const k = guestQuery.value.trim().toLowerCase()
   if (!k) return data.guests
@@ -663,9 +611,7 @@ function selectGuest(g) {
   toast(`Selected: ${g.name}`)
 }
 
-// -----------------------------
-// Rooms mapping
-// -----------------------------
+/* Rooms mapping */
 const roomTypeMap = computed(() => {
   const m = new Map()
   data.roomTypes.forEach((t) => m.set(t.room_type_id, t))
@@ -673,18 +619,12 @@ const roomTypeMap = computed(() => {
 })
 
 const availableRooms = computed(() => {
-  // only show available rooms in quick booking
   return data.rooms
     .filter((r) => r.status === "available")
     .map((r) => {
       const t = roomTypeMap.value.get(r.room_type_id)
       const unit_price = draft.booking_type === "hourly" ? t.price.hourly : t.price.nightly
-      return {
-        ...r,
-        type_group: t.type_group,
-        beds: t.beds,
-        unit_price,
-      }
+      return { ...r, type_group: t.type_group, beds: t.beds, unit_price }
     })
 })
 
@@ -696,15 +636,10 @@ const filteredRooms = computed(() => {
   })
 })
 
-// -----------------------------
-// Selected rooms
-// -----------------------------
-const selectedRooms = ref([]) // {room_id, room_number, type_group, beds, unit_price, qty, total}
-
+/* Selected rooms */
 function isRoomSelected(room_id) {
   return selectedRooms.value.some((x) => x.room_id === room_id)
 }
-
 function defaultQty() {
   return draft.booking_type === "hourly" ? draft.hours : draft.nights
 }
@@ -761,15 +696,16 @@ function decQty(room_id) {
   else draft.nights = it.qty
 }
 
-// -----------------------------
-// Totals
-// -----------------------------
+/* Totals */
 const subtotal = computed(() => selectedRooms.value.reduce((a, x) => a + Number(x.total || 0), 0))
-const taxAmount = computed(() => (subtotal.value - Number(draft.pricing.discount || 0) + Number(draft.pricing.extra || 0)) * (Number(draft.pricing.tax_rate || 0) / 100))
+const taxAmount = computed(() => {
+  const base = subtotal.value - Number(draft.pricing.discount || 0) + Number(draft.pricing.extra || 0)
+  return base * (Number(draft.pricing.tax_rate || 0) / 100)
+})
 const grandTotal = computed(() => subtotal.value - Number(draft.pricing.discount || 0) + Number(draft.pricing.extra || 0) + taxAmount.value)
 const balance = computed(() => Math.max(0, grandTotal.value - Number(draft.payment.amount_paid || 0)))
 
-// Labels
+/* Labels */
 const guestLabel = computed(() => {
   if (draft.guest_mode === "new") return draft.new_guest.name || "New guest (not filled)"
   return selectedGuest.value?.name || "No guest selected"
@@ -784,9 +720,7 @@ const staySub = computed(() => {
   return `${draft.check_in_date} → ${draft.check_out_date}`
 })
 
-// -----------------------------
-// Actions (demo only)
-// -----------------------------
+/* Actions (demo) */
 function resetAll() {
   const fresh = structuredClone(data.draftQuickBook)
   Object.keys(fresh).forEach((k) => (draft[k] = fresh[k]))
@@ -799,11 +733,10 @@ function resetAll() {
 }
 
 function saveDraft() {
-  // demo: store local
   const payload = {
     ...structuredClone(draft),
     selectedRooms: structuredClone(selectedRooms.value),
-    totals: { subtotal: subtotal.value, tax: taxAmount.value, total: grandTotal.value },
+    totals: { subtotal: subtotal.value, tax: taxAmount.value, total: grandTotal.value, balance: balance.value },
   }
   localStorage.setItem("quick_book_draft", JSON.stringify(payload))
   toast("Draft saved")
@@ -823,41 +756,30 @@ function confirmBooking() {
 
 function printPreview() {
   const guest = guestLabel.value
-
   const lines = selectedRooms.value
     .map(
       (x) =>
-        `Room ${x.room_number} • ${x.type_group} ${x.beds} bed • ${x.qty}${
-          draft.booking_type === "hourly" ? "h" : "n"
-        } • ${money(x.total)}`
+        `Room ${x.room_number} • ${x.type_group} ${x.beds} bed • ${x.qty}${draft.booking_type === "hourly" ? "h" : "n"} • ${money(x.total)}`
     )
     .join("<br/>")
 
   const w = window.open("", "_blank")
-  if (!w) {
-    alert("Popup blocked. Please allow popups for this site.")
-    return
-  }
+  if (!w) return alert("Popup blocked. Please allow popups for this site.")
 
   w.document.open()
   w.document.write(`
     <!doctype html>
     <html>
-      <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Quick Booking Preview</title>
-      </head>
+      <head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+      <title>Quick Booking Preview</title></head>
       <body style="font-family: ui-sans-serif, system-ui; padding: 18px;">
         <h2 style="margin:0;">${data.property.name}</h2>
         <div style="color:#555; margin-top:6px;">Quick Booking Preview</div>
         <hr/>
         <div><b>Guest:</b> ${guest}</div>
         <div style="margin-top:6px;"><b>Stay:</b> ${stayLabel.value}</div>
-
         <div style="margin-top:12px;"><b>Rooms</b></div>
         <div style="margin-top:6px;">${lines || "-"}</div>
-
         <hr/>
         <div style="text-align:right;">
           <div>Subtotal: ${money(subtotal.value)}</div>
@@ -866,16 +788,74 @@ function printPreview() {
           <div style="margin-top:6px;">Paid: ${money(draft.payment.amount_paid)}</div>
           <div><b>Balance: ${money(balance.value)}</b></div>
         </div>
-
-        <script>
-          window.onload = function () {
-            window.print();
-          };
-        <\/script>
+        <script>window.onload=function(){window.print();};<\/script>
       </body>
     </html>
   `)
   w.document.close()
 }
-
 </script>
+
+<style scoped>
+/* Page */
+.qb-page {
+  min-height: calc(100vh - 60px);
+  background: #ffffff;
+  padding: 16px;
+}
+@media (min-width: 640px) {
+  .qb-page {
+    padding: 24px;
+  }
+}
+
+/* Soft shadow system (same vibe as Monthly Report) */
+.soft-card {
+  border: none !important;
+  box-shadow: 0 6px 18px rgba(2, 8, 23, 0.06) !important;
+  background: #fff !important;
+}
+.soft-sub {
+  background: rgba(2, 8, 23, 0.02);
+  box-shadow: 0 6px 18px rgba(2, 8, 23, 0.06);
+}
+.soft-mini {
+  border: none !important;
+  box-shadow: 0 6px 18px rgba(2, 8, 23, 0.06) !important;
+  background: #fff !important;
+}
+
+/* Chips */
+.qb-chip :deep(.va-chip__content) {
+  font-weight: 900;
+}
+
+/* Room cards (no border/ring) */
+.room-card {
+  border: none !important;
+  box-shadow: 0 6px 18px rgba(2, 8, 23, 0.06) !important;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+}
+.room-card--idle {
+  background: rgba(2, 8, 23, 0.03) !important;
+}
+.room-card--idle:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 26px rgba(2, 8, 23, 0.08) !important;
+  background: rgba(2, 8, 23, 0.05) !important;
+}
+.room-card--active {
+  background: rgba(16, 185, 129, 0.12) !important;
+  box-shadow: 0 10px 26px rgba(2, 8, 23, 0.10) !important;
+}
+
+/* Selected guest mini card */
+.mini-active {
+  background: rgba(14, 165, 233, 0.10) !important;
+}
+
+/* QR demo tile */
+.qb-qr {
+  background: rgba(2, 8, 23, 0.04);
+}
+</style>

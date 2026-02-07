@@ -1,255 +1,247 @@
-<!-- src/pages/admin/rooms/RoomKeys.vue -->
+<!-- src/pages/admin/rooms/RoomKeys.vue
+  ✅ Vuestic UI version
+  ✅ DB-aligned fields (room_keys):
+    key_id, room_id, key_number, key_type, status,
+    issued_to_reservation_id, issued_at, returned_at, replacement_cost, notes
+  ✅ Static demo data normalizer supports legacy grouped data: roomKeysData = [{room_id, room_number, keys:[...]}]
+-->
 <template>
   <div class="min-h-[calc(100vh-60px)] bg-slate-50 px-4 py-5 sm:px-6">
-    <div class="mx-auto">
+    <div class="mx-auto w-full">
       <!-- Header -->
       <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div class="min-w-0">
           <div class="flex items-center gap-2">
-            <span class="material-icons text-slate-700">vpn_key</span>
+            <VaIcon name="vpn_key" color="secondary" />
             <h1 class="truncate text-lg font-extrabold text-slate-900 sm:text-xl">Room Keys</h1>
           </div>
           <p class="mt-1 text-sm text-slate-500">
-            Manage keys by room • issue/return • status (available/issued/lost/damaged) • follow DB table <b>room_keys</b>.
+            Manage keys by room • issue/return • status (available/issued/lost/damaged) • DB table <b>room_keys</b>.
           </p>
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
-          <button
-            class="rounded-full bg-slate-100 px-4 py-2 text-sm font-extrabold text-slate-900 hover:bg-slate-200"
-            type="button"
-            @click="resetAll"
-          >
-            <span class="material-icons mr-1 align-middle text-[18px]">refresh</span>
+          <VaButton preset="secondary" class="rounded-2xl font-extrabold" @click="resetAll">
+            <VaIcon name="refresh" class="mr-1" />
             Reset
-          </button>
+          </VaButton>
 
-          <button
-            class="rounded-full bg-slate-900 px-4 py-2 text-sm font-extrabold text-white hover:bg-slate-800"
-            type="button"
-            @click="goCreate"
-          >
-            <span class="material-icons mr-1 align-middle text-[18px]">add</span>
+          <VaButton to="/admin/rooms/keys/create" color="primary" class="rounded-2xl font-extrabold">
+            <VaIcon name="add" class="mr-1" />
             Add Key
-          </button>
+          </VaButton>
         </div>
       </div>
 
       <!-- Filters -->
-      <section class="mt-4 rounded-2xl bg-white p-4">
-        <div class="grid gap-3 lg:grid-cols-12">
-          <div class="lg:col-span-6">
-            <label class="mb-1 block text-xs font-bold text-slate-500">Search</label>
-            <div class="flex items-center gap-2 rounded-2xl bg-slate-100 px-3 py-2">
-              <span class="material-icons text-[18px] text-slate-500">search</span>
-              <input
+      <VaCard class="soft-card mt-4 rounded-2xl">
+        <VaCardContent class="p-4">
+          <div class="grid gap-3 lg:grid-cols-12">
+            <div class="lg:col-span-6">
+              <VaInput
                 v-model.trim="q"
-                class="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
-                placeholder="Search room number, key number, reservation id, notes..."
-              />
-              <button
-                v-if="q"
-                type="button"
-                class="rounded-full bg-white px-3 py-1 text-xs font-extrabold hover:bg-slate-50"
-                @click="q=''"
+                class="ctrl"
+                label="Search"
+                placeholder="Search room, key number, reservation id, notes..."
+                clearable
               >
-                Clear
-              </button>
+                <template #prependInner>
+                  <VaIcon name="search" color="secondary" />
+                </template>
+              </VaInput>
+            </div>
+
+            <div class="lg:col-span-6 grid gap-3 sm:grid-cols-3">
+              <VaSelect
+                v-model="roomFilter"
+                class="ctrl"
+                label="Room"
+                :options="roomOptions"
+                :text-by="(o) => o.text"
+                :value-by="(o) => o.value"
+              />
+
+              <VaSelect
+                v-model="typeFilter"
+                class="ctrl"
+                label="Key Type"
+                :options="typeOptions"
+                :text-by="(o) => o.text"
+                :value-by="(o) => o.value"
+              />
+
+              <VaSelect
+                v-model="statusFilter"
+                class="ctrl"
+                label="Status"
+                :options="statusOptions"
+                :text-by="(o) => o.text"
+                :value-by="(o) => o.value"
+              />
             </div>
           </div>
 
-          <div class="lg:col-span-6 grid gap-3 sm:grid-cols-3">
-            <div>
-              <label class="mb-1 block text-xs font-bold text-slate-500">Room</label>
-              <select v-model="roomFilter" class="w-full rounded-2xl bg-slate-100 px-3 py-2 text-sm outline-none">
-                <option value="all">All rooms</option>
-                <option v-for="r in rooms" :key="r.room_id" :value="r.room_id">
-                  Room {{ r.room_number }}
-                </option>
-              </select>
-            </div>
-
-            <div>
-              <label class="mb-1 block text-xs font-bold text-slate-500">Key Type</label>
-              <select v-model="typeFilter" class="w-full rounded-2xl bg-slate-100 px-3 py-2 text-sm outline-none">
-                <option value="all">All types</option>
-                <option value="physical">Physical</option>
-                <option value="card">Card</option>
-                <option value="code">Code</option>
-                <option value="digital">Digital</option>
-              </select>
-            </div>
-
-            <div>
-              <label class="mb-1 block text-xs font-bold text-slate-500">Status</label>
-              <select v-model="statusFilter" class="w-full rounded-2xl bg-slate-100 px-3 py-2 text-sm outline-none">
-                <option value="all">All status</option>
-                <option value="available">Available</option>
-                <option value="issued">Issued</option>
-                <option value="lost">Lost</option>
-                <option value="damaged">Damaged</option>
-              </select>
-            </div>
+          <!-- Chips -->
+          <div class="mt-3 flex flex-wrap gap-2">
+            <button
+              v-for="c in chips"
+              :key="c.key"
+              type="button"
+              class="chip"
+              :class="activeChip === c.key ? 'chip--active' : 'chip--idle'"
+              @click="activeChip = c.key"
+            >
+              <span class="mr-2 inline-flex h-2 w-2 rounded-full" :class="c.dot"></span>
+              {{ c.label }}
+              <span class="ml-1 text-[11px]" :class="activeChip === c.key ? 'text-white/80' : 'text-slate-500'">
+                ({{ c.count }})
+              </span>
+            </button>
           </div>
-        </div>
-
-        <!-- Chips -->
-        <div class="mt-3 flex flex-wrap gap-2">
-          <button
-            v-for="c in chips"
-            :key="c.key"
-            type="button"
-            class="rounded-full px-4 py-2 text-xs font-extrabold"
-            :class="activeChip === c.key ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-900 hover:bg-slate-200'"
-            @click="activeChip = c.key"
-          >
-            <span class="mr-2 inline-flex h-2 w-2 rounded-full" :class="c.dot"></span>
-            {{ c.label }}
-            <span class="ml-1 text-[11px]" :class="activeChip === c.key ? 'text-white/80' : 'text-slate-500'">
-              ({{ c.count }})
-            </span>
-          </button>
-        </div>
-      </section>
+        </VaCardContent>
+      </VaCard>
 
       <!-- Main -->
       <div class="mt-4 grid gap-4 lg:grid-cols-12">
         <!-- Left Rooms -->
         <div class="lg:col-span-4">
-          <div class="rounded-2xl bg-white p-4">
-            <div class="flex items-center justify-between">
-              <div class="text-sm font-extrabold text-slate-900">Rooms</div>
-              <div class="text-xs text-slate-500">{{ rooms.length }} total</div>
-            </div>
+          <VaCard class="soft-card rounded-2xl">
+            <VaCardContent class="p-4">
+              <div class="flex items-center justify-between">
+                <div class="text-sm font-extrabold text-slate-900">Rooms</div>
+                <div class="text-xs text-slate-500">{{ rooms.length }} total</div>
+              </div>
 
-            <div class="mt-3 space-y-2">
-              <button
-                v-for="r in rooms"
-                :key="r.room_id"
-                type="button"
-                class="w-full rounded-2xl p-3 text-left hover:bg-slate-50"
-                :class="activeRoomId === r.room_id ? 'bg-slate-50' : 'bg-white'"
-                @click="selectRoom(r.room_id)"
-              >
-                <div class="flex items-center justify-between gap-2">
-                  <div>
-                    <div class="text-sm font-extrabold text-slate-900">Room {{ r.room_number }}</div>
-                    <div class="mt-1 text-xs text-slate-500">
-                      {{ countByRoom(r.room_id) }} key(s) • {{ issuedCountByRoom(r.room_id) }} issued
+              <div class="mt-3 space-y-2">
+                <button
+                  v-for="r in rooms"
+                  :key="r.room_id"
+                  type="button"
+                  class="w-full rounded-2xl p-3 text-left hover:bg-slate-50"
+                  :class="activeRoomId === r.room_id ? 'bg-slate-50' : 'bg-white'"
+                  @click="selectRoom(r.room_id)"
+                >
+                  <div class="flex items-center justify-between gap-2">
+                    <div>
+                      <div class="text-sm font-extrabold text-slate-900">Room {{ r.room_number }}</div>
+                      <div class="mt-1 text-xs text-slate-500">
+                        {{ countByRoom(r.room_id) }} key(s) • {{ issuedCountByRoom(r.room_id) }} issued
+                      </div>
                     </div>
+                    <VaIcon name="chevron_right" color="secondary" />
                   </div>
-                  <span class="material-icons text-slate-400">chevron_right</span>
-                </div>
-              </button>
-            </div>
+                </button>
+              </div>
 
-            <button
-              type="button"
-              class="mt-3 w-full rounded-2xl bg-slate-100 px-4 py-3 text-sm font-extrabold text-slate-900 hover:bg-slate-200"
-              @click="selectRoom(null)"
-            >
-              Show all rooms
-            </button>
-          </div>
+              <VaButton preset="secondary" class="mt-3 w-full rounded-2xl font-extrabold" @click="selectRoom(null)">
+                Show all rooms
+              </VaButton>
+            </VaCardContent>
+          </VaCard>
         </div>
 
         <!-- Right Keys -->
         <div class="lg:col-span-8">
-          <div class="rounded-2xl bg-white p-4">
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <div class="text-sm font-extrabold text-slate-900">{{ rightTitle }}</div>
-                <div class="text-xs text-slate-500">
-                  DB fields: key_id, room_id, key_number, key_type, status, issued_to_reservation_id, issued_at, returned_at, replacement_cost, notes.
+          <VaCard class="soft-card rounded-2xl">
+            <VaCardContent class="p-4">
+              <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <div class="text-sm font-extrabold text-slate-900">{{ rightTitle }}</div>
+                  <div class="text-xs text-slate-500">
+                    DB fields: key_id, room_id, key_number, key_type, status, issued_to_reservation_id, issued_at,
+                    returned_at, replacement_cost, notes.
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <!-- Cards -->
-            <div class="mt-4 grid gap-3 sm:grid-cols-2">
-              <div
-                v-for="k in filteredKeys"
-                :key="k.key_id"
-                class="rounded-2xl bg-slate-50 p-4"
-              >
-                <div class="flex items-start justify-between gap-2">
-                  <div class="min-w-0">
-                    <div class="truncate text-sm font-extrabold text-slate-900">
-                      Room {{ roomNumber(k.room_id) }} • {{ k.key_number }}
+              <!-- Cards -->
+              <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                <div v-for="k in filteredKeys" :key="k.key_id" class="rounded-2xl bg-slate-50 p-4">
+                  <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                      <div class="truncate text-sm font-extrabold text-slate-900">
+                        Room {{ roomNumber(k.room_id) }} • {{ k.key_number }}
+                      </div>
+                      <div class="mt-1 text-xs text-slate-500">
+                        Type: {{ pretty(k.key_type) }} • ID: {{ k.key_id }}
+                      </div>
                     </div>
-                    <div class="mt-1 text-xs text-slate-500">
-                      Type: {{ pretty(k.key_type) }} • ID: {{ k.key_id }}
+
+                    <span class="rounded-full px-2 py-0.5 text-[10px] font-extrabold" :class="statusPill(k.status)">
+                      {{ pretty(k.status) }}
+                    </span>
+                  </div>
+
+                  <div class="mt-3 grid grid-cols-2 gap-2">
+                    <div class="rounded-2xl bg-white p-3">
+                      <div class="text-[10px] font-extrabold text-slate-500">Reservation</div>
+                      <div class="mt-1 text-sm font-extrabold text-slate-900">
+                        {{ k.issued_to_reservation_id || "-" }}
+                      </div>
+                    </div>
+
+                    <div class="rounded-2xl bg-white p-3">
+                      <div class="text-[10px] font-extrabold text-slate-500">Replacement</div>
+                      <div class="mt-1 text-sm font-extrabold text-slate-900">
+                        {{ money(k.replacement_cost) }}
+                      </div>
                     </div>
                   </div>
-                  <span class="rounded-full px-2 py-0.5 text-[10px] font-extrabold" :class="statusPill(k.status)">
-                    {{ pretty(k.status) }}
-                  </span>
-                </div>
 
-                <div class="mt-3 grid grid-cols-2 gap-2">
-                  <div class="rounded-2xl bg-white p-3">
-                    <div class="text-[10px] font-extrabold text-slate-500">Reservation</div>
-                    <div class="mt-1 text-sm font-extrabold text-slate-900">{{ k.issued_to_reservation_id || "-" }}</div>
+                  <div class="mt-3 text-xs text-slate-500">
+                    Issued:
+                    <span class="font-bold text-slate-700">{{ k.issued_at || "-" }}</span>
+                    <span class="mx-2 text-slate-300">•</span>
+                    Returned:
+                    <span class="font-bold text-slate-700">{{ k.returned_at || "-" }}</span>
                   </div>
-                  <div class="rounded-2xl bg-white p-3">
-                    <div class="text-[10px] font-extrabold text-slate-500">Replacement</div>
-                    <div class="mt-1 text-sm font-extrabold text-slate-900">{{ money(k.replacement_cost) }}</div>
+
+                  <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
+                    <VaButton
+                      preset="secondary"
+                      size="small"
+                      class="rounded-2xl font-extrabold"
+                      :disabled="k.status === 'issued'"
+                      @click="issueQuick(k.key_id)"
+                    >
+                      <VaIcon name="login" class="mr-1" />
+                      Issue
+                    </VaButton>
+
+                    <VaButton
+                      preset="secondary"
+                      size="small"
+                      class="rounded-2xl font-extrabold"
+                      :disabled="k.status !== 'issued'"
+                      @click="returnKey(k.key_id)"
+                    >
+                      <VaIcon name="logout" class="mr-1" />
+                      Return
+                    </VaButton>
+
+                    <VaButton color="primary" size="small" class="rounded-2xl font-extrabold" @click="goEdit(k.key_id)">
+                      <VaIcon name="edit" class="mr-1" />
+                      Edit
+                    </VaButton>
                   </div>
-                </div>
 
-                <div class="mt-3 text-xs text-slate-500">
-                  Issued: <span class="font-bold text-slate-700">{{ k.issued_at || "-" }}</span>
-                </div>
-
-                <div class="mt-3 flex items-center justify-between gap-2">
-                  <button
-                    class="rounded-full bg-white px-4 py-2 text-xs font-extrabold text-slate-900 hover:bg-slate-100 disabled:opacity-40"
-                    type="button"
-                    :disabled="k.status === 'issued'"
-                    @click="issueQuick(k.key_id)"
-                  >
-                    <span class="material-icons mr-1 align-middle text-[16px]">login</span>
-                    Issue
-                  </button>
-
-                  <button
-                    class="rounded-full bg-white px-4 py-2 text-xs font-extrabold text-slate-900 hover:bg-slate-100 disabled:opacity-40"
-                    type="button"
-                    :disabled="k.status !== 'issued'"
-                    @click="returnKey(k.key_id)"
-                  >
-                    <span class="material-icons mr-1 align-middle text-[16px]">logout</span>
-                    Return
-                  </button>
-
-                  <button
-                    class="rounded-full bg-slate-900 px-4 py-2 text-xs font-extrabold text-white hover:bg-slate-800"
-                    type="button"
-                    @click="goEdit(k.key_id)"
-                  >
-                    <span class="material-icons mr-1 align-middle text-[16px]">edit</span>
-                    Edit
-                  </button>
+                  <div v-if="k.notes" class="mt-3 text-xs text-slate-600">
+                    <span class="font-extrabold text-slate-900">Notes:</span> {{ k.notes }}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div v-if="filteredKeys.length === 0" class="mt-6 rounded-2xl bg-slate-50 p-6 text-center">
-              <div class="text-slate-900 font-extrabold">No keys found</div>
-              <div class="mt-1 text-sm text-slate-500">Try another filter or add new key.</div>
-              <button
-                class="mt-4 rounded-full bg-slate-900 px-5 py-2 text-sm font-extrabold text-white hover:bg-slate-800"
-                type="button"
-                @click="goCreate"
-              >
-                Add Key
-              </button>
-            </div>
+              <div v-if="filteredKeys.length === 0" class="mt-6 rounded-2xl bg-slate-50 p-6 text-center">
+                <div class="text-slate-900 font-extrabold">No keys found</div>
+                <div class="mt-1 text-sm text-slate-500">Try another filter or add new key.</div>
+                <VaButton color="primary" class="mt-4 rounded-2xl font-extrabold" @click="goCreate">Add Key</VaButton>
+              </div>
 
-            <div class="mt-4 text-[11px] text-slate-500">
-              Demo only: static data. Later connect API CRUD to table <b>room_keys</b>.
-            </div>
-          </div>
+              <div class="mt-4 text-[11px] text-slate-500">
+                Demo only: static data. Later connect API CRUD to table <b>room_keys</b>.
+              </div>
+            </VaCardContent>
+          </VaCard>
         </div>
       </div>
 
@@ -274,25 +266,35 @@ import { roomKeysData } from "@/data/room/roomKeysData"
 
 const router = useRouter()
 
+/**
+ * Accept legacy grouped static data:
+ * roomKeysData = [
+ *   { room_id, room_number, keys: [ { key_id, key_number, key_type, status, issued_to_reservation_id, issued_at, returned_at, replacement_cost, notes } ] }
+ * ]
+ *
+ * Output = DB-aligned flat rows (room_keys)
+ */
 function normalize(data) {
-  const rooms = (data || []).map((r) => ({ room_id: r.room_id, room_number: r.room_number }))
+  const rooms = (data || []).map((r) => ({ room_id: Number(r.room_id), room_number: String(r.room_number) }))
   const keys = []
+
   for (const r of data || []) {
     for (const k of r.keys || []) {
       keys.push({
-        key_id: k.key_id,
-        room_id: r.room_id,
-        key_number: k.key_number,
-        key_type: k.key_type,
-        status: k.status,
+        key_id: Number(k.key_id),
+        room_id: Number(r.room_id),
+        key_number: String(k.key_number || ""),
+        key_type: String(k.key_type || "physical"), // physical|card|code|digital
+        status: String(k.status || "available"), // available|issued|lost|damaged
         issued_to_reservation_id: k.issued_to_reservation_id ?? null,
         issued_at: k.issued_at ?? null,
         returned_at: k.returned_at ?? null,
         replacement_cost: Number(k.replacement_cost ?? 0),
-        notes: k.notes ?? "",
+        notes: String(k.notes ?? ""),
       })
     }
   }
+
   return { rooms, keys }
 }
 
@@ -317,6 +319,25 @@ function showToast(msg) {
   toastTimer = setTimeout(() => (toast.value = ""), 2200)
 }
 
+// select options (Vuestic)
+const roomOptions = computed(() => [{ text: "All rooms", value: "all" }, ...rooms.value.map((r) => ({ text: `Room ${r.room_number}`, value: r.room_id }))])
+
+const typeOptions = [
+  { text: "All types", value: "all" },
+  { text: "Physical", value: "physical" },
+  { text: "Card", value: "card" },
+  { text: "Code", value: "code" },
+  { text: "Digital", value: "digital" },
+]
+
+const statusOptions = [
+  { text: "All status", value: "all" },
+  { text: "Available", value: "available" },
+  { text: "Issued", value: "issued" },
+  { text: "Lost", value: "lost" },
+  { text: "Damaged", value: "damaged" },
+]
+
 const chips = computed(() => {
   const count = (s) => keys.value.filter((x) => x.status === s).length
   return [
@@ -336,19 +357,30 @@ const rightTitle = computed(() => {
 
 const filteredKeys = computed(() => {
   const kw = q.value.trim().toLowerCase()
+
   return keys.value
     .filter((k) => {
+      // left room select
       if (activeRoomId.value && k.room_id !== activeRoomId.value) return false
+
+      // dropdowns
       if (roomFilter.value !== "all" && k.room_id !== Number(roomFilter.value)) return false
       if (typeFilter.value !== "all" && k.key_type !== typeFilter.value) return false
       if (statusFilter.value !== "all" && k.status !== statusFilter.value) return false
+
+      // chip
       if (activeChip.value !== "all" && k.status !== activeChip.value) return false
 
+      // search
       if (!kw) return true
       const blob = `${roomNumber(k.room_id)} ${k.key_number} ${k.key_type} ${k.status} ${k.issued_to_reservation_id || ""} ${k.notes || ""}`.toLowerCase()
       return blob.includes(kw)
     })
-    .sort((a, b) => (String(roomNumber(a.room_id)) + a.key_number).localeCompare(String(roomNumber(b.room_id)) + b.key_number))
+    .sort((a, b) => {
+      const aa = `${roomNumber(a.room_id)} ${a.key_number}`.toLowerCase()
+      const bb = `${roomNumber(b.room_id)} ${b.key_number}`.toLowerCase()
+      return aa.localeCompare(bb)
+    })
 })
 
 function selectRoom(id) {
@@ -356,7 +388,7 @@ function selectRoom(id) {
 }
 
 function roomNumber(roomId) {
-  return rooms.value.find((x) => x.room_id === roomId)?.room_number || "-"
+  return rooms.value.find((x) => x.room_id === Number(roomId))?.room_number || "-"
 }
 
 function countByRoom(roomId) {
@@ -395,29 +427,23 @@ function nowStamp() {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 
-// quick issue/return (still follows DB columns)
+/**
+ * Demo issue/return (still follows DB columns)
+ * - issue: status=issued, issued_at=now, returned_at=null (reservation id can be set on edit page)
+ * - return: status=available, returned_at=now, issued_to_reservation_id=null
+ */
 function issueQuick(keyId) {
   keys.value = keys.value.map((x) => {
     if (x.key_id !== keyId) return x
-    return {
-      ...x,
-      status: "issued",
-      issued_at: x.issued_at || nowStamp(),
-      returned_at: null,
-    }
+    return { ...x, status: "issued", issued_at: x.issued_at || nowStamp(), returned_at: null }
   })
-  showToast("Issued (demo). Use Edit page to set reservation id.")
+  showToast("Issued (demo). Set reservation id in Edit.")
 }
 
 function returnKey(keyId) {
   keys.value = keys.value.map((x) => {
     if (x.key_id !== keyId) return x
-    return {
-      ...x,
-      status: "available",
-      returned_at: nowStamp(),
-      issued_to_reservation_id: null,
-    }
+    return { ...x, status: "available", returned_at: nowStamp(), issued_to_reservation_id: null }
   })
   showToast("Returned → Available.")
 }
@@ -426,12 +452,14 @@ function resetAll() {
   const again = normalize(roomKeysData)
   rooms.value = again.rooms
   keys.value = [...again.keys]
+
   q.value = ""
   roomFilter.value = "all"
   typeFilter.value = "all"
   statusFilter.value = "all"
   activeChip.value = "all"
   activeRoomId.value = null
+
   showToast("Reset done.")
 }
 
@@ -442,3 +470,48 @@ function goEdit(keyId) {
   router.push({ path: `/rooms/keys/edit/${keyId}` })
 }
 </script>
+
+<style scoped>
+@import url("https://fonts.googleapis.com/icon?family=Material+Icons");
+
+.soft-card {
+  border: none !important;
+  box-shadow: 0 6px 18px rgba(2, 8, 23, 0.06) !important;
+  background: #fff !important;
+}
+
+/* Vuestic controls look like your soft inputs */
+:deep(.ctrl .va-input-wrapper__container),
+:deep(.ctrl .va-select__anchor),
+:deep(.ctrl .va-textarea__container) {
+  background: rgb(241 245 249) !important;
+  border: 0 !important;
+  border-radius: 16px !important;
+  min-height: 44px !important;
+}
+:deep(.ctrl .va-input-wrapper__container:focus-within),
+:deep(.ctrl .va-select__anchor:focus-within),
+:deep(.ctrl .va-textarea__container:focus-within) {
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.08) !important;
+}
+
+/* Chips */
+.chip {
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+}
+.chip--active {
+  background: rgb(15 23 42);
+  color: #fff;
+}
+.chip--idle {
+  background: rgb(241 245 249);
+  color: rgb(15 23 42);
+}
+.chip--idle:hover {
+  background: rgb(226 232 240);
+}
+</style>

@@ -1,165 +1,261 @@
 <template>
-  <div class="login-form">
-    <!-- Title -->
-    <div class="head">
-      <h2 class="title">{{ t("auth.login.title") }}</h2>
-      <p class="sub">{{ t("auth.login.subtitle") }}</p>
-    </div>
+  <div class="login-container">
+    <div class="login-form">
+      <!-- Title -->
+      <header class="head">
+        <h2 class="title">{{ t("auth.login.title") }}</h2>
+        <p class="sub">{{ t("auth.login.subtitle") }}</p>
+      </header>
 
-    <VaForm class="form" @submit.prevent="login">
-      <!-- Phone row -->
-      <div class="phone-row">
-        <VaSelect
-          v-model="countryCode"
-          :options="codes"
-          text-by="label"
-          value-by="value"
-          class="code"
-          :label="t('auth.login.code')"
-        />
+      <VaForm class="form" @submit.prevent="handleLogin">
+        <!-- Phone row -->
+        <div class="phone-row">
+          <VaSelect
+            v-model="formData.countryCode"
+            :options="COUNTRY_CODES"
+            text-by="label"
+            value-by="value"
+            class="code"
+            style="width: 90px"
+            :label="t('auth.login.code')"
+          />
 
-        <VaInput
-          v-model="phone"
-          class="phone"
-          :label="t('auth.login.phone')"
-          :placeholder="t('auth.login.phone_placeholder')"
-          inputmode="numeric"
-        >
-          <template #prependInner>
-            <VaIcon name="call" color="secondary" />
-          </template>
-        </VaInput>
-      </div>
-
-      <!-- Password -->
-      <VaInput
-        v-model="password"
-        :type="showPassword ? 'text' : 'password'"
-        :label="t('auth.login.password')"
-        :placeholder="t('auth.login.password_placeholder')"
-        default-value=""
-      >
-        <template #prependInner>
-          <VaIcon name="lock" color="secondary" />
-        </template>
-
-        <!-- Better eye icon -->
-        <template #appendInner>
-          <VaButton
-            preset="plain"
-            class="eye-btn"
-            type="button"
-            @click="showPassword = !showPassword"
-            :aria-label="showPassword ? t('auth.login.hide_password') : t('auth.login.show_password')"
+          <VaInput
+            v-model="formData.phone"
+            class="phone w-full"
+            :label="t('auth.login.phone')"
+            :placeholder="t('auth.login.phone_placeholder')"
+            inputmode="numeric"
+            autocomplete="false"
+            style="width: 200px"
           >
-            <VaIcon :name="showPassword ? 'visibility_off' : 'visibility'" />
-          </VaButton>
-        </template>
-      </VaInput>
+            <template #prependInner>
+              <VaIcon name="call" color="primary" />
+            </template>
+          </VaInput>
+        </div>
 
-      <!-- Button (always visible) -->
-      <VaButton
-        to="/admin/dashboard"
-        class="btn"
-        type="submit"
-        color="primary"
-        size="large"
-        block
-      >
-        {{ t("auth.login.submit") }}
-      </VaButton>
+        <!-- Password -->
+        <VaValue
+          v-slot="isPasswordVisible"
+          :default-value="false"
+        >
+          <VaInput
+            v-model="password"
+             :type="showPassword ? 'text' : 'password'"
+             :label="t('auth.login.password')"
+              :placeholder="t('auth.login.password_placeholder')"
+              autocomplete="current-password"
+            @click-append-inner="isPasswordVisible.value = !isPasswordVisible.value"
+          >
+            <template #appendInner>
+              <VaIcon
+                :name="isPasswordVisible.value ? 'visibility_off' : 'visibility'"
+                size="small"
+                color="primary"
+              />
+            </template>
+          </VaInput>
+        </VaValue>
 
-      <!-- Forgot -->
-      <div class="footer">
-        <router-link to="/forgot" class="forgot">
-          {{ t("auth.login.forgot") }}
-        </router-link>
-      </div>
-    </VaForm>
+        <!-- Submit Button -->
+        <VaButton
+          class="btn"
+          type="submit"
+          color="primary"
+          size="large"
+          block
+        >
+          {{ t("auth.login.submit") }}
+        </VaButton>
+
+        <!-- Forgot Password -->
+        <footer class="footer">
+          <router-link to="/forgot" class="forgot">
+            {{ t("auth.login.forgot") }}
+          </router-link>
+        </footer>
+      </VaForm>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from "vue";
-import { t } from "@/i18n"; // <-- IMPORTANT: use i18next t()
+import { reactive, ref } from "vue";
+import { useRouter } from "vue-router";
+import { t } from "@/i18n";
 
-const countryCode = ref("+855");
-const phone = ref("");
-const password = ref("");
-const showPassword = ref(false);
+const router = useRouter();
 
-const codes = [
+const COUNTRY_CODES = [
   { label: "🇰🇭 +855", value: "+855" },
-  { label: "🇹🇭 +66", value: "+66" },
-  { label: "🇻🇳 +84", value: "+84" },
-  { label: "🇺🇸 +1", value: "+1" },
 ];
 
-function login() {
-  console.log("LOGIN:", countryCode.value, phone.value, password.value);
-}
+const formData = reactive({
+  countryCode: "+855",
+  phone: "",
+  password: "",
+});
+
+const showPassword = ref(false);
+
+const togglePasswordVisibility = () => {
+  showPassword.value = !showPassword.value;
+};
+
+const handleLogin = () => {
+  console.log("LOGIN:", formData.countryCode, formData.phone, formData.password);
+  router.push("/admin/dashboard");
+};
 </script>
 
 <style scoped>
-.login-form { width: 100%; }
+.login-container {
+  width: 100%;
+  max-width: 100%;
+  padding: 20px;
+  box-sizing: border-box;
+}
 
-/* title */
-.head { margin-bottom: 18px; }
+.login-form {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+/* Header */
+.head {
+  margin-bottom: 24px;
+  text-align: center;
+}
+
 .title {
-  font-size: 30px;
+  font-size: clamp(24px, 4vw, 30px);
   font-weight: 900;
   margin: 0;
   color: #0f172a;
-}
-.sub {
-  margin: 6px 0 0;
-  color: #64748b;
-  font-size: 14px;
+  line-height: 1.2;
 }
 
-/* form spacing */
+.sub {
+  margin: 8px 0 0;
+  color: #64748b;
+  font-size: clamp(13px, 2vw, 14px);
+  line-height: 1.5;
+}
+
+/* Form */
 .form {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
-/* phone row */
+/* Phone row */
 .phone-row {
-  display: grid;
-  grid-template-columns: 130px 1fr;
-  gap: 10px;
+  display:flex;
+  /* grid-template-columns: 140px 1fr; */
+  gap: 12px;
+  align-items: start;
 }
 
-/* button */
+/* Button */
 .btn {
-  margin-top: 6px;
+  margin-top: 8px;
   border-radius: 12px;
   font-weight: 800;
+  min-height: 48px;
 }
 
-/* eye button inside input */
+/* Eye toggle button */
 .eye-btn {
-  min-width: 34px;
-  height: 34px;
+  min-width: 36px;
+  height: 36px;
   border-radius: 10px;
 }
 
-/* footer */
+/* Footer */
 .footer {
   display: flex;
   justify-content: center;
-  margin-top: 6px;
+  margin-top: 8px;
 }
+
 .forgot {
   color: #0ea5e9;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   text-decoration: none;
+  padding: 4px;
 }
-.forgot:hover { text-decoration: underline; }
 
-@media (max-width: 420px) {
-  .phone-row { grid-template-columns: 1fr; }
+.forgot:hover {
+  text-decoration: underline;
+}
+
+/* Tablet landscape (like in your screenshot) */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .login-container {
+    padding: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 50vh;
+  }
+
+  .login-form {
+    max-width: 520px;
+  }
+
+  .head {
+    margin-bottom: 32px;
+  }
+
+  .form {
+    gap: 20px;
+  }
+
+  .phone-row {
+    grid-template-columns: 160px 1fr;
+    gap: 16px;
+  }
+}
+
+/* Desktop */
+@media (min-width: 1025px) {
+  .login-container {
+    padding: 60px;
+  }
+
+  .login-form {
+    max-width: 480px;
+  }
+}
+
+/* Mobile portrait */
+@media (max-width: 480px) {
+  .login-container {
+    padding: 16px;
+  }
+
+  .phone-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .head {
+    margin-bottom: 20px;
+  }
+}
+
+/* Very small mobile */
+@media (max-width: 360px) {
+  .login-container {
+    padding: 12px;
+  }
+
+  .title {
+    font-size: 22px;
+  }
 }
 </style>

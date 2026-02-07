@@ -1,206 +1,190 @@
+<!-- src/pages/billing/Refunds.vue -->
 <template>
-  <div class="min-h-[calc(100vh-60px)] bg-slate-50 px-4 py-5 sm:px-6">
-    <div class="mx-auto">
-      <!-- Header -->
-      <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div class="min-w-0">
-          <div class="flex items-center gap-2">
-            <span class="material-icons text-slate-700">undo</span>
-            <h1 class="truncate text-lg font-extrabold text-slate-900 sm:text-xl">Refunds</h1>
-          </div>
-          <p class="mt-1 text-sm text-slate-500">
-            Track payment refunds • Approvals • Status history
-          </p>
+  <div class="page">
+    <!-- Header -->
+    <div class="header">
+      <div>
+        <div class="head-title">
+          <span class="material-icons">undo</span>
+          <h1 class="title">Refunds</h1>
         </div>
-
-        <div class="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            class="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-            @click="goCreate"
-          >
-            + Create Refund
-          </button>
-        </div>
+        <p class="subtitle">Track payment refunds • Approvals • Status history</p>
       </div>
 
-      <!-- Stats (no border, no shadow) -->
-      <div class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div class="rounded-2xl bg-white px-4 py-3">
-          <div class="text-xs font-semibold text-slate-500">Total</div>
-          <div class="mt-1 text-lg font-extrabold text-slate-900">{{ filtered.length }}</div>
-        </div>
-        <div class="rounded-2xl bg-white px-4 py-3">
-          <div class="text-xs font-semibold text-slate-500">Pending</div>
-          <div class="mt-1 text-lg font-extrabold text-slate-900">{{ countBy("pending") }}</div>
-        </div>
-        <div class="rounded-2xl bg-white px-4 py-3">
-          <div class="text-xs font-semibold text-slate-500">Approved</div>
-          <div class="mt-1 text-lg font-extrabold text-slate-900">{{ countBy("approved") }}</div>
-        </div>
-        <div class="rounded-2xl bg-white px-4 py-3">
-          <div class="text-xs font-semibold text-slate-500">Completed</div>
-          <div class="mt-1 text-lg font-extrabold text-slate-900">{{ countBy("completed") }}</div>
-        </div>
+      <div class="header-actions">
+        <VaButton icon="add" color="primary" @click="goCreate">Create Refund</VaButton>
       </div>
+    </div>
 
-      <!-- Filters (borderless style) -->
-      <div class="mt-4 rounded-2xl bg-white p-3 sm:p-4">
-        <div class="grid gap-3 sm:grid-cols-12 sm:items-end">
-          <div class="sm:col-span-5">
-            <label class="text-xs font-semibold text-slate-600">Search</label>
-            <input
-              v-model.trim="q"
-              type="text"
-              class="mt-1 w-full rounded-2xl bg-slate-100 px-4 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300"
-              placeholder="Refund #, invoice id, payment id, reason…"
-            />
-          </div>
+    <!-- Stats -->
+    <div class="stats">
+      <VaCard class="card shadow">
+        <VaCardContent>
+          <div class="stat-label">Total</div>
+          <div class="stat-value">{{ filtered.length }}</div>
+        </VaCardContent>
+      </VaCard>
 
-          <div class="sm:col-span-3">
-            <label class="text-xs font-semibold text-slate-600">Status</label>
-            <select
-              v-model="status"
-              class="mt-1 w-full rounded-2xl bg-slate-100 px-4 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-300"
-            >
-              <option value="all">All</option>
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="completed">Completed</option>
-              <option value="rejected">Rejected</option>
-            </select>
-          </div>
+      <VaCard class="card shadow">
+        <VaCardContent>
+          <div class="stat-label">Pending</div>
+          <div class="stat-value">{{ countBy("pending") }}</div>
+        </VaCardContent>
+      </VaCard>
 
-          <div class="sm:col-span-3">
-            <label class="text-xs font-semibold text-slate-600">Method</label>
-            <select
-              v-model="method"
-              class="mt-1 w-full rounded-2xl bg-slate-100 px-4 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-300"
-            >
-              <option value="all">All</option>
-              <option value="cash">Cash</option>
-              <option value="credit_card">Credit card</option>
-              <option value="bank_transfer">Bank transfer</option>
-              <option value="original_method">Original method</option>
-            </select>
-          </div>
+      <VaCard class="card shadow">
+        <VaCardContent>
+          <div class="stat-label">Approved</div>
+          <div class="stat-value">{{ countBy("approved") }}</div>
+        </VaCardContent>
+      </VaCard>
 
-          <div class="sm:col-span-1">
-            <button
-              type="button"
-              class="w-full rounded-2xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-200"
-              @click="reset"
-            >
-              Reset
-            </button>
-          </div>
+      <VaCard class="card shadow">
+        <VaCardContent>
+          <div class="stat-label">Completed</div>
+          <div class="stat-value">{{ countBy("completed") }}</div>
+        </VaCardContent>
+      </VaCard>
+    </div>
+
+    <!-- Filters -->
+    <VaCard class="card shadow">
+      <VaCardContent>
+        <div class="filters">
+          <VaInput
+            v-model="q"
+            label="Search"
+            placeholder="Refund #, invoice id, payment id, reason…"
+            clearable
+          />
+
+          <VaSelect
+            v-model="status"
+            label="Status"
+            :options="STATUS_OPTIONS"
+            :text-by="statusLabel"
+          />
+
+          <VaSelect
+            v-model="method"
+            label="Method"
+            :options="METHOD_OPTIONS"
+            :text-by="methodLabel"
+          />
+
+          <VaButton preset="secondary" @click="reset">Reset</VaButton>
         </div>
-      </div>
+      </VaCardContent>
+    </VaCard>
 
-      <!-- List -->
-      <div class="mt-4 rounded-2xl bg-white p-2 sm:p-3">
+    <!-- List -->
+    <VaCard class="card shadow">
+      <VaCardContent>
+        <div class="list-top">
+          <div class="list-title">Results: <b>{{ filtered.length }}</b></div>
+          <div class="list-sub">Click Edit to update</div>
+        </div>
+
         <!-- Skeleton -->
-        <div v-if="loading" class="p-3">
-          <div class="space-y-3">
-            <div v-for="i in 6" :key="i" class="rounded-2xl bg-slate-100 p-4 animate-pulse">
-              <div class="h-3 w-40 rounded bg-slate-200"></div>
-              <div class="mt-3 h-3 w-64 rounded bg-slate-200"></div>
-              <div class="mt-3 flex gap-2">
-                <div class="h-7 w-20 rounded-full bg-slate-200"></div>
-                <div class="h-7 w-24 rounded-full bg-slate-200"></div>
-                <div class="h-7 w-16 rounded-full bg-slate-200"></div>
-              </div>
-            </div>
-          </div>
+        <div v-if="loading" class="skeleton">
+          <div v-for="i in 6" :key="i" class="sk-row"></div>
         </div>
 
         <!-- Empty -->
-        <div v-else-if="!filtered.length" class="p-8 text-center">
-          <div class="text-sm font-semibold text-slate-800">No refunds found</div>
-          <div class="mt-1 text-sm text-slate-500">Try changing filters or create a new refund.</div>
-          <button
-            type="button"
-            class="mt-4 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-            @click="goCreate"
-          >
-            + Create Refund
-          </button>
+        <div v-else-if="filtered.length === 0" class="empty">
+          <div class="empty-title">No refunds found</div>
+          <div class="empty-sub">Try changing filters or create a new refund.</div>
+          <VaButton class="mt" icon="add" color="primary" @click="goCreate">Create Refund</VaButton>
         </div>
 
         <!-- Rows -->
-        <div v-else class="space-y-2 p-2 sm:p-3">
-          <div
-            v-for="r in filtered"
-            :key="r.refund_id"
-            class="rounded-2xl bg-slate-50 px-4 py-4"
-          >
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-              <div class="min-w-0">
-                <div class="flex flex-wrap items-center gap-2">
-                  <div class="text-sm font-extrabold text-slate-900">
-                    {{ r.refund_number }}
+        <div v-else class="rows">
+          <VaCard v-for="r in paged" :key="r.refund_id" class="row-card">
+            <VaCardContent>
+              <div class="row">
+                <div class="left">
+                  <div class="row-top">
+                    <div class="row-title">
+                      {{ r.refund_number }}
+                    </div>
+
+                    <div class="chips">
+                      <VaBadge
+                        :text="prettyStatus(r.status)"
+                        :color="statusColor(r.status)"
+                        class="badge"
+                      />
+                      <VaChip size="small" outline color="secondary">
+                        {{ methodLabel(r.refund_method) }}
+                      </VaChip>
+                    </div>
                   </div>
-                  <span
-                    class="rounded-full px-3 py-1 text-xs font-extrabold"
-                    :class="statusPill(r.status)"
-                  >
-                    {{ prettyStatus(r.status) }}
-                  </span>
-                  <span class="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">
-                    {{ prettyMethod(r.refund_method) }}
-                  </span>
-                </div>
 
-                <div class="mt-2 text-sm text-slate-700">
-                  <span class="font-semibold">Reason:</span>
-                  <span class="ml-1">{{ r.refund_reason || "—" }}</span>
-                </div>
+                  <div class="reason">
+                    <b>Reason:</b> {{ r.refund_reason || "—" }}
+                  </div>
 
-                <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
-                  <span>Refund ID: {{ r.refund_id }}</span>
-                  <span>Invoice: {{ r.invoice_id }}</span>
-                  <span>Payment: {{ r.payment_id }}</span>
-                  <span>Date: {{ r.refund_date }}</span>
-                  <span>Processed by: {{ r.processed_by ?? "—" }}</span>
-                  <span>Approved by: {{ r.approved_by ?? "—" }}</span>
-                </div>
+                  <div class="meta">
+                    <span>Refund ID: {{ r.refund_id }}</span>
+                    <span class="dot">•</span>
+                    <span>Invoice: {{ r.invoice_id }}</span>
+                    <span class="dot">•</span>
+                    <span>Payment: {{ r.payment_id }}</span>
+                    <span class="dot">•</span>
+                    <span>Date: {{ fmt(r.refund_date) }}</span>
+                    <span class="dot">•</span>
+                    <span>Processed: {{ r.processed_by ?? "—" }}</span>
+                    <span class="dot">•</span>
+                    <span>Approved: {{ r.approved_by ?? "—" }}</span>
+                  </div>
 
-                <div v-if="r.notes" class="mt-2 text-xs text-slate-500">
-                  <span class="font-semibold text-slate-600">Notes:</span> {{ r.notes }}
-                </div>
-              </div>
-
-              <div class="flex shrink-0 items-center gap-2">
-                <div class="text-right">
-                  <div class="text-xs font-semibold text-slate-500">Amount</div>
-                  <div class="text-lg font-extrabold text-slate-900">
-                    ${{ Number(r.refund_amount || 0).toFixed(2) }}
+                  <div v-if="r.notes" class="notes">
+                    <b>Notes:</b> {{ r.notes }}
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  class="rounded-full bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100"
-                  @click="goEdit(r.refund_id)"
-                >
-                  Edit
-                </button>
+                <div class="right">
+                  <div class="amount">
+                    <div class="amount-label">Amount</div>
+                    <div class="amount-value">{{ money(r.refund_amount) }}</div>
+                  </div>
+
+                  <VaButton preset="secondary" size="small" @click="goEdit(r.refund_id)">
+                    Edit
+                  </VaButton>
+                </div>
               </div>
+            </VaCardContent>
+          </VaCard>
+
+          <!-- Pagination -->
+          <div class="pager">
+            <div class="pager-left">
+              Showing <b>{{ startRow + 1 }}</b>–<b>{{ Math.min(startRow + pageSize, filtered.length) }}</b>
+              of <b>{{ filtered.length }}</b>
             </div>
+
+            <VaPagination
+              v-model="page"
+              :pages="totalPages"
+              :visible-pages="3"
+              buttons-preset="secondary"
+              gapped
+              class="justify-center sm:justify-start"
+            />
           </div>
         </div>
-      </div>
 
-      <!-- Footer hint -->
-      <div class="mt-4 text-xs text-slate-500">
-        Tip: “Pending” → waiting approval, “Approved” → ready to process, “Completed” → already refunded.
-      </div>
-    </div>
+        <div class="hint">
+          Tip: “Pending” → waiting approval, “Approved” → ready to process, “Completed” → already refunded.
+        </div>
+      </VaCardContent>
+    </VaCard>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from "vue"
+import { computed, onMounted, ref, watch } from "vue"
 import { useRouter } from "vue-router"
 import { refunds as refundsSeed } from "@/data/billding/refunds"
 
@@ -213,8 +197,10 @@ const q = ref("")
 const status = ref("all")
 const method = ref("all")
 
+const STATUS_OPTIONS = ["all", "pending", "approved", "completed", "rejected"]
+const METHOD_OPTIONS = ["all", "cash", "credit_card", "bank_transfer", "original_method"]
+
 onMounted(() => {
-  // simulate loading (API later)
   setTimeout(() => {
     rows.value = [...refundsSeed].sort((a, b) => (b.refund_id || 0) - (a.refund_id || 0))
     loading.value = false
@@ -222,7 +208,7 @@ onMounted(() => {
 })
 
 const filtered = computed(() => {
-  const query = q.value.toLowerCase()
+  const query = q.value.trim().toLowerCase()
 
   return rows.value.filter((r) => {
     const matchesQuery =
@@ -262,22 +248,282 @@ function prettyStatus(s) {
   return String(s).replaceAll("_", " ").replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
-function prettyMethod(m) {
+function statusLabel(v) {
+  return v === "all" ? "All" : prettyStatus(v)
+}
+
+function methodLabel(v) {
   const map = {
+    all: "All",
     cash: "Cash",
     credit_card: "Credit card",
     bank_transfer: "Bank transfer",
     original_method: "Original method",
   }
-  return map[m] || prettyStatus(m)
+  return map[v] || prettyStatus(v)
 }
 
-function statusPill(s) {
-  const base = "text-slate-900"
-  if (s === "pending") return `${base} bg-amber-100`
-  if (s === "approved") return `${base} bg-blue-100`
-  if (s === "completed") return `${base} bg-emerald-100`
-  if (s === "rejected") return `${base} bg-rose-100`
-  return `${base} bg-slate-200`
+function statusColor(s) {
+  if (s === "pending") return "warning"
+  if (s === "approved") return "info"
+  if (s === "completed") return "success"
+  if (s === "rejected") return "danger"
+  return "secondary"
 }
+
+function fmt(s) {
+  return (s || "").replace("T", " ").slice(0, 19)
+}
+
+function money(amount) {
+  const n = Number(amount || 0)
+  return `$${n.toFixed(2)}`
+}
+
+/* Pagination (VaPagination) */
+const page = ref(1)
+const pageSize = 8
+
+watch([q, status, method], () => {
+  page.value = 1
+})
+
+const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / pageSize)))
+const startRow = computed(() => (page.value - 1) * pageSize)
+const paged = computed(() => filtered.value.slice(startRow.value, startRow.value + pageSize))
+
+watch(totalPages, (tp) => {
+  if (page.value > tp) page.value = tp
+})
 </script>
+
+<style scoped>
+.page {
+  padding: 18px 18px 40px;
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.head-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.title {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+.subtitle {
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 13px;
+}
+.header-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Cards */
+.card {
+  border-radius: 14px;
+}
+.shadow {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+/* Stats */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin: 12px 0 14px;
+}
+.stat-label {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 800;
+}
+.stat-value {
+  margin-top: 6px;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+/* Filters */
+.filters {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+}
+
+/* List */
+.list-top {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.list-title {
+  font-weight: 900;
+}
+.list-sub {
+  font-size: 12px;
+  color: #64748b;
+}
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.row-card {
+  border-radius: 16px;
+}
+.row {
+  display: flex;
+  gap: 12px;
+}
+.left {
+  flex: 1;
+  min-width: 0;
+}
+.right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.row-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.row-title {
+  font-weight: 900;
+  font-size: 14px;
+}
+.chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.badge {
+  font-weight: 900;
+}
+.reason {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #0f172a;
+}
+.meta {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: #334155;
+  font-size: 12px;
+}
+.dot {
+  color: #94a3b8;
+}
+.notes {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #475569;
+}
+
+/* Amount */
+.amount-label {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 800;
+  text-align: right;
+}
+.amount-value {
+  font-size: 18px;
+  font-weight: 900;
+  text-align: right;
+}
+
+/* Skeleton */
+.skeleton {
+  display: grid;
+  gap: 10px;
+}
+.sk-row {
+  height: 70px;
+  border-radius: 16px;
+  background: #eef2f7;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* Empty */
+.empty {
+  padding: 18px;
+  border-radius: 14px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-weight: 700;
+  text-align: center;
+}
+.empty-title {
+  font-weight: 900;
+  color: #0f172a;
+}
+.empty-sub {
+  margin-top: 6px;
+  font-weight: 600;
+}
+.mt { margin-top: 12px; }
+
+/* Pager */
+.pager {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.pager-left {
+  font-size: 13px;
+  color: #64748b;
+}
+
+/* Hint */
+.hint {
+  margin-top: 12px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+/* Responsive */
+@media (max-width: 980px) {
+  .filters { grid-template-columns: 1fr 1fr; }
+  .stats { grid-template-columns: 1fr 1fr; }
+  .row { flex-direction: column; }
+  .right { align-items: flex-start; flex-direction: row; flex-wrap: wrap; }
+  .amount-label, .amount-value { text-align: left; }
+}
+@media (max-width: 560px) {
+  .stats { grid-template-columns: 1fr; }
+}
+</style>

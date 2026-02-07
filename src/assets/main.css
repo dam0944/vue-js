@@ -1,5 +1,5 @@
 @import "tailwindcss";
-html, body, #app {
+/* html, body, #app {
   height: 100%;
   width: 100%;
   zoom: 1;
@@ -7,7 +7,7 @@ html, body, #app {
   transform-origin: 0 0;
   font-family: "Inter", system-ui, -apple-system, sans-serif;
   font-size: 14px;
-}
+} */
 
 .va-layout,
 .va-layout__wrapper,
@@ -30,4 +30,23 @@ html[lang="kh"] h2,
 html[lang="kh"] h3 {
   font-weight: 600;
   letter-spacing: 0.2px;
+}
+/* STOP browser/body scroll */
+html,
+body,
+#app {
+  height: 100%;
+  overflow: hidden !important;
+}
+
+/* Hide Vuestic scrollbars */
+.va-scroll-container__content {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.va-scroll-container__content::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }

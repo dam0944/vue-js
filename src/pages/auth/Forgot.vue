@@ -7,8 +7,6 @@ const phone = ref("");
 
 const codes = [
   { label: "🇰🇭 +855", value: "+855" },
-  { label: "🇹🇭 +66", value: "+66" },
-  { label: "🇻🇳 +84", value: "+84" },
   { label: "🇺🇸 +1", value: "+1" },
 ];
 

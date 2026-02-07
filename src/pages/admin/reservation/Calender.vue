@@ -1,11 +1,11 @@
 <!-- src/pages/admin/reservations/Calendar.vue -->
 <template>
   <div class="min-h-[calc(100vh-60px)] bg-slate-50 p-4 sm:p-6">
-    <!-- Header (no border/shadow) -->
-    <div class="mx-auto">
-      <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div class="mx-auto w-full space-y-4">
+      <!-- Header -->
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div class="flex items-start gap-3">
-          <div class="grid h-11 w-11 place-items-center rounded-xl bg-slate-900 text-white">
+          <div class="grid h-11 w-11 place-items-center rounded-2xl bg-slate-900 text-white">
             <span class="material-icons text-[22px]">calendar_month</span>
           </div>
           <div>
@@ -16,271 +16,281 @@
           </div>
         </div>
 
-        <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <!-- Search -->
-          <div class="flex items-center gap-2 rounded-full bg-white px-4 py-2">
-            <span class="material-icons text-[18px] text-slate-400">search</span>
-            <input
-              v-model.trim="q"
-              type="text"
-              placeholder="Search guest / phone / room..."
-              class="w-full bg-transparent text-sm text-slate-900 outline-none sm:w-[260px]"
-            />
-          </div>
+        <!-- Filters (make equal height) -->
+        <VaCard class="soft-card rounded-2xl">
+          <VaCardContent class="p-3">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-3">
+              <!-- Search -->
+              <VaInput
+                v-model="q"
+                class="w-full sm:w-[280px]"
+                placeholder="Search guest / phone / room..."
+                clearable
+              >
+                <template #prependInner>
+                  <VaIcon name="search" color="secondary" size="18px" />
+                </template>
+              </VaInput>
 
-          <!-- Filters -->
-          <select v-model="statusFilter" class="rounded-full bg-white px-4 py-2 text-sm outline-none">
-            <option value="all">All status</option>
-            <option value="pending">Pending</option>
-            <option value="confirmed">Confirmed</option>
-            <option value="reserved">Reserved</option>
-            <option value="checked_in">Checked-in</option>
-            <option value="checked_out">Checked-out</option>
-            <option value="cancelled">Cancelled</option>
-            <option value="no_show">No-show</option>
-          </select>
+              <VaSelect
+                v-model="statusFilter"
+                class="w-full sm:w-[210px]"
+                label="Status"
+                placeholder="All"
+                clearable
+                :options="statusOptions"
+                :text-by="(o) => o.text"
+                :value-by="(o) => o.value"
+              />
 
-          <select v-model="floorFilter" class="rounded-full bg-white px-4 py-2 text-sm outline-none">
-            <option value="all">All floors</option>
-            <option v-for="f in floors" :key="f" :value="String(f)">Floor {{ f }}</option>
-          </select>
+              <VaSelect
+                v-model="floorFilter"
+                class="w-full sm:w-[190px]"
+                label="Floor"
+                placeholder="All"
+                clearable
+                :options="floorOptions"
+                :text-by="(o) => o.text"
+                :value-by="(o) => o.value"
+              />
 
-          <!-- Range controls -->
-          <div class="flex items-center gap-2">
-            <button
-              class="rounded-full bg-white px-4 py-2 text-sm font-bold text-slate-800"
-              @click="shiftRange(-rangeDays)"
-              title="Previous"
-            >
-              <span class="material-icons text-[18px] align-middle">chevron_left</span>
-            </button>
+              <!-- Range controls -->
+              <div class="flex items-end gap-2">
+                <VaButton preset="secondary" class="rounded-2xl font-extrabold h-10" @click="shiftRange(-rangeDays)">
+                  <VaIcon name="chevron_left" />
+                </VaButton>
 
-            <div class="rounded-full bg-white px-4 py-2 text-sm font-bold text-slate-800">
-              {{ formatDate(rangeStart) }} – {{ formatDate(rangeEnd) }}
+                <div class="h-10 rounded-2xl bg-slate-100 px-4 grid place-items-center text-sm font-extrabold text-slate-800">
+                  {{ formatDate(rangeStart) }} – {{ formatDate(rangeEnd) }}
+                </div>
+
+                <VaButton preset="secondary" class="rounded-2xl font-extrabold h-10" @click="shiftRange(rangeDays)">
+                  <VaIcon name="chevron_right" />
+                </VaButton>
+
+                <VaButton preset="primary" class="rounded-2xl font-extrabold h-10" @click="reset">
+                  Reset
+                </VaButton>
+              </div>
             </div>
+          </VaCardContent>
+        </VaCard>
+      </div>
 
-            <button
-              class="rounded-full bg-white px-4 py-2 text-sm font-bold text-slate-800"
-              @click="shiftRange(rangeDays)"
-              title="Next"
+      <!-- Summary chips -->
+      <VaCard class="soft-card rounded-2xl">
+        <VaCardContent class="py-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <VaChip
+              v-for="chip in summaryChips"
+              :key="chip.key"
+              size="small"
+              class="cursor-pointer select-none"
+              :outline="chipKey !== chip.key"
+              :color="chipKey === chip.key ? 'primary' : 'secondary'"
+              @click="applyChip(chip.key)"
             >
-              <span class="material-icons text-[18px] align-middle">chevron_right</span>
-            </button>
+              <span class="mr-2 inline-flex h-2 w-2 rounded-full" :style="{ backgroundColor: chip.dot }"></span>
+              {{ chip.label }} <span class="ml-1 opacity-70">({{ chip.count }})</span>
+            </VaChip>
+
+            <VaButton preset="secondary" size="small" class="rounded-2xl font-extrabold" @click="reset">
+              Reset
+            </VaButton>
           </div>
-
-          <button
-            class="rounded-full bg-slate-900 px-4 py-2 text-sm font-bold text-white"
-            @click="reset"
-          >
-            Reset
-          </button>
-        </div>
-      </div>
-
-      <!-- Summary chips (no border/shadow) -->
-      <div class="mb-4 flex flex-wrap gap-2">
-        <button
-          v-for="chip in summaryChips"
-          :key="chip.key"
-          class="rounded-full bg-white px-4 py-2 text-sm font-bold text-slate-800"
-          @click="applyChip(chip.key)"
-        >
-          <span class="mr-2 inline-flex h-2 w-2 rounded-full" :style="{ backgroundColor: chip.dot }"></span>
-          {{ chip.label }}: <span class="text-slate-900">{{ chip.count }}</span>
-        </button>
-      </div>
+        </VaCardContent>
+      </VaCard>
 
       <!-- Calendar grid -->
-      <div class="overflow-x-auto rounded-2xl bg-white">
-        <!-- top header row -->
-        <div class="min-w-[980px]">
-          <div class="grid" :style="gridStyle">
-            <!-- top-left corner -->
-            <div class="sticky left-0 z-20 bg-white">
-              <div class="h-12 px-3 flex items-center text-xs font-bold text-slate-500">
-                Rooms
-              </div>
-            </div>
-
-            <!-- day headers -->
-            <div
-              v-for="d in days"
-              :key="d.key"
-              class="h-12 px-2 flex flex-col justify-center text-center"
-            >
-              <div class="text-xs font-bold text-slate-700">{{ d.weekday }}</div>
-              <div class="text-[11px] text-slate-500">{{ d.label }}</div>
-            </div>
-          </div>
-
-          <!-- room rows -->
-          <div
-            v-for="room in filteredRooms"
-            :key="room.room_id"
-            class="relative"
-          >
-            <div class="grid" :style="gridStyle">
-              <!-- room label (sticky) -->
-              <div class="sticky left-0 z-10 bg-white">
-                <div class="h-16 px-3 flex items-center gap-3">
-                  <div class="h-9 w-9 rounded-xl bg-slate-100 grid place-items-center">
-                    <span class="material-icons text-slate-600 text-[18px]">meeting_room</span>
-                  </div>
-                  <div class="leading-tight">
-                    <div class="text-sm font-extrabold text-slate-900">
-                      {{ room.room_number }}
-                    </div>
-                    <div class="text-[11px] text-slate-500">
-                      Floor {{ room.floor }} • {{ room.type }} • {{ room.beds }} bed
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- day cells -->
-              <div
-                v-for="d in days"
-                :key="room.room_id + '-' + d.key"
-                class="h-16"
-              >
-                <div class="h-full bg-slate-50/60"></div>
-              </div>
-            </div>
-
-            <!-- reservation bars overlay -->
-            <div class="pointer-events-none absolute inset-0">
+      <VaCard class="soft-card rounded-2xl">
+        <VaCardContent class="p-0">
+          <div class="overflow-x-auto rounded-2xl bg-white">
+            <div class="min-w-[980px]">
+              <!-- top header row -->
               <div class="grid" :style="gridStyle">
-                <!-- spacer cell -->
-                <div class="sticky left-0 z-20 bg-transparent"></div>
-
-                <!-- overlay area (spans all day cols) -->
-                <div class="col-span-[var(--days)] relative">
-                  <div
-                    v-for="bar in roomBars(room.room_id)"
-                    :key="bar.key"
-                    class="pointer-events-auto absolute top-3 h-10 rounded-2xl px-3 flex items-center justify-between gap-2 text-white"
-                    :style="barStyle(bar)"
-                    @click="open(bar.reservation)"
-                    role="button"
-                  >
-                    <div class="min-w-0">
-                      <div class="truncate text-xs font-extrabold">
-                        {{ bar.reservation.guest.name }}
-                      </div>
-                      <div class="truncate text-[11px] opacity-90">
-                        {{ barLabel(bar.reservation) }}
-                      </div>
-                    </div>
-
-                    <span class="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-extrabold uppercase">
-                      {{ bar.reservation.status.replaceAll("_", " ") }}
-                    </span>
+                <!-- top-left corner -->
+                <div class="sticky left-0 z-20 bg-white">
+                  <div class="h-12 px-3 flex items-center text-xs font-bold text-slate-500">
+                    Rooms
                   </div>
                 </div>
+
+                <!-- day headers -->
+                <div
+                  v-for="d in days"
+                  :key="d.key"
+                  class="h-12 px-2 flex flex-col justify-center text-center"
+                >
+                  <div class="text-xs font-bold text-slate-700">{{ d.weekday }}</div>
+                  <div class="text-[11px] text-slate-500">{{ d.label }}</div>
+                </div>
+              </div>
+
+              <!-- room rows -->
+              <div
+                v-for="room in filteredRooms"
+                :key="room.room_id"
+                class="relative"
+              >
+                <!-- base grid cells -->
+                <div class="grid" :style="gridStyle">
+                  <!-- room label (sticky) -->
+                  <div class="sticky left-0 z-10 bg-white">
+                    <div class="h-16 px-3 flex items-center gap-3">
+                      <div class="h-9 w-9 rounded-2xl bg-slate-100 grid place-items-center">
+                        <span class="material-icons text-slate-600 text-[18px]">meeting_room</span>
+                      </div>
+                      <div class="leading-tight">
+                        <div class="text-sm font-extrabold text-slate-900">
+                          {{ room.room_number }}
+                        </div>
+                        <div class="text-[11px] text-slate-500">
+                          Floor {{ room.floor }} • {{ room.type }} • {{ room.beds }} bed
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- day cells (not clickable) -->
+                  <div
+                    v-for="d in days"
+                    :key="room.room_id + '-' + d.key"
+                    class="h-16 pointer-events-none"
+                  >
+                    <div class="h-full bg-slate-50/60"></div>
+                  </div>
+                </div>
+
+                <!-- reservation bars overlay (CLICKABLE) -->
+                <div class="absolute inset-0">
+                  <div class="grid" :style="gridStyle">
+                    <!-- spacer cell -->
+                    <div class="sticky left-0 z-20 bg-transparent"></div>
+
+                    <!-- overlay area -->
+                    <div class="col-span-(--days) relative">
+                      <div
+                        v-for="bar in roomBars(room.room_id)"
+                        :key="bar.key"
+                        class="absolute top-3 h-10 rounded-2xl px-3 flex items-center justify-between gap-2 text-white cursor-pointer"
+                        :style="barStyle(bar)"
+                        @click="open(bar.reservation)"
+                        role="button"
+                      >
+                        <div class="min-w-0">
+                          <div class="truncate text-xs font-extrabold">
+                            {{ bar.reservation.guest.name }}
+                          </div>
+                          <div class="truncate text-[11px] opacity-90">
+                            {{ barLabel(bar.reservation) }}
+                          </div>
+                        </div>
+
+                        <span class="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-extrabold uppercase">
+                          {{ bar.reservation.status.replaceAll("_", " ") }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- row divider -->
+                <div class="h-px bg-slate-100"></div>
+              </div>
+
+              <!-- empty -->
+              <div v-if="filteredRooms.length === 0" class="p-10 text-center">
+                <div class="text-slate-900 font-extrabold">No rooms found</div>
+                <div class="text-sm text-slate-500 mt-1">Try another keyword or clear filters.</div>
+                <VaButton class="mt-4 rounded-2xl font-extrabold" preset="primary" @click="reset">
+                  Reset
+                </VaButton>
               </div>
             </div>
-
-            <!-- row divider -->
-            <div class="h-px bg-slate-100"></div>
           </div>
+        </VaCardContent>
+      </VaCard>
 
-          <!-- empty -->
-          <div v-if="filteredRooms.length === 0" class="p-10 text-center">
-            <div class="text-slate-900 font-extrabold">No rooms found</div>
-            <div class="text-sm text-slate-500 mt-1">Try another keyword or clear filters.</div>
-            <button class="mt-4 rounded-full bg-slate-900 px-5 py-2 text-sm font-bold text-white" @click="reset">
-              Reset
-            </button>
+      <!-- Details popup (VaModal) -->
+      <VaModal v-model="detailsOpen" max-width="520px" hide-default-actions>
+        <template #header>
+          <div class="flex items-center justify-between">
+            <div class="text-base font-extrabold text-slate-900">Reservation Details</div>
+            <VaButton preset="plain" icon="close" @click="closeDetails" />
           </div>
-        </div>
-      </div>
-    </div>
+        </template>
 
-    <!-- Drawer -->
-    <div v-if="drawer.open" class="fixed inset-0 z-40">
-      <div class="absolute inset-0 bg-slate-900/35" @click="closeDrawer"></div>
-
-      <aside class="absolute right-0 top-0 h-full w-full max-w-md bg-white">
-        <!-- Drawer header -->
-        <div class="flex items-center justify-between px-5 py-4">
-          <div class="min-w-0">
-            <div class="text-xs font-bold text-slate-500">Reservation</div>
-            <div class="truncate text-base font-extrabold text-slate-900">
-              {{ drawer.row?.reservation_number || "-" }}
-            </div>
-          </div>
-
-          <button class="rounded-full bg-slate-100 p-2" @click="closeDrawer">
-            <span class="material-icons text-slate-700">close</span>
-          </button>
-        </div>
-
-        <div class="h-px bg-slate-100"></div>
-
-        <!-- Drawer body (no border/shadow) -->
-        <div v-if="drawer.row" class="h-[calc(100vh-120px)] overflow-y-auto p-5">
-          <div class="space-y-4">
-            <!-- guest -->
-            <div class="rounded-2xl bg-slate-50 p-4">
-              <div class="text-xs font-bold text-slate-500">GUEST</div>
-              <div class="mt-1 text-base font-extrabold text-slate-900">{{ drawer.row.guest.name }}</div>
-              <div class="text-sm text-slate-600">{{ drawer.row.guest.phone }}</div>
-            </div>
-
-            <!-- stay -->
-            <div class="rounded-2xl bg-slate-50 p-4">
+        <div v-if="selectedRes" class="space-y-3">
+          <VaCard class="soft-card rounded-2xl">
+            <VaCardContent class="p-4">
               <div class="flex items-start justify-between gap-3">
-                <div>
-                  <div class="text-xs font-bold text-slate-500">STAY</div>
-                  <div class="mt-1 text-sm font-bold text-slate-900">
-                    {{ stayText(drawer.row) }}
+                <div class="min-w-0">
+                  <div class="text-xs font-bold text-slate-500">RESERVATION</div>
+                  <div class="mt-1 truncate text-lg font-extrabold text-slate-900">
+                    {{ selectedRes.reservation_number || "-" }}
                   </div>
-                  <div class="mt-1 text-xs text-slate-600">
-                    Check-in: {{ fmt(drawer.row.check_in) }}
-                  </div>
-                  <div class="text-xs text-slate-600">
-                    Check-out: {{ fmt(drawer.row.check_out) }}
+                  <div class="mt-1 text-xs text-slate-500">
+                    {{ selectedRes.booking_type === "hourly" ? "Hourly" : "Nightly" }}
                   </div>
                 </div>
 
                 <span
-                  class="rounded-full px-3 py-1 text-[10px] font-extrabold uppercase text-white"
-                  :style="{ backgroundColor: drawer.row.color || '#0f172a' }"
+                  class="shrink-0 rounded-full px-3 py-1 text-[10px] font-extrabold uppercase text-white"
+                  :style="{ backgroundColor: selectedRes.color || '#0f172a' }"
                 >
-                  {{ drawer.row.status.replaceAll("_", " ") }}
+                  {{ selectedRes.status.replaceAll("_", " ") }}
                 </span>
               </div>
-            </div>
+            </VaCardContent>
+          </VaCard>
 
-            <!-- room -->
-            <div class="rounded-2xl bg-slate-50 p-4">
+          <VaCard class="soft-card rounded-2xl">
+            <VaCardContent class="p-4">
+              <div class="text-xs font-bold text-slate-500">GUEST</div>
+              <div class="mt-1 text-base font-extrabold text-slate-900">{{ selectedRes.guest?.name }}</div>
+              <div class="text-sm text-slate-600">{{ selectedRes.guest?.phone }}</div>
+            </VaCardContent>
+          </VaCard>
+
+          <VaCard class="soft-card rounded-2xl">
+            <VaCardContent class="p-4">
+              <div class="text-xs font-bold text-slate-500">STAY</div>
+              <div class="mt-1 text-sm font-extrabold text-slate-900">{{ stayText(selectedRes) }}</div>
+              <div class="mt-2 grid grid-cols-2 gap-2 text-xs">
+                <div class="soft-sub rounded-2xl p-3">
+                  <div class="text-slate-500">Check-in</div>
+                  <div class="font-extrabold text-slate-900">{{ fmt(selectedRes.check_in) }}</div>
+                </div>
+                <div class="soft-sub rounded-2xl p-3">
+                  <div class="text-slate-500">Check-out</div>
+                  <div class="font-extrabold text-slate-900">{{ fmt(selectedRes.check_out) }}</div>
+                </div>
+              </div>
+            </VaCardContent>
+          </VaCard>
+
+          <VaCard class="soft-card rounded-2xl">
+            <VaCardContent class="p-4">
               <div class="text-xs font-bold text-slate-500">ROOM</div>
               <div class="mt-1 text-sm font-extrabold text-slate-900">
-                Room {{ roomById(drawer.row.room_id)?.room_number || "-" }}
+                Room {{ roomById(selectedRes.room_id)?.room_number || "-" }}
               </div>
               <div class="text-xs text-slate-600">
-                {{ roomById(drawer.row.room_id)?.type || "-" }} •
-                {{ roomById(drawer.row.room_id)?.beds || "-" }} bed •
-                Floor {{ roomById(drawer.row.room_id)?.floor || "-" }}
+                {{ roomById(selectedRes.room_id)?.type || "-" }} •
+                {{ roomById(selectedRes.room_id)?.beds || "-" }} bed •
+                Floor {{ roomById(selectedRes.room_id)?.floor || "-" }}
               </div>
-            </div>
+            </VaCardContent>
+          </VaCard>
 
-            <!-- quick actions -->
-            <div class="grid grid-cols-2 gap-2">
-              <button class="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-extrabold text-white" @click="goCheckin(drawer.row)">
-                Check-in/out
-              </button>
-              <button class="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-extrabold text-slate-900" @click="goPos(drawer.row)">
-                POS / Checkout
-              </button>
-            </div>
-
-            <button class="w-full rounded-2xl bg-slate-100 px-4 py-3 text-sm font-extrabold text-slate-900" @click="closeDrawer">
-              Close
-            </button>
+          <div class="flex justify-end gap-2">
+            <VaButton preset="secondary" class="rounded-2xl font-extrabold" @click="closeDetails">Close</VaButton>
+            <VaButton color="primary" class="rounded-2xl font-extrabold" @click="goPos(selectedRes)">
+              POS / Checkout
+            </VaButton>
           </div>
         </div>
-      </aside>
+      </VaModal>
     </div>
   </div>
 </template>
@@ -291,25 +301,50 @@ import { reservationsCalendarData } from "@/data/reservation/reservationsCalenda
 
 // state
 const q = ref("")
-const statusFilter = ref("all")
-const floorFilter = ref("all")
+const statusFilter = ref(null) // null = all
+const floorFilter = ref(null) // null = all
+const chipKey = ref("all")
 
 // range (7 days)
 const rangeDays = 7
 const rangeStart = ref(reservationsCalendarData.calendarRange.start) // YYYY-MM-DD
 const rangeEnd = ref(addDays(rangeStart.value, rangeDays - 1))
 
-const drawer = ref({ open: false, row: null })
+// modal
+const detailsOpen = ref(false)
+const selectedRes = ref(null)
+
+function open(res) {
+  selectedRes.value = res
+  detailsOpen.value = true
+}
+function closeDetails() {
+  detailsOpen.value = false
+  selectedRes.value = null
+}
 
 // rooms + reservations
-const rooms = computed(() => reservationsCalendarData.rooms)
-const reservations = computed(() => reservationsCalendarData.reservations)
+const rooms = computed(() => reservationsCalendarData.rooms || [])
+const reservations = computed(() => reservationsCalendarData.reservations || [])
 
-// floors
-const floors = computed(() => {
+// floors options
+const floorOptions = computed(() => {
   const set = new Set(rooms.value.map((r) => r.floor))
-  return Array.from(set).sort((a, b) => a - b)
+  const list = Array.from(set).sort((a, b) => a - b)
+  return [{ text: "All", value: null }, ...list.map((f) => ({ text: `Floor ${f}`, value: f }))]
 })
+
+// status options
+const statusOptions = [
+  { text: "All", value: null },
+  { text: "Pending", value: "pending" },
+  { text: "Confirmed", value: "confirmed" },
+  { text: "Reserved", value: "reserved" },
+  { text: "Checked-in", value: "checked_in" },
+  { text: "Checked-out", value: "checked_out" },
+  { text: "Cancelled", value: "cancelled" },
+  { text: "No-show", value: "no_show" },
+]
 
 // days in range
 const days = computed(() => {
@@ -330,30 +365,29 @@ const gridStyle = computed(() => ({
   "--days": String(rangeDays),
 }))
 
-// filter rooms
+// rooms filter (room-only search + floor)
 const filteredRooms = computed(() => {
   const keyword = q.value.trim().toLowerCase()
-
   return rooms.value.filter((r) => {
-    if (floorFilter.value !== "all" && String(r.floor) !== String(floorFilter.value)) return false
+    if (floorFilter.value != null && String(r.floor) !== String(floorFilter.value)) return false
 
     if (!keyword) return true
-
     const roomNo = String(r.room_number || "").toLowerCase()
     const type = String(r.type || "").toLowerCase()
     return roomNo.includes(keyword) || type.includes(keyword)
   })
 })
 
-// filter reservations by status + search
+// reservations filter (status + chip + keyword)
 const filteredReservations = computed(() => {
   const keyword = q.value.trim().toLowerCase()
 
   return reservations.value.filter((res) => {
-    // status filter
-    if (statusFilter.value !== "all" && res.status !== statusFilter.value) return false
+    const statusKey = chipKey.value !== "all" ? chipKey.value : null
 
-    // keyword: guest + phone + room number
+    if (statusFilter.value && res.status !== statusFilter.value) return false
+    if (statusKey && res.status !== statusKey) return false
+
     if (!keyword) return true
 
     const guestName = String(res.guest?.name || "").toLowerCase()
@@ -378,9 +412,24 @@ const summaryChips = computed(() => {
   ]
 })
 
+function applyChip(key) {
+  chipKey.value = key
+  // keep VaSelect in sync (optional). If you don't want, remove these 2 lines:
+  statusFilter.value = key === "all" ? null : key
+}
+
+function reset() {
+  q.value = ""
+  statusFilter.value = null
+  floorFilter.value = null
+  chipKey.value = "all"
+  rangeStart.value = reservationsCalendarData.calendarRange.start
+  rangeEnd.value = addDays(rangeStart.value, rangeDays - 1)
+  closeDetails()
+}
+
 // build bars for one room
 function roomBars(roomId) {
-  // only those for this room, AND overlap the current range
   const start = rangeStart.value
   const end = rangeEnd.value
 
@@ -395,16 +444,15 @@ function roomBars(roomId) {
       const endDay = dateOnly(e)
 
       const startIdx = dayIndex(startDay, start)
-      // end is exclusive-ish for nightly; for UI we show until day before checkout if checkout date > checkin date
       let endIdx = dayIndex(endDay, start)
+
       if (r.booking_type !== "hourly") {
-        // show checkout day as free, so bar ends at day before checkout (unless same day)
         const ci = dateOnly(r.check_in)
         const co = dateOnly(r.check_out)
         if (co !== ci) endIdx = Math.max(startIdx, endIdx - 1)
       }
 
-      const left = startIdx * 120 // base cell width (matches min in grid)
+      const left = startIdx * 120
       const width = (endIdx - startIdx + 1) * 120
 
       return {
@@ -427,32 +475,7 @@ function barStyle(bar) {
   }
 }
 
-// actions
-function open(res) {
-  drawer.value = { open: true, row: res }
-}
-function closeDrawer() {
-  drawer.value.open = false
-  drawer.value.row = null
-}
-function applyChip(key) {
-  if (key === "all") statusFilter.value = "all"
-  else statusFilter.value = key
-}
-function reset() {
-  q.value = ""
-  statusFilter.value = "all"
-  floorFilter.value = "all"
-  rangeStart.value = reservationsCalendarData.calendarRange.start
-  rangeEnd.value = addDays(rangeStart.value, rangeDays - 1)
-  closeDrawer()
-}
-
 // navigation (later wire to router)
-function goCheckin(res) {
-  console.log("Go checkin/out", res)
-  alert("Go to Check-in / Check-out (route later)")
-}
 function goPos(res) {
   console.log("Go POS / checkout", res)
   alert("Go to POS / Checkout (route later)")
@@ -500,7 +523,6 @@ function dayIndex(date, rangeStartDate) {
 function overlapsRange(checkIn, checkOut, start, end) {
   const ci = dateOnly(checkIn)
   const co = dateOnly(checkOut)
-  // range intersection (date-only)
   return !(co < start || ci > end)
 }
 function clampToRange(dateTime, start, end) {
@@ -512,11 +534,11 @@ function clampToRange(dateTime, start, end) {
 function shiftRange(deltaDays) {
   rangeStart.value = addDays(rangeStart.value, deltaDays)
   rangeEnd.value = addDays(rangeStart.value, rangeDays - 1)
-  closeDrawer()
+  closeDetails()
 }
 function hoursDiff(a, b) {
-  const da = new Date(a.replace(" ", "T"))
-  const db = new Date(b.replace(" ", "T"))
+  const da = new Date(String(a).replace(" ", "T"))
+  const db = new Date(String(b).replace(" ", "T"))
   const diff = Math.max(0, Math.round((db - da) / 3600000))
   return diff || 0
 }
@@ -529,5 +551,14 @@ function nightsDiff(a, b) {
 </script>
 
 <style scoped>
-/* keep sticky room labels smooth in horizontal scroll */
+/* soft shadow system: no border */
+.soft-card {
+  border: none !important;
+  background: #fff !important;
+  box-shadow: 0 6px 18px rgba(2, 8, 23, 0.06) !important;
+}
+.soft-sub {
+  background: rgba(2, 8, 23, 0.02);
+  box-shadow: 0 6px 18px rgba(2, 8, 23, 0.06);
+}
 </style>
