@@ -222,12 +222,16 @@ function isGroupActive(item) {
 </template>
 
 <style scoped>
+:root {
+  --app-bg: #f6f9fc;   /* same as header */
+}
+
 /* ─── 1. Sidebar Shell ──────────────────────────────────────── */
 .sidebar {
   top: 0;
   height: 100vh;
-  background: #f8fafc;
-  border-right: 1px solid #e2e8f0;
+  background: #ffffff;              /* ✅ white */
+  border-right: 1px solid #eef2f7; /* softer */
   display: flex;
   flex-direction: column;
   overflow: hidden !important;
@@ -271,18 +275,18 @@ function isGroupActive(item) {
   margin-bottom: 4px;
   border-radius: 12px !important;
   background: transparent !important;
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
-}
-.menu-item:hover {
-  background: transparent !important;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s ease;
 }
 
-/* Active parent group → solid blue */
+/* hover = very soft */
+.menu-item:hover {
+  background: #f1f5f9 !important;
+}
+
+/* ✅ Active parent group uses system primary */
 .menu-item[active="true"] {
-  background: #2563eb !important;
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+  background: #0ea5e9 !important;
+  box-shadow: 0 6px 18px rgba(14,165,233,0.25);
 }
 .menu-item[active="true"] .item-title,
 .menu-item[active="true"] .item-icon,
@@ -294,7 +298,7 @@ function isGroupActive(item) {
 .submenu {
   margin-left: 1.5rem;
   padding-left: 0.5rem;
-  border-left: 1.5px solid #e2e8f0;
+  border-left: 1.5px solid #eef2f7;
   margin-bottom: 8px;
 }
 
@@ -302,22 +306,21 @@ function isGroupActive(item) {
   margin-bottom: 3px;
   border-radius: 10px !important;
   background: transparent !important;
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  transition: all 0.2s ease;
 }
+
 .submenu-item:hover {
-  background: transparent !important;
-  transform: translateY(-1px);
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.07);
+  background: #f8fafc !important;
 }
 
 .submenu-content { padding: 0.6rem 0.75rem !important; }
 .submenu-icon    { color: #94a3b8; }
 .submenu-title   { font-size: 0.85rem; color: #64748b; font-weight: 500; }
 
-/* Active child → solid blue */
+/* ✅ Active child = primary */
 .submenu-item[active="true"] {
-  background: #2563eb !important;
-  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2);
+  background: #0ea5e9 !important;
+  box-shadow: 0 4px 12px rgba(14,165,233,0.2);
 }
 .submenu-item[active="true"] .submenu-title,
 .submenu-item[active="true"] .submenu-icon {
@@ -326,12 +329,12 @@ function isGroupActive(item) {
 
 /* ─── 7. PIN Badge ──────────────────────────────────────────── */
 .pin-badge {
-  background: #fef3c7;
-  color: #d97706;
+  background: #e0f2fe;
+  color: #0369a1;
   font-size: 0.6rem;
   font-weight: 800;
   padding: 2px 6px;
   border-radius: 4px;
-  flex-shrink: 0;
 }
+
 </style>

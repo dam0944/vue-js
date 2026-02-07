@@ -14,7 +14,7 @@ import OTP           from "@/pages/auth/OTP.vue"
 /* ─── Frontdesk ─────────────────────────────────────────────── */
 import RoomStatus          from "@/pages/admin/frontdesk/RoomStatus.vue"
 import QueckBook           from "@/pages/admin/frontdesk/QueckBook.vue"
-import FrontdeskCheckin    from "@/pages/admin/frontdesk/frontdeskCheckin.vue"
+// import FrontdeskCheckin    from "@/pages/admin/frontdesk/frontdeskCheckin.vue"
 import FrontdeskCheckout   from "@/pages/admin/frontdesk/FrontdeskCheckout.vue"
 import FrontdeskInHouse    from "@/pages/admin/frontdesk/FrontdeskInHouse.vue"
 
@@ -43,12 +43,14 @@ import GuestPreference      from "@/pages/admin/guests/GuestPreference.vue"
 
 /* ─── Housekeeping ──────────────────────────────────────────── */
 import Housekeeping_Task         from "@/pages/admin/housekeeping/Housekeeping_Task.vue"
-import Housekeeping_Today        from "@/pages/admin/housekeeping/Housekeeping_Today.vue"
+// import Housekeeping_Today        from "@/pages/admin/housekeeping/Housekeeping_Today.vue"
 import CreateHouse_Task          from "@/pages/admin/housekeeping/CreateHouse_Task.vue"
 import Housekeeping_Calender     from "@/pages/admin/housekeeping/Housekeeping_Calender.vue"
 import Housekeeping_Checklist    from "@/pages/admin/housekeeping/housekeeping_Checklist.vue"
 import Housekeeping_Performance  from "@/pages/admin/housekeeping/Housekeeping_Performance.vue"
+// import Housekeeping_StaffTasks   from "@/pages/admin/housekeeping/Housekeeping_StaffTasks.vue"
 import Housekeeping_StaffTasks   from "@/pages/admin/housekeeping/Housekeeping_StaffTasks.vue"
+
 
 /* ─── Reservations ──────────────────────────────────────────── */
 import AllBooking                from "@/pages/admin/reservation/AllBooking.vue"
@@ -95,6 +97,20 @@ import PosClosingData   from "@/pages/pos/PosClosingData.vue"
 /* ─── Other ─────────────────────────────────────────────────── */
 import Analysis     from "@/pages/admin/Analysis.vue"
 import NotFoundView from "@/pages/NotFoundView.vue"
+import ExtraChargeForm from "@/pages/admin/billding/ExtraChargeForm.vue"
+import ExtraChargesList from "@/pages/admin/billding/ExtraChargesList.vue"
+import RefundsList from "@/pages/admin/billding/RefundsList.vue"
+import RefundForm from "@/pages/admin/billding/RefundForm.vue"
+import HousekeepingForm from "@/pages/admin/housekeeping/HousekeepingForm.vue"
+import Housekeeping_Today from "@/pages/admin/housekeeping/Housekeeping_Today.vue"
+import FrontdeskCheckin from "@/pages/admin/frontdesk/FrontdeskCheckin.vue"
+import HousekeepingAssign from "@/pages/admin/housekeeping/HousekeepingAssign.vue"
+import ReportDaily from "@/pages/admin/reports/ReportDaily.vue"
+import ReportsMonthly from "@/pages/admin/reports/ReportsMonthly.vue"
+import ReportsPaymentMethods from "@/pages/admin/reports/ReportsPaymentMethods.vue"
+import SettingsProperty from "../pages/admin/setting/SettingsProperty.vue"
+import SettingsConfig from "@/pages/admin/setting/SettingsConfig.vue"
+import SettingsAudit from "@/pages/admin/setting/SettingsAudit.vue"
 
 /* ─── Routes ────────────────────────────────────────────────── */
 const routes = [
@@ -160,13 +176,19 @@ const routes = [
       { path: "guests/:guestId/documents/:documentId/edit",        name: "guest-documents-edit",   component: GuestDocumentForm,  props: true },
 
       // ── Housekeeping ───────────────────────────────────────
-      { path: "housekeeping",                        name: "admin.housekeeping",              component: Housekeeping_Task },
-      { path: "housekeeping/today",                  name: "admin.housekeeping.today",        component: Housekeeping_Today },
+      { path: "housekeeping/today",                  name: "housekeeping-today",              component: Housekeeping_Today },
+      { path: "housekeeping/create",                 name: "housekeeping-create",             component: HousekeepingForm },
+      { path: "housekeeping/:taskId/edit",           name: "housekeeping-edit",               component: HousekeepingForm },
+
+      { path: "housekeeping/tasks",                  name: "admin.housekeeping.tasks",        component: Housekeeping_Task },
       { path: "housekeeping/create",                 name: "admin.housekeeping.create",       component: CreateHouse_Task },
       { path: "housekeeping/calendar",               name: "admin.housekeeping.calender",     component: Housekeeping_Calender },
       { path: "housekeeping/checklist",              name: "admin.housekeeping.checklist",    component: Housekeeping_Checklist },
       { path: "housekeeping/performance",            name: "admin.housekeeping.performance",  component: Housekeeping_Performance },
       { path: "housekeeping/staff/:staffId/tasks",   name: "admin.housekeeping.staff.tasks",  component: Housekeeping_StaffTasks, props: true },
+
+      { path: "housekeeping/assign",        name: "housekeeping-assign",    component: HousekeepingAssign },
+
 
       // ── Reservations ───────────────────────────────────────
       { path: "reservations",               name: "admin.booking",          component: AllBooking },
@@ -191,11 +213,22 @@ const routes = [
       { path: "billing/deposits",              name: "admin.deposits",          component: Deposits },
       { path: "billing/deposits/:bookingId",   name: "billing-deposits-show",   component: DepositsShow, props: true },
 
+      { path: "billing/extra-charges",                name: "admin.extra-charges",                 component: ExtraChargesList },
+      { path: "billing/extra-charges/create",         name: "admin.billing-extra-charges-create",  component: ExtraChargeForm},
+      { path: "billing/extra-charges/:chargeId/edit", name: "admin.billing-extra-charges-edit",    component: ExtraChargeForm, props: true },
+
+      { path: "billing/refunds",                 name: "billing-refunds",         component: RefundsList, },
+      { path: "billing/refunds/create",          name: "billing-refunds-create",  component: RefundForm   },
+      { path: "billing/refunds/:refundId/edit",  name: "billing-refunds-edit",    component: RefundForm,  props: true,  },
+
       // ── Reports ────────────────────────────────────────────
-      { path: "reports/occupancy",   name: "admin.reports.occupancy",  component: Occupancy },
-      { path: "reports/revenue",     name: "admin.reports.revenue",    component: Revenue },
-      { path: "reports/room-sales",  name: "admin.reports.room_sale",  component: RoomSale },
-      { path: "reports/guests",      name: "admin.reports.guest",      component: Guests },
+      { path: "reports/daily",            name: "reports.dailys",                 component: ReportDaily },
+      { path: "reports/monthly",          name: "reports.monthlys",               component: ReportsMonthly },
+      { path: "reports/occupancy",        name: "admin.reports.occupancy",        component: Occupancy },    
+      { path: "reports/revenue",          name: "admin.reports.revenue",          component: Revenue },
+      { path: "reports/payment-methods",  name: "admin.reports.payment-methods",  component: ReportsPaymentMethods },
+      { path: "reports/room-sales",       name: "admin.reports.room_sale",        component: RoomSale },
+      { path: "reports/guests",           name: "admin.reports.guest",            component: Guests },
 
       // ── Settings ───────────────────────────────────────────
       { path: "settings/users",                          name: "admin.setting.users",               component: User },
@@ -206,7 +239,11 @@ const routes = [
       { path: "settings/permissions/create",             name: "admin.setting.permission.create",   component: CreatePermission },
       { path: "settings/permissions/:permissionId/edit", name: "admin.settings.permissions.edit",   component: CreatePermission, props: true },
       { path: "settings/payment-methods",                name: "admin.settings.payment-methods",    component: PaymentMethod },
-      { path: "settings/general",                        name: "admin.settings.general",            component: General },
+      // { path: "settings/general",                        name: "admin.settings.general",            component: General },
+      { path: "settings/property",                       name: "admin.settings.property",           component: SettingsProperty },
+      { path: "settings/config",                         name: "admin.settings.config",             component: SettingsConfig },
+      { path: "settings/audit",                          name: "admin.settings.audit",              component: SettingsAudit },
+
 
       // ── POS (within admin layout) ──────────────────────────
       { path: "pos/history",      name: "admin.pos.history",       component: PosHistory },

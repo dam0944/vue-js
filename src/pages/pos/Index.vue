@@ -1,585 +1,540 @@
+<!-- src/pages/pos/PosRooms.vue -->
 <template>
-  <div class="h-screen overflow-hidden bg-slate-50 text-slate-900 antialiased">
-    <!-- Toast -->
-    <div
-      v-if="toast"
-      class="fixed top-4 right-4 z-50 px-6 py-4 rounded-2xl shadow-2xl border-2 transition-all"
-      :class="toast.type === 'success'
-        ? 'bg-emerald-50 border-emerald-500 text-emerald-900'
-        : 'bg-red-50 border-red-500 text-red-900'"
+  <div class="min-h-screen w-screen bg-slate-50 text-slate-900">
+    <!-- TOP BAR -->
+    <header
+      class="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-slate-200"
     >
-      <div class="flex items-center gap-3">
-        <span class="material-icons">
-          {{ toast.type === 'success' ? 'check_circle' : 'error' }}
-        </span>
-        <span class="font-bold">{{ toast.message }}</span>
-      </div>
-    </div>
+      <div class="w-full px-4 lg:px-6 py-3">
+        <div class="flex items-center justify-between gap-3">
+          <!-- Search -->
+          <div class="relative flex-1 max-w-2xl">
+            <VaInput
+              v-model="searchQuery"
+              clearable
+              :placeholder="'Search guest name / phone...'"
+              class="w-full"
+              @update:modelValue="handleSearch"
+            >
+              <template #prependInner>
+                <VaIcon name="search" color="secondary" />
+              </template>
+            </VaInput>
 
-    <!-- Guest Modal -->
-    <div
-      v-if="guestModalOpen"
-      class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
-      @click="closeGuestModal"
-    >
-      <div class="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl" @click.stop>
-        <h3 class="text-2xl font-black mb-6">Add New Guest</h3>
-
-        <div class="space-y-4">
-          <div>
-            <label class="block text-sm font-bold mb-2">First Name *</label>
-            <input
-              v-model="newGuest.first_name"
-              type="text"
-              class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-
-          <div>
-            <label class="block text-sm font-bold mb-2">Last Name *</label>
-            <input
-              v-model="newGuest.last_name"
-              type="text"
-              class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-
-          <div>
-            <label class="block text-sm font-bold mb-2">Phone</label>
-            <input
-              v-model="newGuest.phone"
-              type="tel"
-              class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-
-          <div>
-            <label class="block text-sm font-bold mb-2">Email</label>
-            <input
-              v-model="newGuest.email"
-              type="email"
-              class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-        </div>
-
-        <div class="flex gap-3 mt-6">
-          <button
-            type="button"
-            @click="closeGuestModal"
-            class="flex-1 px-4 py-3 bg-slate-100 rounded-xl font-bold hover:bg-slate-200 transition"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            @click="saveNewGuest"
-            class="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition"
-          >
-            Save Guest
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Header -->
-    <header class="h-20 bg-white/90 backdrop-blur border-b border-slate-200 flex items-center justify-between px-6 lg:px-8">
-      <!-- Search -->
-      <div class="relative w-full max-w-xl">
-        <span class="material-icons absolute left-3 top-3 text-slate-400 text-sm">search</span>
-        <input
-          v-model="searchQuery"
-          @input="handleSearch"
-          type="text"
-          placeholder="Search guest name / phone..."
-          class="w-full pl-10 pr-4 py-2.5 bg-slate-100 border border-slate-200 rounded-2xl text-sm font-semibold shadow-sm outline-none transition focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/15"
-        />
-
-        <div
-          v-if="foundGuests.length"
-          class="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 shadow-xl rounded-2xl overflow-hidden z-50 max-h-72 overflow-y-auto"
-        >
-          <button
-            v-for="g in foundGuests"
-            :key="g.guest_id"
-            type="button"
-            @click="selectGuest(g)"
-            class="w-full p-3.5 text-left hover:bg-indigo-50 transition flex items-center justify-between border-b border-slate-100 last:border-0"
-          >
-            <div>
-              <div class="font-bold text-sm">{{ g.first_name }} {{ g.last_name }}</div>
-              <div class="text-xs text-slate-500 font-medium">{{ g.phone }}</div>
+            <!-- Dropdown results -->
+            <div
+              v-if="foundGuests.length"
+              class="absolute left-0 right-0 mt-2 rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden"
+            >
+              <button
+                v-for="g in foundGuests"
+                :key="g.guest_id"
+                type="button"
+                class="w-full px-4 py-3 text-left hover:bg-sky-50 transition flex items-center justify-between border-b border-slate-100 last:border-0"
+                @click="selectGuest(g)"
+              >
+                <div>
+                  <div class="font-extrabold text-sm">
+                    {{ g.first_name }} {{ g.last_name }}
+                  </div>
+                  <div class="text-xs text-slate-500 font-semibold mt-0.5">
+                    {{ g.phone }}
+                  </div>
+                </div>
+                <VaIcon name="person" color="primary" />
+              </button>
             </div>
-            <span class="material-icons text-indigo-500">person_add_alt_1</span>
-          </button>
+          </div>
+
+          <!-- Actions (BIGGER) -->
+          <div class="flex items-center gap-2">
+            <VaButton
+              preset="secondary"
+              icon="percent"
+              class="pos-btn"
+              @click="openDiscountModal"
+            >
+              Discount
+            </VaButton>
+
+            <VaButton
+              preset="secondary"
+              icon="monitor"
+              class="pos-btn"
+              @click="openCustomerWindow"
+            >
+              View
+            </VaButton>
+
+            <VaButton
+              preset="primary"
+              icon="person_add"
+              class="pos-btn"
+              @click="openGuestModal"
+            >
+              New Guest
+            </VaButton>
+
+            <VaButton
+              preset="secondary"
+              :icon="isFullscreen ? 'fullscreen_exit' : 'fullscreen'"
+              class="pos-btn-icon"
+              @click="toggleFullscreen"
+            />
+
+            <VaButton
+              preset="secondary"
+              icon="restart_alt"
+              class="pos-btn-icon"
+              @click="resetPOS"
+            />
+          </div>
         </div>
-      </div>
-
-      <!-- Actions -->
-      <div class="flex items-center gap-3">
-        <button
-          type="button"
-          @click="openDiscountModal"
-          class="px-5 py-3 rounded-md cursor-pointer text-black text-sm font-bold shadow-md hover:bg-slate-100 transition flex items-center gap-2"
-        >
-          <span class="material-icons">percent</span>
-          DISCOUNT
-        </button> 
-        <button
-          v-if="!isFullscreen"
-          @click="enterFullscreen"
-          type="button"
-          class="px-5 py-3 rounded-md cursor-pointer text-black text-sm font-bold shadow-md hover:bg-slate-100 transition flex items-center gap-2"
-        >
-          <span class="material-icons">fullscreen</span>
-          Full
-        </button>
-        <button
-          type="button"
-          @click="openCustomerWindow"
-          class="px-5 py-3 rounded-md cursor-pointer text-black text-sm font-bold shadow-md hover:bg-slate-100 transition flex items-center gap-2"
-        >
-          <span class="material-icons">monitor</span>
-          VIEW
-        </button>
-
-        <button
-          type="button"
-          @click="openGuestModal"
-          class="px-5 py-3 rounded-md text-black cursor-pointer text-sm font-bold shadow-md hover:bg-slate-100 transition flex items-center gap-2"
-        >
-          <span class="material-icons">person_add</span>
-          New Guest
-        </button>
-
-        <button
-          type="button"
-          @click="resetPOS"
-          class="px-3 py-3 rounded-md cursor-pointer text-black text-sm font-bold shadow-md hover:bg-slate-100 transition flex items-center gap-2"
-          title="Reset"
-        >
-          <span class="material-icons">settings</span>
-        </button>
       </div>
     </header>
 
-    <!-- Main -->
-    <main class="h-[calc(100vh-5rem)] flex overflow-hidden">
-      <!-- Rooms -->
-      <section class="flex-1 flex flex-col overflow-hidden">
-        <div class="px-6 lg:px-8 pt-6 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h2 class="text-2xl font-black text-slate-800 tracking-tight">POS Rooms</h2>
-            <p class="text-sm text-slate-500 mt-0.5">
-              Next Reservation:
-              <span class="text-indigo-600 font-bold">#{{ nextReservationNumber }}</span>
-            </p>
-          </div>
-          <!-- Room staus -->
-          <div class="flex items-center gap-3 flex-wrap">
-            <div class="flex bg-white border border-slate-200 rounded-2xl p-1 shadow-sm">
-              <button
-                type="button"
-                @click="activeBedFilter = 'all'"
-                class="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all"
-                :class="activeBedFilter === 'all' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'"
-              >
-                Room Status
-              </button>
+    <!-- MAIN -->
+    <main class="w-full h-[calc(100vh-72px)] lg:h-[calc(100vh-80px)]">
+      <div class="h-full grid grid-cols-1 xl:grid-cols-[1fr_420px] gap-4 p-4 lg:p-6">
+        <!-- LEFT -->
+        <section class="min-h-0 flex flex-col">
+          <div class="flex items-end justify-between gap-4 pb-3">
+            <div>
+              <h1 class="text-xl lg:text-2xl font-black tracking-tight">
+                POS · Rooms
+              </h1>
+              <p class="text-sm text-slate-500 font-medium mt-1">
+                Next Reservation:
+                <span class="text-sky-600 font-extrabold">#{{ nextReservationNumber }}</span>
+              </p>
+            </div>
 
-              <button
-                v-for="bed in bedCounts"
-                :key="bed"
-                type="button"
-                @click="activeBedFilter = bed"
-                class="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all"
-                :class="activeBedFilter === bed ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'"
-              >
-                {{ bed }} Bed{{ bed > 1 ? 's' : '' }}
-              </button>
+            <div class="flex items-center gap-2 flex-wrap">
+              <VaSelect
+                v-model="activeFloor"
+                :options="floorOptions"
+                :text-by="(o) => o.text"
+                :value-by="(o) => o.value"
+                placeholder="Floor"
+                class="min-w-[180px]"
+              />
+              <VaSelect
+                v-model="activeBedFilter"
+                :options="bedOptions"
+                :text-by="(o) => o.text"
+                :value-by="(o) => o.value"
+                placeholder="Beds"
+                class="min-w-[180px]"
+              />
             </div>
           </div>
-          <!-- Filter by Bed Count -->
-          <div class="flex items-center gap-3 flex-wrap">
-            <div class="flex bg-white border border-slate-200 rounded-2xl p-1 shadow-sm">
-              <button
-                type="button"
-                @click="activeBedFilter = 'all'"
-                class="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all"
-                :class="activeBedFilter === 'all' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'"
-              >
-                All Beds
-              </button>
 
-              <button
-                v-for="bed in bedCounts"
-                :key="bed"
-                type="button"
-                @click="activeBedFilter = bed"
-                class="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all"
-                :class="activeBedFilter === bed ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'"
-              >
-                {{ bed }} Bed{{ bed > 1 ? 's' : '' }}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div class="flex-1 overflow-y-auto px-6 lg:px-8 pb-10 custom-scrollbar">
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-5">
-            <button
-              v-for="r in filteredRooms"
-              :key="r.room_id"
-              type="button"
-              @click="selectRoom(r)"
-              class="relative text-left p-5 rounded-md bg-white transition-all duration-200 group shadow-sm hover:shadow-lg hover:-translate-y-1"
-              :class="{
-                'ring-4 ring-indigo-500/30 shadow-xl': selectedRoom?.room_id === r.room_id,
-                'opacity-50 grayscale cursor-not-allowed pointer-events-none': r.status !== 'available',
-              }"
+          <!-- Rooms grid (TRUE 5 columns on big screen) -->
+          <div class="min-h-0 flex-1 overflow-auto pr-1">
+            <div
+              class="grid gap-4
+                     grid-cols-1
+                     sm:grid-cols-2
+                     lg:grid-cols-3
+                     xl:grid-cols-4
+                     2xl:grid-cols-5"
             >
-              <div class="flex items-start justify-between mb-3">
-                <div>
-                  <div class="text-3xl font-black text-slate-900">#{{ r.room_number }}</div>
-                  <div class="text-xs font-bold text-slate-500 mt-0.5">
-                    {{ getRoomType(r.room_type_id)?.type_name || '???' }} • Floor {{ r.floor }}
+              <button
+                v-for="r in filteredRooms"
+                :key="r.room_id"
+                type="button"
+                class="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-xl transition text-left"
+                :class="{
+                  'ring-4 ring-sky-500/25 border-sky-300 shadow-xl': selectedRoom?.room_id === r.room_id,
+                  'opacity-55 grayscale cursor-not-allowed pointer-events-none': r.status !== 'available',
+                }"
+                @click="selectRoom(r)"
+              >
+                <!-- Room Photo -->
+                <div class="relative h-28">
+                  <img
+                    :src="r.photo || fallbackRoomPhoto"
+                    alt="Room photo"
+                    class="h-full w-full object-cover"
+                  />
+                  <div class="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent"></div>
+
+                  <!-- Status badge -->
+                  <div class="absolute top-3 right-3">
+                    <span
+                      class="px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wide border"
+                      :class="statusPillTailwind(r.status)"
+                    >
+                      {{ niceStatus(r.status) }}
+                    </span>
+                  </div>
+
+                  <!-- Number -->
+                  <div class="absolute bottom-3 left-3">
+                    <div class="text-white text-2xl font-black leading-none">
+                      #{{ r.room_number }}
+                    </div>
+                    <div class="text-white/85 text-xs font-semibold mt-1">
+                      {{ getRoomType(r.room_type_id)?.type_name || "Unknown" }} • Floor {{ r.floor }}
+                    </div>
                   </div>
                 </div>
 
-                <span
-                  class="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-xl border"
-                  :class="statusPillClass(r.status)"
-                >
-                  {{ (r.status || '').replace('_', ' ') }}
-                </span>
-              </div>
+                <!-- Bottom -->
+                <div class="p-4 flex items-end justify-between gap-2">
+                  <div>
+                    <div class="text-sky-600 text-lg font-black">
+                      ${{ formatMoney(getRoomType(r.room_type_id)?.base_price || 0, 0) }}
+                    </div>
+                    <div class="text-xs text-slate-500 font-semibold mt-1">
+                      {{ getRoomType(r.room_type_id)?.max_occupancy || 0 }} pax
+                    </div>
+                  </div>
 
-              <div class="flex items-end justify-between">
-                <div class="text-xl font-black text-indigo-600">
-                  ${{ (getRoomType(r.room_type_id)?.base_price || 0).toFixed(0) }}
-                </div>
-                <div class="text-right">
-                  <div class="text-sm font-bold text-slate-700">
-                    {{ getRoomType(r.room_type_id)?.max_occupancy || 0 }} pax
+                  <div class="text-right">
+                    <div class="text-xs text-slate-500 font-semibold">Type</div>
+                    <div class="text-sm font-extrabold text-slate-800">
+                      {{ getRoomType(r.room_type_id)?.type_name || "-" }}
+                    </div>
                   </div>
                 </div>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- RIGHT -->
+        <aside class="min-h-0 overflow-auto">
+          <VaCard class="rounded-2xl border border-slate-200 shadow-sm p-4 lg:p-5">
+            <div class="flex items-center justify-between gap-3 mb-4">
+              <div class="text-base lg:text-lg font-black">Check-in Details</div>
+              <VaChip color="secondary" square>{{ durationText }}</VaChip>
+            </div>
+
+            <!-- Selected -->
+            <div class="grid gap-3 mb-4">
+              <div
+                class="rounded-2xl border p-4"
+                :class="selectedGuest ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-50 border-slate-200'"
+              >
+                <div class="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
+                  Guest
+                </div>
+                <div v-if="selectedGuest" class="mt-1 text-lg font-black text-emerald-900">
+                  {{ selectedGuest.first_name }} {{ selectedGuest.last_name }}
+                </div>
+                <div v-if="selectedGuest" class="text-sm font-semibold text-emerald-700">
+                  {{ selectedGuest.phone }}
+                </div>
+                <div v-else class="mt-1 text-sm text-slate-500 font-semibold">
+                  Search guest or add new guest.
+                </div>
               </div>
-            </button>
-          </div>
-        </div>
-      </section>
 
-      <!-- Sidebar -->
-      <aside class="w-96 bg-white border-l border-slate-200 grid grid-cols-2 shadow-xl p-6 overflow-y-auto custom-scrollbar">
-        <h3 class="text-lg font-black mb-4">Check-in Details</h3>
+              <div
+                class="rounded-2xl border p-4"
+                :class="selectedRoom ? 'bg-sky-50 border-sky-100' : 'bg-slate-50 border-slate-200'"
+              >
+                <div class="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
+                  Room
+                </div>
+                <div v-if="selectedRoom" class="mt-1 text-lg font-black text-sky-900">
+                  #{{ selectedRoom.room_number }}
+                </div>
+                <div v-if="selectedRoom" class="text-sm font-semibold text-sky-700">
+                  {{ getRoomType(selectedRoom.room_type_id)?.type_name }}
+                </div>
+                <div v-else class="mt-1 text-sm text-slate-500 font-semibold">
+                  Select an available room.
+                </div>
+              </div>
+            </div>
 
-        <div v-if="selectedGuest" class="mb-4 p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
-          <span class="text-xs font-bold text-emerald-600">GUEST</span>
-          <div class="text-lg font-black text-emerald-900">
-            {{ selectedGuest.first_name }} {{ selectedGuest.last_name }}
-          </div>
-          <div class="text-sm text-emerald-700">{{ selectedGuest.phone }}</div>
-        </div>
+            <!-- Form -->
+            <div class="grid gap-3 mb-4">
+              <VaSelect
+                v-model="booking.type"
+                label="Booking Type"
+                :options="bookingTypeOptions"
+                :text-by="(o) => o.text"
+                :value-by="(o) => o.value"
+                @update:modelValue="updateCustomerScreen"
+              />
 
-        <div v-if="selectedRoom" class="mb-6 p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
-          <span class="text-xs font-bold text-indigo-400">SELECTED ROOM</span>
-          <div class="text-xl font-black text-indigo-900">#{{ selectedRoom.room_number }}</div>
-          <div class="text-sm text-indigo-700">{{ getRoomType(selectedRoom.room_type_id)?.type_name }}</div>
-        </div>
+              <VaInput
+                v-if="booking.type === 'hourly'"
+                v-model.number="booking.hours"
+                type="number"
+                label="Hours"
+                :min="1"
+                :max="12"
+                @update:modelValue="updateCustomerScreen"
+              >
+                <template #appendInner>h</template>
+              </VaInput>
 
-        <div class="space-y-4 mb-6">
-          <div>
-            <label class="block text-sm font-bold mb-2">Booking Type</label>
-            <select
-              v-model="booking.type"
-              @change="updateCustomerScreen"
-              class="w-full px-4 py-3 border border-slate-200 rounded-xl font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <VaInput v-model="booking.check_in_date" type="date" label="Check-in Date" />
+                <VaInput v-model="booking.check_out_date" type="date" label="Check-out Date" />
+              </div>
+
+              <VaInput v-model="booking.check_in_time" type="time" label="Check-in Time" />
+
+              <VaInput
+                v-model.number="booking.discount_amount"
+                type="number"
+                label="Discount (USD)"
+                :min="0"
+                step="0.01"
+                @update:modelValue="updateCustomerScreen"
+              >
+                <template #prependInner>
+                  <VaIcon name="percent" color="secondary" />
+                </template>
+              </VaInput>
+            </div>
+
+            <!-- Totals -->
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 mb-4">
+              <div class="flex items-center justify-between text-sm font-bold text-slate-700 mb-2">
+                <span>Room rate</span>
+                <span>${{ formatMoney(roomRate, 2) }}</span>
+              </div>
+              <div class="flex items-center justify-between text-sm font-bold text-slate-700 mb-2">
+                <span>Discount</span>
+                <span class="text-red-600">-${{ formatMoney(Number(booking.discount_amount || 0), 2) }}</span>
+              </div>
+              <div class="h-px bg-slate-200 my-3"></div>
+              <div class="flex items-center justify-between text-lg font-black">
+                <span>Total Due</span>
+                <span class="text-sky-600">${{ formatMoney(totals.final_amount, 2) }}</span>
+              </div>
+            </div>
+
+            <VaButton
+              color="primary"
+              icon="print"
+              size="large"
+              class="w-full rounded-2xl font-black tracking-wide"
+              :disabled="!selectedRoom || !selectedGuest"
+              @click="confirmBooking"
             >
-              <option value="night">Overnight</option>
-              <option value="hourly">Hourly</option>
-              <option value="day">Day Use</option>
-            </select>
-          </div>
+              Confirm & Print
+            </VaButton>
 
-          <div v-if="booking.type === 'hourly'">
-            <label class="block text-sm font-bold mb-2">Hours</label>
-            <input
-              v-model.number="booking.hours"
-              @input="updateCustomerScreen"
-              type="number"
-              min="1"
-              max="12"
-              class="w-full px-4 py-3 border border-slate-200 rounded-xl font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-
-          <div>
-            <label class="block text-sm font-bold mb-2">Check-in Date</label>
-            <input
-              v-model="booking.check_in_date"
-              type="date"
-              class="w-full px-4 py-3 border border-slate-200 rounded-xl font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-          <div>
-            <label class="block text-sm font-bold mb-2">Check-out Date</label>
-            <input
-              v-model="booking.check_in_date"
-              type="date"
-              class="w-full px-4 py-3 border border-slate-200 rounded-xl font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-          <div>
-            <label class="block text-sm font-bold mb-2">Check-in Time</label>
-            <input
-              v-model="booking.check_in_time"
-              type="time"
-              class="w-full px-4 py-3 border border-slate-200 rounded-xl font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-
-          <div>
-            <label class="block text-sm font-bold mb-2">Discount Amount</label>
-            <input
-              v-model.number="booking.discount_amount"
-              @input="updateCustomerScreen"
-              type="number"
-              min="0"
-              step="0.01"
-              class="w-full px-4 py-3 border border-slate-200 rounded-xl font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-        </div>
-
-        <div class="mt-auto space-y-4">
-          <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200">
-            <div class="flex justify-between text-sm mb-2">
-              <span class="font-semibold">Room Rate:</span>
-              <span class="font-bold">
-                ${{ (getRoomType(selectedRoom?.room_type_id)?.base_price || 0).toFixed(2) }}
-              </span>
+            <div class="text-center text-xs text-slate-500 font-semibold mt-3">
+              Tip: Select guest → select room → confirm.
             </div>
-            <div class="flex justify-between text-sm mb-2">
-              <span class="font-semibold">Discount:</span>
-              <span class="font-bold text-red-600">
-                -${{ Number(booking.discount_amount || 0).toFixed(2) }}
-              </span>
-            </div>
-            <div class="border-t border-slate-300 pt-2 mt-2">
-              <div class="flex justify-between text-xl font-black">
-                <span>Total Due:</span>
-                <span class="text-indigo-600">${{ totals.final_amount.toFixed(2) }}</span>
-              </div>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            @click="confirmBooking"
-            class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed hover:bg-indigo-700 transition flex items-center justify-center gap-2"
-          >
-            <span class="material-icons">print</span>
-            Confirm & Print
-          </button>
-        </div>
-      </aside>
+          </VaCard>
+        </aside>
+      </div>
     </main>
+
+    <!-- Guest Modal -->
+    <VaModal v-model="guestModalOpen" hide-default-actions max-width="520px">
+      <template #header>
+        <div class="flex items-center gap-2 font-black text-base">
+          <VaIcon name="person_add" color="primary" />
+          <span>Add New Guest</span>
+        </div>
+      </template>
+
+      <div class="grid gap-3 py-2">
+        <VaInput v-model="newGuest.first_name" label="First Name *" />
+        <VaInput v-model="newGuest.last_name" label="Last Name *" />
+        <VaInput v-model="newGuest.phone" label="Phone" />
+        <VaInput v-model="newGuest.email" label="Email" />
+      </div>
+
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <VaButton preset="secondary" @click="closeGuestModal">Cancel</VaButton>
+          <VaButton color="primary" @click="saveNewGuest">Save</VaButton>
+        </div>
+      </template>
+    </VaModal>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
-import qz from 'qz-tray'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue"
+import qz from "qz-tray"
 
-// ===============================
-// LOCALSTORAGE KEYS
-// ===============================
 const STORAGE_KEYS = {
-  ROOM_TYPES: 'pos_room_types',
-  ROOMS: 'pos_rooms',
-  GUESTS: 'pos_guests',
-  CUSTOMER_VIEW: 'customerViewData'
+  ROOM_TYPES: "pos_room_types",
+  ROOMS: "pos_rooms",
+  GUESTS: "pos_guests",
+  CUSTOMER_VIEW: "customerViewData",
 }
 
-// ===============================
-// DEFAULT DATA
-// ===============================
+const fallbackRoomPhoto =
+  "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1200&q=80"
+
 const DEFAULT_ROOM_TYPES = [
-  { id: 1, type_name: 'Standard', base_price: 25, max_occupancy: 2 },
-  { id: 2, type_name: 'Deluxe', base_price: 45, max_occupancy: 3 },
-  { id: 3, type_name: 'Suite', base_price: 75, max_occupancy: 4 }
+  { id: 1, type_name: "Standard", base_price: 25, max_occupancy: 2 },
+  { id: 2, type_name: "Deluxe", base_price: 45, max_occupancy: 3 },
+  { id: 3, type_name: "Suite", base_price: 75, max_occupancy: 4 },
 ]
 
 const DEFAULT_ROOMS = [
-  { room_id: 1, room_number: '101', room_type_id: 1, floor: 1, status: 'available' },
-  { room_id: 2, room_number: '102', room_type_id: 1, floor: 1, status: 'available' },
-  { room_id: 3, room_number: '103', room_type_id: 2, floor: 1, status: 'occupied' },
-  { room_id: 4, room_number: '104', room_type_id: 2, floor: 1, status: 'available' },
-  { room_id: 5, room_number: '201', room_type_id: 2, floor: 2, status: 'available' },
-  { room_id: 6, room_number: '202', room_type_id: 3, floor: 2, status: 'available' },
-  { room_id: 7, room_number: '203', room_type_id: 3, floor: 2, status: 'available' },
-  { room_id: 8, room_number: '301', room_type_id: 3, floor: 3, status: 'available' }
+  { room_id: 1, room_number: "101", room_type_id: 1, floor: 1, status: "available", photo: fallbackRoomPhoto },
+  { room_id: 2, room_number: "102", room_type_id: 1, floor: 1, status: "available", photo: fallbackRoomPhoto },
+  { room_id: 3, room_number: "103", room_type_id: 2, floor: 1, status: "occupied", photo: fallbackRoomPhoto },
+  { room_id: 4, room_number: "104", room_type_id: 2, floor: 1, status: "available", photo: fallbackRoomPhoto },
+  { room_id: 5, room_number: "201", room_type_id: 2, floor: 2, status: "available", photo: fallbackRoomPhoto },
+  { room_id: 6, room_number: "202", room_type_id: 3, floor: 2, status: "available", photo: fallbackRoomPhoto },
+  { room_id: 7, room_number: "203", room_type_id: 3, floor: 2, status: "maintenance", photo: fallbackRoomPhoto },
+  { room_id: 8, room_number: "301", room_type_id: 3, floor: 3, status: "available", photo: fallbackRoomPhoto },
 ]
 
 const DEFAULT_GUESTS = [
-  { guest_id: 1, first_name: 'John', last_name: 'Doe', phone: '555-0101', email: 'john@example.com' },
-  { guest_id: 2, first_name: 'Jane', last_name: 'Smith', phone: '555-0102', email: 'jane@example.com' },
-  { guest_id: 3, first_name: 'Bob', last_name: 'Johnson', phone: '555-0103', email: 'bob@example.com' }
+  { guest_id: 1, first_name: "John", last_name: "Doe", phone: "555-0101", email: "john@example.com" },
+  { guest_id: 2, first_name: "Jane", last_name: "Smith", phone: "555-0102", email: "jane@example.com" },
+  { guest_id: 3, first_name: "Bob", last_name: "Johnson", phone: "555-0103", email: "bob@example.com" },
 ]
 
-// ===============================
-// LOCALSTORAGE HELPERS
-// ===============================
-function loadFromStorage(key, defaultValue) {
+function loadFromStorage(key, fallback) {
   try {
-    const stored = localStorage.getItem(key)
-    return stored ? JSON.parse(stored) : defaultValue
-  } catch (error) {
-    console.error(`Error loading ${key} from localStorage:`, error)
-    return defaultValue
+    const raw = localStorage.getItem(key)
+    return raw ? JSON.parse(raw) : fallback
+  } catch {
+    return fallback
   }
 }
-
 function saveToStorage(key, value) {
   try {
     localStorage.setItem(key, JSON.stringify(value))
-  } catch (error) {
-    console.error(`Error saving ${key} to localStorage:`, error)
-  }
+  } catch {}
 }
 
-// ===============================
-// STATE
-// ===============================
 const isFullscreen = ref(false)
-const searchQuery = ref('')
+
+const searchQuery = ref("")
 const foundGuests = ref([])
 const selectedGuest = ref(null)
 const selectedRoom = ref(null)
-const activeFloor = ref('all')
-const activeBedFilter = ref('all')
-const toast = ref(null)
-const customerWindow = ref(null)
-const guestModalOpen = ref(false)
 
-const newGuest = reactive({
-  first_name: '',
-  last_name: '',
-  phone: '',
-  email: ''
-})
+const activeFloor = ref("all")
+const activeBedFilter = ref("all")
+
+const customerWindow = ref(null)
+
+const guestModalOpen = ref(false)
+const newGuest = reactive({ first_name: "", last_name: "", phone: "", email: "" })
+
+const todayISO = () => new Date().toISOString().slice(0, 10)
+const nowHHMM = () => new Date().toTimeString().slice(0, 5)
 
 const booking = reactive({
-  type: 'night',
-  check_in_date: new Date().toISOString().slice(0, 10),
-  check_in_time: new Date().toTimeString().slice(0, 5),
-  check_out_time: '15:00',
+  type: "night",
+  check_in_date: todayISO(),
+  check_out_date: todayISO(),
+  check_in_time: nowHHMM(),
   hours: 3,
-  discount_amount: 0
+  discount_amount: 0,
 })
 
-const currentUser = ref({ first_name: 'Admin', last_name: 'User' })
-const currentRole = ref('Manager')
-
-// Load data from localStorage or use defaults
 const roomTypes = ref(loadFromStorage(STORAGE_KEYS.ROOM_TYPES, DEFAULT_ROOM_TYPES))
 const rooms = ref(loadFromStorage(STORAGE_KEYS.ROOMS, DEFAULT_ROOMS))
 const guests = ref(loadFromStorage(STORAGE_KEYS.GUESTS, DEFAULT_GUESTS))
 
-// ===============================
-// WATCHERS FOR AUTO-SAVE
-// ===============================
-watch(roomTypes, (newValue) => {
-  saveToStorage(STORAGE_KEYS.ROOM_TYPES, newValue)
-}, { deep: true })
+watch(roomTypes, v => saveToStorage(STORAGE_KEYS.ROOM_TYPES, v), { deep: true })
+watch(rooms, v => saveToStorage(STORAGE_KEYS.ROOMS, v), { deep: true })
+watch(guests, v => saveToStorage(STORAGE_KEYS.GUESTS, v), { deep: true })
 
-watch(rooms, (newValue) => {
-  saveToStorage(STORAGE_KEYS.ROOMS, newValue)
-}, { deep: true })
+const bookingTypeOptions = [
+  { text: "Overnight", value: "night" },
+  { text: "Hourly", value: "hourly" },
+  { text: "Day Use", value: "day" },
+]
 
-watch(guests, (newValue) => {
-  saveToStorage(STORAGE_KEYS.GUESTS, newValue)
-}, { deep: true })
+const nextReservationNumber = computed(() => "RES-" + (100 + rooms.value.length))
 
-// ===============================
-// COMPUTED
-// ===============================
-const nextReservationNumber = computed(() => 'RES-' + (100 + rooms.value.length))
-const nextInvoiceNumber = computed(() => 'INV-' + Date.now())
-
-const floors = computed(() => {
-  const set = new Set(rooms.value.map(r => r.floor))
-  return Array.from(set).sort((a, b) => a - b)
+const floorOptions = computed(() => {
+  const set = new Set(rooms.value.map(r => Number(r.floor)))
+  const list = Array.from(set).sort((a, b) => a - b)
+  return [{ text: "All Floors", value: "all" }, ...list.map(n => ({ text: `Floor ${n}`, value: String(n) }))]
 })
 
-const bedCounts = computed(() => {
-  const set = new Set(roomTypes.value.map(rt => rt.max_occupancy))
-  return Array.from(set).sort((a, b) => a - b)
+const bedOptions = computed(() => {
+  const set = new Set(roomTypes.value.map(rt => Number(rt.max_occupancy)))
+  const list = Array.from(set).sort((a, b) => a - b)
+  return [{ text: "All Beds", value: "all" }, ...list.map(n => ({ text: `${n} Bed${n > 1 ? "s" : ""}`, value: String(n) }))]
 })
 
 const filteredRooms = computed(() => {
-  let filtered = rooms.value
-  
-  // Filter by floor
-  if (activeFloor.value !== 'all') {
-    const floorNum = Number(activeFloor.value)
-    filtered = filtered.filter(r => Number(r.floor) === floorNum)
+  let list = rooms.value.slice()
+
+  if (activeFloor.value !== "all") {
+    const f = Number(activeFloor.value)
+    list = list.filter(r => Number(r.floor) === f)
   }
-  
-  // Filter by bed count (max_occupancy)
-  if (activeBedFilter.value !== 'all') {
-    const bedCount = Number(activeBedFilter.value)
-    filtered = filtered.filter(r => {
-      const roomType = getRoomType(r.room_type_id)
-      return roomType?.max_occupancy === bedCount
-    })
+
+  if (activeBedFilter.value !== "all") {
+    const beds = Number(activeBedFilter.value)
+    list = list.filter(r => getRoomType(r.room_type_id)?.max_occupancy === beds)
   }
-  
-  return filtered
+
+  return list
 })
 
 const durationText = computed(() => {
-  if (booking.type === 'night') return 'Overnight'
-  if (booking.type === 'hourly') return booking.hours + ' hours'
-  return 'Day Use'
+  if (booking.type === "night") return "Overnight"
+  if (booking.type === "hourly") return `${booking.hours} hours`
+  return "Day Use"
+})
+
+const roomRate = computed(() => {
+  if (!selectedRoom.value) return 0
+  const rt = getRoomType(selectedRoom.value.room_type_id)
+  return Number(rt?.base_price || 0)
 })
 
 const totals = computed(() => {
   if (!selectedRoom.value) return { final_amount: 0 }
-  const roomType = getRoomType(selectedRoom.value.room_type_id)
-  const basePrice = roomType?.base_price || 0
-  let final = basePrice
-  if (booking.type === 'hourly') {
-    final = basePrice * 0.5 * (booking.hours / 3)
+
+  let base = roomRate.value
+  if (booking.type === "hourly") {
+    base = base * 0.5 * (Number(booking.hours || 1) / 3)
   }
-  final -= Number(booking.discount_amount || 0)
-  return { final_amount: Math.max(0, final) }
+
+  const discount = Number(booking.discount_amount || 0)
+  return { final_amount: Math.max(0, base - discount) }
 })
 
-// ===============================
-// METHODS
-// ===============================
+function formatMoney(n, digits = 2) {
+  const x = Number(n || 0)
+  return Number.isFinite(x) ? x.toFixed(digits) : (0).toFixed(digits)
+}
+
 function getRoomType(id) {
   return roomTypes.value.find(t => t.id === id)
 }
 
-function statusPillClass(status) {
-  if (status === 'available') return 'bg-emerald-50 text-emerald-600 border-emerald-100'
-  if (status === 'occupied') return 'bg-red-50 text-red-600 border-red-100'
-  return 'bg-slate-100 text-slate-400 border-slate-200'
+function niceStatus(status) {
+  return String(status || "").replaceAll("_", " ")
+}
+
+function statusPillTailwind(status) {
+  if (status === "available") return "bg-emerald-50 text-emerald-700 border-emerald-200"
+  if (status === "occupied") return "bg-rose-50 text-rose-700 border-rose-200"
+  if (status === "maintenance") return "bg-amber-50 text-amber-700 border-amber-200"
+  return "bg-slate-50 text-slate-600 border-slate-200"
 }
 
 function handleSearch() {
-  const q = searchQuery.value.trim().toLowerCase()
-  if (q.length > 2) {
-    foundGuests.value = guests.value.filter(g =>
-      (g.first_name || '').toLowerCase().includes(q) ||
-      (g.last_name || '').toLowerCase().includes(q) ||
-      (g.phone || '').includes(searchQuery.value.trim())
-    )
-  } else {
+  const q = String(searchQuery.value || "").trim().toLowerCase()
+  if (q.length < 2) {
     foundGuests.value = []
+    return
   }
+  foundGuests.value = guests.value
+    .filter(g =>
+      String(g.first_name || "").toLowerCase().includes(q) ||
+      String(g.last_name || "").toLowerCase().includes(q) ||
+      String(g.phone || "").includes(String(searchQuery.value || "").trim())
+    )
+    .slice(0, 8)
 }
 
 function selectGuest(guest) {
@@ -589,12 +544,18 @@ function selectGuest(guest) {
   updateCustomerScreen()
 }
 
+function selectRoom(room) {
+  if (room.status !== "available") return
+  selectedRoom.value = room
+  updateCustomerScreen()
+}
+
 function openGuestModal() {
   guestModalOpen.value = true
-  newGuest.first_name = ''
-  newGuest.last_name = ''
-  newGuest.phone = ''
-  newGuest.email = ''
+  newGuest.first_name = ""
+  newGuest.last_name = ""
+  newGuest.phone = ""
+  newGuest.email = ""
 }
 
 function closeGuestModal() {
@@ -602,49 +563,41 @@ function closeGuestModal() {
 }
 
 function openDiscountModal() {
-  // You can implement discount modal here
-  showToast('Discount feature - coming soon!', 'success')
+  alert("Tip: Use Discount (USD) input in right panel.")
 }
 
 function saveNewGuest() {
   if (!newGuest.first_name || !newGuest.last_name) {
-    showToast('Please enter first and last name', 'error')
+    alert("Please enter first and last name.")
     return
   }
 
-  const maxId = Math.max(...guests.value.map(g => g.guest_id), 0)
+  const maxId = Math.max(...guests.value.map(g => Number(g.guest_id || 0)), 0)
   const guest = {
     guest_id: maxId + 1,
     first_name: newGuest.first_name,
     last_name: newGuest.last_name,
     phone: newGuest.phone,
-    email: newGuest.email
+    email: newGuest.email,
   }
 
   guests.value.push(guest)
   selectGuest(guest)
   closeGuestModal()
-  showToast('Guest added successfully!', 'success')
-}
-
-function selectRoom(room) {
-  if (room.status !== 'available') return
-  selectedRoom.value = room
-  updateCustomerScreen()
 }
 
 function updateCustomerScreen() {
   const data = {
-    room_number: selectedRoom.value?.room_number || '',
-    guest_name: selectedGuest.value ? `${selectedGuest.value.first_name} ${selectedGuest.value.last_name}` : '',
+    room_number: selectedRoom.value?.room_number || "",
+    guest_name: selectedGuest.value ? `${selectedGuest.value.first_name} ${selectedGuest.value.last_name}` : "",
     total: totals.value.final_amount,
-    timestamp: Date.now()
+    timestamp: Date.now(),
   }
 
   saveToStorage(STORAGE_KEYS.CUSTOMER_VIEW, data)
 
   if (customerWindow.value && !customerWindow.value.closed) {
-    customerWindow.value.postMessage({ type: 'UPDATE', data }, '*')
+    customerWindow.value.postMessage({ type: "UPDATE", data }, "*")
   }
 }
 
@@ -665,19 +618,21 @@ function openCustomerWindow() {
     "CustomerDisplay",
     `width=${width},height=${height},left=${left},top=${top}`
   )
-  
+
   if (!customerWindow.value) {
-    showToast('Popup blocked. Please allow popups.', 'error')
+    alert("Popup blocked. Please allow popups.")
     return
   }
 
-  setTimeout(() => {
-    updateCustomerScreen()
-  }, 600)
+  setTimeout(updateCustomerScreen, 600)
 }
 
-function enterFullscreen() {
-  document.documentElement.requestFullscreen().catch(() => {})
+function toggleFullscreen() {
+  if (document.fullscreenElement) {
+    document.exitFullscreen?.()
+  } else {
+    document.documentElement.requestFullscreen?.().catch(() => {})
+  }
 }
 
 function onFullscreenChange() {
@@ -685,73 +640,78 @@ function onFullscreenChange() {
 }
 
 async function printThermalReceipt() {
+  const data = [
+    "\x1B\x40",
+    "Palm Guesthouse\n",
+    "------------------------\n",
+    `Room: ${selectedRoom.value?.room_number || "-"}\n`,
+    `Guest: ${selectedGuest.value ? `${selectedGuest.value.first_name} ${selectedGuest.value.last_name}` : "-"}\n`,
+    `Total: $${formatMoney(totals.value.final_amount, 2)}\n`,
+    "------------------------\n",
+    "\n\n\n",
+    "\x1D\x56\x41\x10",
+  ]
+
   try {
-    if (!qz.websocket.isActive()) {
-      await qz.websocket.connect()
-    }
-
-    const config = qz.configs.create('Thermal Printer')
-
-    
-
+    if (!qz?.websocket?.isActive?.()) await qz.websocket.connect()
+    const config = qz.configs.create("Thermal Printer")
     await qz.print(config, data)
   } catch (err) {
     console.error(err)
-    showToast('Cannot connect to printer. Check QZ Tray & printer name.', 'error')
+    alert("Cannot connect to printer. Check QZ Tray + printer name.")
   }
 }
 
 async function confirmBooking() {
-  if (!selectedRoom.value) return showToast('Please select a room', 'error')
-  if (!selectedGuest.value) return showToast('Please select a guest', 'error')
+  if (!selectedRoom.value) return alert("Please select a room.")
+  if (!selectedGuest.value) return alert("Please select a guest.")
 
   await printThermalReceipt()
-  showToast('Booking confirmed! Receipt printed.', 'success')
 
   const r = rooms.value.find(x => x.room_id === selectedRoom.value.room_id)
-  if (r) r.status = 'occupied'
+  if (r) r.status = "occupied"
 
-  setTimeout(resetPOS, 1500)
+  setTimeout(resetPOS, 400)
 }
 
 function resetPOS() {
   selectedRoom.value = null
   selectedGuest.value = null
-  searchQuery.value = ''
+  searchQuery.value = ""
   foundGuests.value = []
-  booking.type = 'night'
+
+  booking.type = "night"
   booking.discount_amount = 0
   booking.hours = 3
-  booking.check_in_date = new Date().toISOString().slice(0, 10)
-  booking.check_in_time = new Date().toTimeString().slice(0, 5)
+  booking.check_in_date = todayISO()
+  booking.check_out_date = todayISO()
+  booking.check_in_time = nowHHMM()
 
   updateCustomerScreen()
 }
 
-function showToast(message, type = 'success') {
-  toast.value = { message, type }
-  setTimeout(() => (toast.value = null), 3000)
-}
-
-// ===============================
-// LIFECYCLE
-// ===============================
 onMounted(() => {
   updateCustomerScreen()
-  document.addEventListener('fullscreenchange', onFullscreenChange)
+  document.addEventListener("fullscreenchange", onFullscreenChange)
 })
 
 onBeforeUnmount(() => {
-  if (customerWindow.value && !customerWindow.value.closed) {
-    customerWindow.value.close()
-  }
-  document.removeEventListener('fullscreenchange', onFullscreenChange)
+  if (customerWindow.value && !customerWindow.value.closed) customerWindow.value.close()
+  document.removeEventListener("fullscreenchange", onFullscreenChange)
 })
 </script>
 
 <style scoped>
-.custom-scrollbar::-webkit-scrollbar { width: 8px; }
-.custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
-.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
+/* Make Vuestic buttons BIGGER in header */
+.pos-btn {
+  height: 44px !important;
+  border-radius: 14px !important;
+  font-weight: 900 !important;
+  padding: 0 14px !important;
+}
+.pos-btn-icon {
+  height: 44px !important;
+  width: 44px !important;
+  border-radius: 14px !important;
+}
 </style>

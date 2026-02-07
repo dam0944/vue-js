@@ -1,47 +1,165 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gray-100">
-    <div class="w-full max-w-md bg-white p-8 rounded-2xl shadow-lg">
+  <div class="login-form">
+    <!-- Title -->
+    <div class="head">
+      <h2 class="title">{{ t("auth.login.title") }}</h2>
+      <p class="sub">{{ t("auth.login.subtitle") }}</p>
+    </div>
 
-      <h2 class="text-2xl font-bold text-center mb-2">Welcome Back</h2>
-      <p class="text-center text-gray-500 mb-6">
-        Sign in to your account
-      </p>
+    <VaForm class="form" @submit.prevent="login">
+      <!-- Phone row -->
+      <div class="phone-row">
+        <VaSelect
+          v-model="countryCode"
+          :options="codes"
+          text-by="label"
+          value-by="value"
+          class="code"
+          :label="t('auth.login.code')"
+        />
 
-      <div class="space-y-5">
-        <PhoneInput @update="phone = $event" />
-        <PasswordInput @update="password = $event" />
-
-        <button
-          @click="login"
-          class="w-full mt-4 bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold transition"
+        <VaInput
+          v-model="phone"
+          class="phone"
+          :label="t('auth.login.phone')"
+          :placeholder="t('auth.login.phone_placeholder')"
+          inputmode="numeric"
         >
-          Login
-        </button>
-
-        <!-- Forgot password -->
-        <div class="text-center">
-          <router-link
-            to="/forgot"
-            class="text-sm text-green-600 hover:text-green-700 hover:underline"
-          >
-            Forgot your password?
-          </router-link>
-        </div>
+          <template #prependInner>
+            <VaIcon name="call" color="secondary" />
+          </template>
+        </VaInput>
       </div>
 
-    </div>
+      <!-- Password -->
+      <VaInput
+        v-model="password"
+        :type="showPassword ? 'text' : 'password'"
+        :label="t('auth.login.password')"
+        :placeholder="t('auth.login.password_placeholder')"
+        default-value=""
+      >
+        <template #prependInner>
+          <VaIcon name="lock" color="secondary" />
+        </template>
+
+        <!-- Better eye icon -->
+        <template #appendInner>
+          <VaButton
+            preset="plain"
+            class="eye-btn"
+            type="button"
+            @click="showPassword = !showPassword"
+            :aria-label="showPassword ? t('auth.login.hide_password') : t('auth.login.show_password')"
+          >
+            <VaIcon :name="showPassword ? 'visibility_off' : 'visibility'" />
+          </VaButton>
+        </template>
+      </VaInput>
+
+      <!-- Button (always visible) -->
+      <VaButton
+        to="/admin/dashboard"
+        class="btn"
+        type="submit"
+        color="primary"
+        size="large"
+        block
+      >
+        {{ t("auth.login.submit") }}
+      </VaButton>
+
+      <!-- Forgot -->
+      <div class="footer">
+        <router-link to="/forgot" class="forgot">
+          {{ t("auth.login.forgot") }}
+        </router-link>
+      </div>
+    </VaForm>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import PhoneInput from '@/components/auth/PhoneInput.vue'
-import PasswordInput from '@/components/auth/PasswordInput.vue'
+import { ref } from "vue";
+import { t } from "@/i18n"; // <-- IMPORTANT: use i18next t()
 
-const phone = ref('')
-const password = ref('')
+const countryCode = ref("+855");
+const phone = ref("");
+const password = ref("");
+const showPassword = ref(false);
+
+const codes = [
+  { label: "🇰🇭 +855", value: "+855" },
+  { label: "🇹🇭 +66", value: "+66" },
+  { label: "🇻🇳 +84", value: "+84" },
+  { label: "🇺🇸 +1", value: "+1" },
+];
 
 function login() {
-  console.log(phone.value, password.value)
+  console.log("LOGIN:", countryCode.value, phone.value, password.value);
 }
 </script>
+
+<style scoped>
+.login-form { width: 100%; }
+
+/* title */
+.head { margin-bottom: 18px; }
+.title {
+  font-size: 30px;
+  font-weight: 900;
+  margin: 0;
+  color: #0f172a;
+}
+.sub {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
+/* form spacing */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* phone row */
+.phone-row {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 10px;
+}
+
+/* button */
+.btn {
+  margin-top: 6px;
+  border-radius: 12px;
+  font-weight: 800;
+}
+
+/* eye button inside input */
+.eye-btn {
+  min-width: 34px;
+  height: 34px;
+  border-radius: 10px;
+}
+
+/* footer */
+.footer {
+  display: flex;
+  justify-content: center;
+  margin-top: 6px;
+}
+.forgot {
+  color: #0ea5e9;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.forgot:hover { text-decoration: underline; }
+
+@media (max-width: 420px) {
+  .phone-row { grid-template-columns: 1fr; }
+}
+</style>

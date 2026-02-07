@@ -1,671 +1,422 @@
-<script setup>
-import { ref, computed, nextTick, watch } from "vue"
-import $ from "jquery"
-import { reports_occupancy as seed } from "@/data/report/reports_occupancy"
-
-const rows = ref(seed.map((x) => ({ ...x })))
-
-// filters
-const q = ref("")
-const from = ref("")
-const to = ref("")
-const sort = ref("date_desc")
-
-const safe = (v) => (v ?? "").toString().toLowerCase()
-const num = (v) => Number(v || 0)
-const pct = (v) => `${Number(v || 0).toFixed(1)}%`
-const money = (v, cur = "USD") => `${cur} ${Number(v || 0).toFixed(2)}`
-
-function inRange(dateStr) {
-  if (!dateStr) return false
-  const d = new Date(dateStr + "T00:00:00")
-  const f = from.value ? new Date(from.value + "T00:00:00") : null
-  const t = to.value ? new Date(to.value + "T23:59:59") : null
-  if (f && d < f) return false
-  if (t && d > t) return false
-  return true
-}
-
-const filtered = computed(() => {
-  const key = safe(q.value)
-
-  let list = rows.value.filter((r) => {
-    const hit =
-      !key ||
-      safe(r.report_date).includes(key) ||
-      safe(r.report_id).includes(key)
-
-    const okFromTo = (!from.value && !to.value) || inRange(r.report_date)
-    return hit && okFromTo
-  })
-
-  if (sort.value === "date_desc") list.sort((a, b) => (b.report_date || "").localeCompare(a.report_date || ""))
-  if (sort.value === "date_asc") list.sort((a, b) => (a.report_date || "").localeCompare(b.report_date || ""))
-  if (sort.value === "occ_desc") list.sort((a, b) => num(b.occupancy_rate) - num(a.occupancy_rate))
-  if (sort.value === "rev_desc") list.sort((a, b) => num(b.total_revenue) - num(a.total_revenue))
-
-  return list
-})
-
-// summary stats (based on filtered)
-const stats = computed(() => {
-  const list = filtered.value
-  const days = list.length
-
-  const totalRooms = days ? list[0].total_rooms : 0
-  const avgOcc = days ? Math.round((list.reduce((s, r) => s + num(r.occupancy_rate), 0) / days) * 10) / 10 : 0
-  const avgADR = days ? Math.round((list.reduce((s, r) => s + num(r.adr), 0) / days) * 100) / 100 : 0
-  const avgRevPAR = days ? Math.round((list.reduce((s, r) => s + num(r.revpar), 0) / days) * 100) / 100 : 0
-
-  const totalRevenue = list.reduce((s, r) => s + num(r.total_revenue), 0)
-  const roomRevenue = list.reduce((s, r) => s + num(r.room_revenue), 0)
-  const otherRevenue = list.reduce((s, r) => s + num(r.other_revenue), 0)
-
-  const totalCheckins = list.reduce((s, r) => s + num(r.total_checkins), 0)
-  const totalCheckouts = list.reduce((s, r) => s + num(r.total_checkouts), 0)
-
-  return {
-    days,
-    totalRooms,
-    avgOcc,
-    avgADR,
-    avgRevPAR,
-    totalRevenue,
-    roomRevenue,
-    otherRevenue,
-    totalCheckins,
-    totalCheckouts,
-  }
-})
-
-// slideDown detail drawer
-const open = ref(false)
-const selected = ref(null)
-const drawerRef = ref(null)
-
-function slideDownDrawer() {
-  nextTick(() => {
-    const el = drawerRef.value
-    if (!el) return
-    $(el).stop(true, true).css("display", "none").slideDown(240)
-  })
-}
-function slideUpDrawer(cb) {
-  const el = drawerRef.value
-  if (!el) return cb?.()
-  $(el).stop(true, true).slideUp(200, () => cb?.())
-}
-
-function viewRow(r) {
-  selected.value = r
-  open.value = true
-  slideDownDrawer()
-}
-function close() {
-  slideUpDrawer(() => {
-    open.value = false
-    selected.value = null
-  })
-}
-
-watch(open, (v) => (document.body.style.overflow = v ? "hidden" : ""))
-
-// export csv
-function exportCSV() {
-  const data = filtered.value || []
-  if (!data.length) return alert("No data to export.")
-
-  const headers = [
-    "report_date",
-    "total_rooms",
-    "occupied_rooms",
-    "available_rooms",
-    "reserved_rooms",
-    "maintenance_rooms",
-    "occupancy_rate",
-    "total_revenue",
-    "room_revenue",
-    "other_revenue",
-    "total_checkins",
-    "total_checkouts",
-    "total_reservations",
-    "adr",
-    "revpar",
-  ]
-
-  const esc = (v) => `"${String(v ?? "").replaceAll('"', '""')}"`
-  const body = data.map((r) => [
-    r.report_date,
-    r.total_rooms,
-    r.occupied_rooms,
-    r.available_rooms,
-    r.reserved_rooms,
-    r.maintenance_rooms,
-    r.occupancy_rate,
-    r.total_revenue,
-    r.room_revenue,
-    r.other_revenue,
-    r.total_checkins,
-    r.total_checkouts,
-    r.total_reservations,
-    r.adr,
-    r.revpar,
-  ])
-
-  const csv = [headers.join(","), ...body.map((row) => row.map(esc).join(","))].join("\n")
-
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
-  const url = URL.createObjectURL(blob)
-
-  const a = document.createElement("a")
-  a.href = url
-  a.download = `occupancy-report-${new Date().toISOString().slice(0, 10)}.csv`
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  URL.revokeObjectURL(url)
-}
-
-// small helpers for bars
-const clampPct = (n) => Math.max(0, Math.min(100, Number(n || 0)))
-const barStyle = (n) => ({ width: `${clampPct(n)}%` })
-</script>
-
+<!-- src/pages/reports/ReportsOccupancy.vue -->
 <template>
   <div class="page">
-    <!-- header -->
-    <div class="head">
+    <!-- Header -->
+    <div class="header">
       <div>
-        <h1>Occupancy Report</h1>
-        <p>Daily occupancy • rooms status • ADR/RevPAR • slide-down details</p>
+        <h1 class="title">Reports · Occupancy</h1>
+        <p class="subtitle">
+          Track occupancy rate, available vs occupied rooms, and room-type performance.
+        </p>
       </div>
 
-      <div class="headBtns">
-        <VaButton preset="secondary" icon="refresh" @click="q=''; from=''; to=''; sort='date_desc'">
-          Reset
-        </VaButton>
-        <VaButton color="primary" icon="download" @click="exportCSV">
-          Export
-        </VaButton>
-      </div>
-    </div>
-
-    <!-- summary -->
-    <div class="stats">
-      <div class="stat">
-        <div class="k">Days</div>
-        <div class="v">{{ stats.days }}</div>
-      </div>
-      <div class="stat blue">
-        <div class="k">Avg Occupancy</div>
-        <div class="v">{{ stats.avgOcc }}%</div>
-      </div>
-      <div class="stat ok">
-        <div class="k">Total Revenue</div>
-        <div class="v">{{ money(stats.totalRevenue) }}</div>
-      </div>
-      <div class="stat">
-        <div class="k">Avg ADR</div>
-        <div class="v">{{ money(stats.avgADR) }}</div>
-      </div>
-      <div class="stat">
-        <div class="k">Avg RevPAR</div>
-        <div class="v">{{ money(stats.avgRevPAR) }}</div>
+      <div class="actions">
+        <VaSelect
+          v-model="range"
+          :options="rangeOptions"
+          size="small"
+          class="control"
+          label="Range"
+        />
+        <VaInput
+          v-model="typeSearch"
+          size="small"
+          class="control"
+          placeholder="Search room type..."
+          clearable
+        >
+          <template #prependInner>
+            <VaIcon name="search" color="primary" />
+          </template>
+        </VaInput>
       </div>
     </div>
 
-    <!-- filters -->
-    <VaCard class="filters">
-      <VaInput v-model="q" placeholder="Search date / report id..." />
-      <VaInput v-model="from" type="date" label="From" />
-      <VaInput v-model="to" type="date" label="To" />
-      <VaSelect
-        v-model="sort"
-        :options="[
-          { text: 'Date (Newest)', value: 'date_desc' },
-          { text: 'Date (Oldest)', value: 'date_asc' },
-          { text: 'Occupancy (High)', value: 'occ_desc' },
-          { text: 'Revenue (High)', value: 'rev_desc' },
-        ]"
-        text-by="text"
-        value-by="value"
-        label="Sort"
-      />
-    </VaCard>
+    <!-- Summary Cards -->
+    <div class="cards">
+      <div class="card">
+        <div class="card-top">
+          <div class="card-label">Occupancy</div>
+          <VaChip color="primary" size="small" square>{{ formatPct(summary.occupancy_rate) }}</VaChip>
+        </div>
 
-    <!-- table -->
-    <VaCard class="tableCard">
-      <div class="tableWrap">
-        <table class="tbl">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Total</th>
-              <th>Occupied</th>
-              <th>Available</th>
-              <th>Reserved</th>
-              <th>Maintenance</th>
-              <th>Occ%</th>
-              <th class="right">Revenue</th>
-              <th class="right">ADR</th>
-              <th class="right">RevPAR</th>
-              <th class="right">Action</th>
-            </tr>
-          </thead>
+        <div class="card-value">{{ formatPct(summary.occupancy_rate) }}</div>
 
-          <tbody>
-            <tr v-if="filtered.length === 0">
-              <td colspan="11" class="empty">No reports found.</td>
-            </tr>
-
-            <tr v-for="r in filtered" :key="r.report_id">
-              <td class="mono">{{ r.report_date }}</td>
-
-              <td>{{ r.total_rooms }}</td>
-              <td>{{ r.occupied_rooms }}</td>
-              <td>{{ r.available_rooms }}</td>
-              <td>{{ r.reserved_rooms }}</td>
-              <td>{{ r.maintenance_rooms }}</td>
-
-              <td>
-                <div class="occCell">
-                  <span class="badge">{{ pct(r.occupancy_rate) }}</span>
-                  <div class="bar">
-                    <div class="fill" :style="barStyle(r.occupancy_rate)"></div>
-                  </div>
-                </div>
-              </td>
-
-              <td class="right">
-                <div class="main">{{ money(r.total_revenue) }}</div>
-                <div class="sub">Room: {{ money(r.room_revenue) }} • Other: {{ money(r.other_revenue) }}</div>
-              </td>
-
-              <td class="right mono">{{ money(r.adr) }}</td>
-              <td class="right mono">{{ money(r.revpar) }}</td>
-
-              <td class="right">
-                <VaButton size="small" preset="secondary" @click="viewRow(r)">View</VaButton>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </VaCard>
-
-    <!-- slideDown detail drawer -->
-    <Teleport to="body">
-      <div v-if="open" class="overlay" @click="close">
-        <div class="drawer" @click.stop>
-          <header class="drawerHead">
-            <div>
-              <div class="drawerTitle">Report Details</div>
-              <div class="drawerSub">{{ selected?.report_date || "-" }}</div>
-            </div>
-            <VaButton preset="secondary" icon="close" @click="close">Close</VaButton>
-          </header>
-
-          <section class="drawerBody">
-            <div ref="drawerRef" class="drawerInner">
-              <div v-if="selected" class="detailGrid">
-                <div class="box">
-                  <div class="t">Occupancy</div>
-                  <div class="big">{{ pct(selected.occupancy_rate) }}</div>
-                  <div class="muted">
-                    {{ selected.occupied_rooms }}/{{ selected.total_rooms }} rooms occupied
-                  </div>
-                </div>
-
-                <div class="box">
-                  <div class="t">Rooms Status</div>
-                  <div class="line"><b>Available:</b> {{ selected.available_rooms }}</div>
-                  <div class="line"><b>Reserved:</b> {{ selected.reserved_rooms }}</div>
-                  <div class="line"><b>Maintenance:</b> {{ selected.maintenance_rooms }}</div>
-                </div>
-
-                <div class="box">
-                  <div class="t">Revenue</div>
-                  <div class="big">{{ money(selected.total_revenue) }}</div>
-                  <div class="muted">
-                    Room: {{ money(selected.room_revenue) }} • Other: {{ money(selected.other_revenue) }}
-                  </div>
-                </div>
-
-                <div class="box">
-                  <div class="t">KPIs</div>
-                  <div class="line"><b>ADR:</b> {{ money(selected.adr) }}</div>
-                  <div class="line"><b>RevPAR:</b> {{ money(selected.revpar) }}</div>
-                </div>
-
-                <div class="box wide">
-                  <div class="t">Activity</div>
-                  <div class="chips">
-                    <span class="chip">Check-ins • {{ selected.total_checkins }}</span>
-                    <span class="chip">Check-outs • {{ selected.total_checkouts }}</span>
-                    <span class="chip">Reservations • {{ selected.total_reservations }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <footer class="drawerFoot">
-            <VaButton preset="secondary" @click="close">Close</VaButton>
-          </footer>
+        <div class="card-bottom">
+          <VaProgressBar
+            :model-value="clamp(summary.occupancy_rate, 0, 100)"
+            color="primary"
+            size="small"
+          />
+          <div class="mini">
+            <span>Occupied: <b>{{ summary.occupied_rooms }}</b></span>
+            <span class="dot"></span>
+            <span>Available: <b>{{ summary.available_rooms }}</b></span>
+          </div>
         </div>
       </div>
-    </Teleport>
+
+      <div class="card">
+        <div class="card-top">
+          <div class="card-label">Total Rooms</div>
+          <VaIcon name="meeting_room" color="primary" />
+        </div>
+        <div class="card-value">{{ summary.total_rooms }}</div>
+        <div class="mini">
+          <span>Cleaning: <b>{{ summary.cleaning_rooms }}</b></span>
+          <span class="dot"></span>
+          <span>Maintenance: <b>{{ summary.maintenance_rooms }}</b></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-top">
+          <div class="card-label">Out of Order</div>
+          <VaIcon name="error" color="danger" />
+        </div>
+        <div class="card-value">{{ summary.out_of_order_rooms }}</div>
+        <div class="mini">
+          <span>Blocked: <b>{{ summary.blocked_rooms }}</b></span>
+          <span class="dot"></span>
+          <span>Occupied: <b>{{ summary.occupied_rooms }}</b></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Daily Occupancy -->
+    <div class="section">
+      <div class="section-head">
+        <div>
+          <h2 class="section-title">Daily Occupancy</h2>
+          <p class="section-subtitle">Recent days overview.</p>
+        </div>
+      </div>
+
+      <VaDataTable
+        :items="dailyRows"
+        :columns="dailyColumns"
+        striped
+        hoverable
+        class="table"
+      >
+        <template #cell(occupancy_rate)="{ value }">
+          <div class="cell-flex">
+            <VaProgressBar :model-value="clamp(value, 0, 100)" color="primary" size="small" class="bar" />
+            <span class="pct">{{ formatPct(value) }}</span>
+          </div>
+        </template>
+
+        <template #cell(occupied_rooms)="{ value }">
+          <VaChip color="primary" size="small" square>{{ value }}</VaChip>
+        </template>
+
+        <template #cell(available_rooms)="{ value }">
+          <VaChip color="success" size="small" square>{{ value }}</VaChip>
+        </template>
+      </VaDataTable>
+    </div>
+
+    <!-- Room Type Occupancy -->
+    <div class="section">
+      <div class="section-head">
+        <div>
+          <h2 class="section-title">Room Type Performance</h2>
+          <p class="section-subtitle">Compare occupancy rate by room type.</p>
+        </div>
+      </div>
+
+      <VaDataTable
+        :items="filteredTypes"
+        :columns="typeColumns"
+        striped
+        hoverable
+        class="table"
+      >
+        <template #cell(occupancy_rate)="{ value }">
+          <div class="cell-flex">
+            <VaProgressBar :model-value="clamp(value, 0, 100)" color="primary" size="small" class="bar" />
+            <span class="pct">{{ formatPct(value) }}</span>
+          </div>
+        </template>
+
+        <template #cell(status)="{ value }">
+          <VaChip :color="value === 'active' ? 'success' : 'secondary'" size="small" square>
+            {{ value }}
+          </VaChip>
+        </template>
+      </VaDataTable>
+    </div>
   </div>
 </template>
 
-<style scoped>
-.page {
-  padding: 20px 24px;
-  background: #f6f8fb;
-  min-height: 100vh;
+<script setup>
+import { computed, ref, unref } from "vue"
+import { reports_occupancy as reportsOccupancy } from "@/data/report/reports_occupancy"
+
+/* ✅ You were missing these */
+const rangeOptions = ["Last 7 days", "Last 14 days", "Last 30 days"]
+const range = ref("Last 7 days")
+const typeSearch = ref("")
+
+/* ✅ Column definitions were missing */
+const dailyColumns = [
+  { key: "date", label: "Date", sortable: true },
+  { key: "total_rooms", label: "Total", sortable: true },
+  { key: "occupied_rooms", label: "Occupied", sortable: true },
+  { key: "available_rooms", label: "Available", sortable: true },
+  { key: "cleaning_rooms", label: "Cleaning", sortable: true },
+  { key: "maintenance_rooms", label: "Maintenance", sortable: true },
+  { key: "out_of_order_rooms", label: "Out of Order", sortable: true },
+  { key: "occupancy_rate", label: "Rate", sortable: true },
+]
+
+const typeColumns = [
+  { key: "type_code", label: "Code", sortable: true },
+  { key: "type_name", label: "Room Type", sortable: true },
+  { key: "room_class", label: "Class", sortable: true },
+  { key: "total_rooms", label: "Total", sortable: true },
+  { key: "occupied_rooms", label: "Occupied", sortable: true },
+  { key: "occupancy_rate", label: "Rate", sortable: true },
+  { key: "status", label: "Status", sortable: true },
+]
+
+/**
+ * ✅ IMPORTANT: sometimes decimals come as "54.17" (string)
+ * sometimes as null, "" or even "54,17"
+ * This helper normalizes everything to a real number.
+ */
+function toNumber(v) {
+  if (v === null || v === undefined) return 0
+  if (typeof v === "number") return Number.isFinite(v) ? v : 0
+  const cleaned = String(v).replace(",", ".") // handle "54,17"
+  const n = parseFloat(cleaned)
+  return Number.isFinite(n) ? n : 0
+}
+function clamp(n, min, max) {
+  const x = toNumber(n)
+  return Math.min(max, Math.max(min, x))
+}
+function formatPct(v) {
+  return `${toNumber(v).toFixed(1)}%`
 }
 
-.head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 14px;
-  margin-bottom: 14px;
+/**
+ * ✅ Make sure report works whether it's:
+ *  - a plain object: export const reports_occupancy = {...}
+ *  - a ref: export const reports_occupancy = ref({...})
+ */
+const report = computed(() => unref(reportsOccupancy) || {})
+
+/* Summary */
+const summary = computed(() => {
+  const s = report.value.summary || {}
+  return {
+    property_id: s.property_id ?? null,
+    property_name: s.property_name ?? "-",
+    total_rooms: toNumber(s.total_rooms),
+    available_rooms: toNumber(s.available_rooms),
+    occupied_rooms: toNumber(s.occupied_rooms),
+    cleaning_rooms: toNumber(s.cleaning_rooms),
+    maintenance_rooms: toNumber(s.maintenance_rooms),
+    out_of_order_rooms: toNumber(s.out_of_order_rooms),
+    blocked_rooms: toNumber(s.blocked_rooms),
+    occupancy_rate: toNumber(s.occupancy_rate),
+    as_of_date: s.as_of_date ?? "-",
+  }
+})
+
+/* Daily rows */
+const dailyRows = computed(() => {
+  const rows = report.value.daily_occupancy || []
+  return rows.map((d) => ({
+    ...d,
+    total_rooms: toNumber(d.total_rooms),
+    occupied_rooms: toNumber(d.occupied_rooms),
+    available_rooms: toNumber(d.available_rooms),
+    cleaning_rooms: toNumber(d.cleaning_rooms),
+    maintenance_rooms: toNumber(d.maintenance_rooms),
+    out_of_order_rooms: toNumber(d.out_of_order_rooms),
+    occupancy_rate: toNumber(d.occupancy_rate),
+  }))
+})
+
+/* Room type table */
+const filteredTypes = computed(() => {
+  const q = typeSearch.value.trim().toLowerCase()
+  const rows = report.value.room_type_occupancy || []
+
+  return rows
+    .map((t) => ({
+      ...t,
+      total_rooms: toNumber(t.total_rooms),
+      occupied_rooms: toNumber(t.occupied_rooms),
+      occupancy_rate: toNumber(t.occupancy_rate),
+    }))
+    .filter((t) => {
+      if (!q) return true
+      return (
+        String(t.type_name || "").toLowerCase().includes(q) ||
+        String(t.type_code || "").toLowerCase().includes(q) ||
+        String(t.room_class || "").toLowerCase().includes(q)
+      )
+    })
+})
+</script>
+
+<style scoped>
+.page {
+  min-height: 100vh;
+  background: #ffffff;
+  padding: 18px;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
 }
-.head h1 {
-  font-size: 22px;
+
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 6px 16px;
+  border-bottom: 1px solid rgba(2, 6, 23, 0.06);
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
   font-weight: 900;
   color: #0f172a;
-  margin: 0;
 }
-.head p {
+
+.subtitle {
   margin: 6px 0 0;
   font-size: 13px;
-  color: #475569;
+  color: #64748b;
 }
-.headBtns {
-  display: inline-flex;
+
+.actions {
+  display: flex;
   gap: 10px;
+  align-items: center;
   flex-wrap: wrap;
 }
 
-/* summary stats */
-.stats {
+.control {
+  min-width: 160px;
+}
+
+.cards {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
-  margin-bottom: 14px;
+  padding: 16px 6px 8px;
 }
-@media (max-width: 1050px) {
-  .stats {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-@media (max-width: 520px) {
-  .stats {
-    grid-template-columns: 1fr;
-  }
-}
-.stat {
+
+.card {
   background: #fff;
-  border: 1px solid #eef2f6;
+  border: 1px solid rgba(2, 6, 23, 0.06);
   border-radius: 14px;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
   padding: 14px;
-}
-.stat .k {
-  font-size: 12px;
-  color: #64748b;
-  font-weight: 900;
-}
-.stat .v {
-  margin-top: 6px;
-  font-size: 20px;
-  font-weight: 950;
-  color: #0f172a;
-}
-.stat.ok {
-  background: #f0fdf4;
-  border-color: #bbf7d0;
-}
-.stat.blue {
-  background: #eff6ff;
-  border-color: #bfdbfe;
+  box-shadow: 0 6px 18px rgba(2, 6, 23, 0.06);
 }
 
-/* filters */
-.filters {
-  background: #fff;
-  border: 1px solid #eef2f6;
-  border-radius: 14px;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
-  padding: 14px;
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-@media (max-width: 1000px) {
-  .filters {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-@media (max-width: 520px) {
-  .filters {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* table */
-.tableCard {
-  border-radius: 14px;
-  border: 1px solid #eef2f6;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
-}
-.tableWrap {
-  overflow-x: auto;
-}
-.tbl {
-  width: 100%;
-  border-collapse: collapse;
-  background: #fff;
-}
-.tbl th {
-  text-align: left;
-  padding: 12px 14px;
-  font-size: 12px;
-  color: #475569;
-  border-bottom: 1px solid #eef2f6;
-  background: #fbfcfe;
-  white-space: nowrap;
-}
-.tbl td {
-  padding: 12px 14px;
-  border-bottom: 1px solid #f1f5f9;
-  vertical-align: top;
-}
-.tbl tr:hover td {
-  background: #fafcff;
-}
-.right {
-  text-align: right;
-}
-.main {
-  font-weight: 900;
-  color: #0f172a;
-  font-size: 13px;
-}
-.sub {
-  margin-top: 4px;
-  font-size: 12px;
-  color: #64748b;
-}
-.mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size: 12px;
-  color: #334155;
-  white-space: nowrap;
-}
-.empty {
-  text-align: center;
-  padding: 20px !important;
-  font-weight: 800;
-  color: #64748b;
-}
-
-/* occ cell */
-.occCell {
-  display: grid;
-  gap: 8px;
-}
-.badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 900;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
-  color: #334155;
-  width: fit-content;
-}
-.bar {
-  height: 8px;
-  border-radius: 999px;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
-  overflow: hidden;
-}
-.fill {
-  height: 100%;
-  background: #1d4ed8;
-  border-radius: 999px;
-}
-
-/* overlay + drawer */
-.overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 99999;
-  background: rgba(15, 23, 42, 0.45);
-  display: grid;
-  place-items: center;
-  padding: 18px;
-}
-.drawer {
-  width: min(980px, 100%);
-  max-height: 95vh;
-  background: #fff;
-  border-radius: 16px;
-  border: 1px solid #eef2f6;
-  box-shadow: 0 30px 90px rgba(15, 23, 42, 0.22);
-  overflow: hidden;
-}
-.drawerHead {
-  padding: 14px 16px;
-  border-bottom: 1px solid #eef2f6;
-  background: #fbfcfe;
+.card-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  margin-bottom: 8px;
 }
-.drawerTitle {
+
+.card-label {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.card-value {
+  font-size: 26px;
+  font-weight: 950;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+  margin-bottom: 10px;
+}
+
+.card-bottom {
+  display: grid;
+  gap: 8px;
+}
+
+.mini {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: #64748b;
+}
+.mini b {
+  color: #0f172a;
+}
+.dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(100, 116, 139, 0.5);
+}
+
+.section {
+  padding: 14px 6px;
+}
+
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 10px;
+}
+
+.section-title {
+  margin: 0;
   font-size: 16px;
   font-weight: 900;
   color: #0f172a;
 }
-.drawerSub {
-  margin-top: 2px;
+
+.section-subtitle {
+  margin: 4px 0 0;
   font-size: 12px;
   color: #64748b;
 }
-.drawerBody {
-  padding: 16px;
-  overflow: auto;
-  max-height: calc(92vh - 118px);
+
+.table {
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(2, 6, 23, 0.06);
+  box-shadow: 0 6px 18px rgba(2, 6, 23, 0.06);
 }
-.drawerFoot {
-  padding: 14px 16px;
-  border-top: 1px solid #eef2f6;
+
+.cell-flex {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
   gap: 10px;
-  background: #fff;
+  min-width: 220px;
 }
 
-/* drawerInner slide target */
-.drawerInner {
-  display: none; /* jQuery slideDown target */
+.bar {
+  flex: 1;
 }
 
-/* details */
-.detailGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+.pct {
+  font-weight: 900;
+  font-size: 12px;
+  color: #0f172a;
 }
-@media (max-width: 760px) {
-  .detailGrid {
+
+@media (max-width: 1024px) {
+  .cards {
     grid-template-columns: 1fr;
   }
-}
-.box {
-  border: 1px solid #eef2f6;
-  border-radius: 14px;
-  background: #fbfcfe;
-  padding: 14px;
-}
-.box.wide {
-  grid-column: 1 / -1;
-}
-.t {
-  font-size: 12px;
-  color: #64748b;
-  font-weight: 800;
-  margin-bottom: 8px;
-}
-.big {
-  font-size: 22px;
-  font-weight: 950;
-  color: #0f172a;
-}
-.muted {
-  color: #64748b;
-  font-weight: 800;
-  margin-top: 6px;
-}
-.line {
-  margin: 6px 0;
-  color: #0f172a;
-  font-weight: 800;
-}
-.chips {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 900;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
-  color: #334155;
-}
-
-/* vuestic polish */
-:deep(.va-input__container),
-:deep(.va-select__container) {
-  border-radius: 10px;
-  background: #f9fafb;
-}
-:deep(.va-button) {
-  border-radius: 10px;
-  font-weight: 800;
+  .control {
+    min-width: 220px;
+  }
 }
 </style>

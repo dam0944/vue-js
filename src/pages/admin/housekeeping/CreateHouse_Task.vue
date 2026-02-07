@@ -1,467 +1,214 @@
-<script setup>
-import { reactive, computed } from "vue"
-import { useRoute } from "vue-router"
-
-const route = useRoute()
-const assignedStaff = route.query.staff || "" // from ?staff=12
-
-const form = reactive({
-  room_id: "",
-  assigned_to: assignedStaff, // ✅ only once
-  task_date: "",
-  task_type: "daily_cleaning",
-  priority: "normal",
-  status: "pending",
-  started_at: "",
-  completed_at: "",
-  notes: "",
-})
-
-const typeOptions = [
-  "checkout_cleaning",
-  "daily_cleaning",
-  "deep_cleaning",
-  "turndown",
-  "inspection",
-]
-const priorityOptions = ["low", "normal", "high", "urgent"]
-const statusOptions = ["pending", "in_progress", "completed", "skipped"]
-
-const label = (s) => (s ? s.replaceAll("_", " ").toUpperCase() : "-")
-
-const canSave = computed(() => {
-  return String(form.room_id).trim() && String(form.task_date).trim()
-})
-
-function submit() {
-  if (!canSave.value) return alert("Room ID and Task Date are required.")
-  console.log("create housekeeping task", JSON.parse(JSON.stringify(form)))
-  alert("Saved (demo). Check console.")
-}
-
-function reset() {
-  form.room_id = ""
-  form.task_date = ""
-  form.task_type = "daily_cleaning"
-  form.priority = "normal"
-  form.status = "pending"
-  form.assigned_to = assignedStaff // ✅ keep staff if passed in URL
-  form.started_at = ""
-  form.completed_at = ""
-  form.notes = ""
-}
-
-
-function exportCSV() {
-  const data = filtered.value || []
-  if (!data.length) return alert("No data to export.")
-
-  const headers = [
-    "staff_id",
-    "staff_name",
-    "role",
-    "total_tasks",
-    "completed_tasks",
-    "pending_tasks",
-    "skipped_tasks",
-    "on_time_rate",
-    "avg_minutes_per_task",
-    "last_activity",
-  ]
-
-  const esc = (v) => `"${String(v ?? "").replaceAll('"', '""')}"`
-  const rows = data.map((r) => [
-    r.staff_id,
-    r.staff_name,
-    r.role,
-    r.total_tasks,
-    r.completed_tasks,
-    r.pending_tasks,
-    r.skipped_tasks,
-    r.on_time_rate,
-    r.avg_minutes_per_task,
-    r.last_activity,
-  ])
-
-  const csv = [headers.join(","), ...rows.map((row) => row.map(esc).join(","))].join("\n")
-
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
-  const url = URL.createObjectURL(blob)
-
-  const a = document.createElement("a")
-  a.href = url
-  a.download = `housekeeping-performance-${new Date().toISOString().slice(0, 10)}.csv`
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  URL.revokeObjectURL(url)
-}
-
-</script>
-
 <template>
-  <div class="page">
-    <!-- header -->
-    <div class="head">
-      <div>
-        <h1>Create Housekeeping Task</h1>
-        <p>Fast create • clean layout • required fields highlighted</p>
+  <div class="min-h-[calc(100vh-60px)] bg-slate-50 px-4 py-5 sm:px-6">
+    <div class="mx-auto max-w-3xl">
+      <!-- Header -->
+      <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="material-icons text-slate-700">assignment</span>
+            <h1 class="text-lg font-extrabold text-slate-900 sm:text-xl">
+              {{ mode === "create" ? "Create Task" : "Edit Task" }}
+            </h1>
+          </div>
+          <p class="mt-1 text-sm text-slate-500">
+            Simple form, friendly spacing, no borders/shadows.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          class="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200"
+          @click="goBack"
+        >
+          Back
+        </button>
       </div>
 
-      <div class="headActions">
-        <VaButton preset="secondary" icon="refresh" @click="reset">Reset</VaButton>
-        <VaButton color="success" icon="save" :disabled="!canSave" @click="submit">
-          Save Task
-        </VaButton>
+      <!-- Form -->
+      <div class="mt-6 rounded-2xl bg-white p-4 sm:p-6">
+        <form class="space-y-4" @submit.prevent="save">
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field label="Property ID">
+              <input v-model.number="form.property_id" type="number" class="in" placeholder="1" />
+            </Field>
+
+            <Field label="Room ID">
+              <input v-model.number="form.room_id" type="number" class="in" placeholder="101" />
+            </Field>
+
+            <Field label="Task Type">
+              <select v-model="form.task_type" class="in">
+                <option value="cleaning">Cleaning</option>
+                <option value="maintenance">Maintenance</option>
+                <option value="inspection">Inspection</option>
+                <option value="deep_clean">Deep Clean</option>
+                <option value="turndown">Turndown</option>
+              </select>
+            </Field>
+
+            <Field label="Priority">
+              <select v-model="form.priority" class="in">
+                <option value="low">Low</option>
+                <option value="normal">Normal</option>
+                <option value="high">High</option>
+                <option value="urgent">Urgent</option>
+              </select>
+            </Field>
+
+            <Field label="Status">
+              <select v-model="form.status" class="in">
+                <option value="pending">Pending</option>
+                <option value="in_progress">In Progress</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </Field>
+
+            <Field label="Assigned To (user_id)">
+              <input v-model.number="form.assigned_to" type="number" class="in" placeholder="6" />
+            </Field>
+
+            <Field label="Assigned At">
+              <input v-model="form.assigned_at" type="text" class="in" placeholder="YYYY-MM-DD HH:mm:ss" />
+            </Field>
+
+            <Field label="Started At">
+              <input v-model="form.started_at" type="text" class="in" placeholder="YYYY-MM-DD HH:mm:ss or null" />
+            </Field>
+
+            <Field label="Completed At">
+              <input v-model="form.completed_at" type="text" class="in" placeholder="YYYY-MM-DD HH:mm:ss or null" />
+            </Field>
+
+            <Field label="Created By (user_id)">
+              <input v-model.number="form.created_by" type="number" class="in" placeholder="3" />
+            </Field>
+          </div>
+
+          <div class="grid grid-cols-1 gap-3">
+            <Field label="Notes">
+              <textarea v-model="form.notes" class="in min-h-[90px]" placeholder="Task notes..."></textarea>
+            </Field>
+
+            <Field label="Issues Found">
+              <textarea v-model="form.issues_found" class="in min-h-[80px]" placeholder="Damage, missing items, etc"></textarea>
+            </Field>
+
+            <Field label="Completion Notes">
+              <textarea v-model="form.completion_notes" class="in min-h-[80px]" placeholder="Work done summary..."></textarea>
+            </Field>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-end gap-2 pt-2">
+            <button
+              type="button"
+              class="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200"
+              @click="goBack"
+            >
+              Cancel
+            </button>
+
+            <button
+              type="submit"
+              class="rounded-full bg-slate-900 px-5 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+            >
+              {{ mode === "create" ? "Create" : "Save Changes" }}
+            </button>
+          </div>
+
+          <p class="text-xs text-slate-400">
+            *This is static demo form. Later you can connect API + validation.
+          </p>
+        </form>
       </div>
-    </div>
-
-    <div class="grid">
-      <!-- Left: main form -->
-      <VaCard class="card">
-        <div class="cardHead">
-          <div class="title">Task Information</div>
-          <div class="hint">Fields with * are required</div>
-        </div>
-
-        <div class="formGrid">
-          <VaInput v-model="form.room_id" label="Room ID *" placeholder="ex: 101" />
-
-          <VaInput v-model="form.task_date" type="date" label="Task Date *" />
-
-          <VaSelect
-            v-model="form.task_type"
-            :options="typeOptions"
-            :label="`Task Type (${label(form.task_type)})`"
-          />
-
-          <VaSelect
-            v-model="form.priority"
-            :options="priorityOptions"
-            :label="`Priority (${label(form.priority)})`"
-          />
-
-          <VaSelect
-            v-model="form.status"
-            :options="statusOptions"
-            :label="`Status (${label(form.status)})`"
-          />
-
-          <VaInput
-            v-model="form.assigned_to"
-            label="Assigned To (user_id)"
-            placeholder="ex: 3"
-          />
-
-          <VaInput
-            v-model="form.started_at"
-            label="Started At (optional)"
-            placeholder="YYYY-MM-DD HH:mm:ss"
-          />
-
-          <VaInput
-            v-model="form.completed_at"
-            label="Completed At (optional)"
-            placeholder="YYYY-MM-DD HH:mm:ss"
-          />
-
-          <VaTextarea
-            v-model="form.notes"
-            class="wide"
-            label="Notes"
-            :max-rows="4"
-            placeholder="Example: Change bedsheet, refill water, check bathroom..."
-          />
-        </div>
-
-        <div class="actions">
-          <VaButton preset="secondary" @click="reset">Cancel</VaButton>
-          <VaButton color="success" icon="save" :disabled="!canSave" @click="submit">
-            Save Task
-          </VaButton>
-        </div>
-      </VaCard>
-
-      <!-- Right: preview / helper -->
-      <VaCard class="card side">
-        <div class="cardHead">
-          <div class="title">Quick Preview</div>
-          <div class="hint">What you will save</div>
-        </div>
-
-        <div class="preview">
-          <div class="row">
-            <div class="k">Room</div>
-            <div class="v">{{ form.room_id || "-" }}</div>
-          </div>
-          <div class="row">
-            <div class="k">Date</div>
-            <div class="v mono">{{ form.task_date || "-" }}</div>
-          </div>
-          <div class="row">
-            <div class="k">Type</div>
-            <div class="v">
-              <span class="pill">{{ label(form.task_type) }}</span>
-            </div>
-          </div>
-          <div class="row">
-            <div class="k">Status</div>
-            <div class="v">
-              <span class="pill" :class="'st-' + form.status">{{ label(form.status) }}</span>
-            </div>
-          </div>
-          <div class="row">
-            <div class="k">Priority</div>
-            <div class="v">
-              <span class="pill" :class="'pr-' + form.priority">{{ label(form.priority) }}</span>
-            </div>
-          </div>
-
-          <div class="hr"></div>
-
-          <div class="row">
-            <div class="k">Assigned</div>
-            <div class="v">{{ form.assigned_to ? `User #${form.assigned_to}` : "-" }}</div>
-          </div>
-          <div class="row">
-            <div class="k">Started</div>
-            <div class="v mono">{{ form.started_at || "-" }}</div>
-          </div>
-          <div class="row">
-            <div class="k">Completed</div>
-            <div class="v mono">{{ form.completed_at || "-" }}</div>
-          </div>
-
-          <div class="hr"></div>
-
-          <div class="k">Notes</div>
-          <div class="note">{{ form.notes || "-" }}</div>
-        </div>
-
-        <div class="tips">
-          <div class="tipTitle">Tips</div>
-          <ul>
-            <li>Use <b>checkout_cleaning</b> when guest checked out.</li>
-            <li>Set status to <b>in_progress</b> when staff starts cleaning.</li>
-            <li>Set <b>urgent</b> priority for VIP rooms / fast turnover.</li>
-          </ul>
-        </div>
-      </VaCard>
     </div>
   </div>
 </template>
 
+<script setup>
+import { computed, reactive } from "vue";
+import { useRouter } from "vue-router";
+import { housekeepingTasks } from "@/data/housekeeping/housekeeping_Task";
+
+const props = defineProps({
+  mode: { type: String, required: true }, // "create" | "edit"
+  taskId: { type: String, default: "" }
+});
+
+const router = useRouter();
+
+const existing = computed(() => {
+  if (props.mode !== "edit") return null;
+  const idNum = Number(props.taskId);
+  if (!Number.isFinite(idNum)) return null;
+  return housekeepingTasks.find((t) => t.task_id === idNum) || null;
+});
+
+// follow table structure
+const form = reactive({
+  task_id: existing.value?.task_id ?? null,
+  property_id: existing.value?.property_id ?? 1,
+  room_id: existing.value?.room_id ?? 101,
+  task_type: existing.value?.task_type ?? "cleaning",
+  priority: existing.value?.priority ?? "normal",
+  status: existing.value?.status ?? "pending",
+  assigned_to: existing.value?.assigned_to ?? null,
+  assigned_at: existing.value?.assigned_at ?? null,
+  started_at: existing.value?.started_at ?? null,
+  completed_at: existing.value?.completed_at ?? null,
+  notes: existing.value?.notes ?? "",
+  completion_notes: existing.value?.completion_notes ?? "",
+  issues_found: existing.value?.issues_found ?? "",
+  created_by: existing.value?.created_by ?? null,
+  created_at: existing.value?.created_at ?? null,
+  updated_at: existing.value?.updated_at ?? null
+});
+
+function goBack() {
+  router.push({ name: "housekeeping-tasks" });
+}
+
+function save() {
+  // Static demo: just show what would be saved
+  console.log("SAVE TASK:", JSON.parse(JSON.stringify(form)));
+
+  // navigate back
+  goBack();
+}
+</script>
+
+<script>
+// tiny inline component without borders/shadows
+export default {
+  components: {
+    Field: {
+      props: { label: String },
+      template: `
+        <div>
+          <label class="text-xs font-semibold text-slate-600">{{ label }}</label>
+          <div class="mt-1">
+            <slot />
+          </div>
+        </div>
+      `
+    }
+  }
+}
+</script>
+
 <style scoped>
-.page {
-  padding: 20px 24px;
-  background: #f6f8fb;
-  min-height: 100vh;
-}
-
-/* header */
-.head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 14px;
-  margin-bottom: 14px;
-}
-.head h1 {
-  font-size: 22px;
-  font-weight: 900;
-  color: #0f172a;
-  margin: 0;
-}
-.head p {
-  margin: 6px 0 0;
-  font-size: 13px;
-  color: #475569;
-}
-.headActions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-/* layout */
-.grid {
-  display: grid;
-  grid-template-columns: 1.6fr 1fr;
-  gap: 14px;
-}
-@media (max-width: 980px) {
-  .grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* cards */
-.card {
+/* input style: NO border, NO shadow */
+.in {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: #f1f5f9; /* slate-100 */
+  padding: 10px 12px;
   border-radius: 14px;
-  border: 1px solid #eef2f6;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
-  background: #fff;
-  overflow: hidden;
+  font-size: 14px;
+  color: #0f172a; /* slate-900 */
 }
-.cardHead {
-  padding: 14px 16px;
-  border-bottom: 1px solid #eef2f6;
-  background: #fbfcfe;
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 10px;
-}
-.title {
-  font-weight: 900;
-  color: #0f172a;
-}
-.hint {
-  font-size: 12px;
-  font-weight: 800;
-  color: #64748b;
-}
-
-/* form grid */
-.formGrid {
-  padding: 16px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-@media (max-width: 760px) {
-  .formGrid {
-    grid-template-columns: 1fr;
-  }
-}
-.wide {
-  grid-column: 1 / -1;
-}
-
-/* actions */
-.actions {
-  padding: 14px 16px;
-  border-top: 1px solid #eef2f6;
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
-/* preview */
-.preview {
-  padding: 16px;
-}
-.row {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px 0;
-}
-.k {
-  font-size: 12px;
-  font-weight: 900;
-  color: #64748b;
-}
-.v {
-  font-size: 12px;
-  font-weight: 900;
-  color: #0f172a;
-}
-.mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    "Courier New", monospace;
-}
-.hr {
-  height: 1px;
-  background: #eef2f6;
-  margin: 12px 0;
-}
-.pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 900;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
-  color: #334155;
-}
-.st-pending {
-  background: #f1f5f9;
-}
-.st-in_progress {
-  background: #fef9c3;
-  border-color: #fde68a;
-  color: #854d0e;
-}
-.st-completed {
-  background: #dcfce7;
-  border-color: #bbf7d0;
-  color: #166534;
-}
-.st-skipped {
-  background: #fee2e2;
-  border-color: #fecaca;
-  color: #991b1b;
-}
-.pr-low {
-  background: #f1f5f9;
-}
-.pr-normal {
-  background: #eff6ff;
-  border-color: #bfdbfe;
-  color: #1d4ed8;
-}
-.pr-high {
-  background: #fef9c3;
-  border-color: #fde68a;
-  color: #854d0e;
-}
-.pr-urgent {
-  background: #fee2e2;
-  border-color: #fecaca;
-  color: #991b1b;
-}
-.note {
-  margin-top: 8px;
-  font-weight: 800;
-  color: #0f172a;
-  font-size: 13px;
-  white-space: pre-wrap;
-}
-
-/* tips */
-.tips {
-  border-top: 1px solid #eef2f6;
-  background: #fbfcfe;
-  padding: 14px 16px;
-}
-.tipTitle {
-  font-weight: 900;
-  color: #0f172a;
-  margin-bottom: 6px;
-}
-.tips ul {
-  margin: 0;
-  padding-left: 18px;
-  color: #475569;
-  font-weight: 700;
-  font-size: 13px;
-}
-.tips li {
-  margin: 6px 0;
-}
-
-/* vuestic polish */
-:deep(.va-input__container),
-:deep(.va-select__container),
-:deep(.va-textarea__container) {
-  border-radius: 10px;
-  background: #f9fafb;
-}
-:deep(.va-button) {
-  border-radius: 10px;
-  font-weight: 800;
+.in:focus {
+  background: #ffffff;
 }
 </style>

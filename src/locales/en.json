@@ -1,0 +1,87 @@
+{
+  "common": {
+    "language": "Language",
+    "english": "English",
+    "khmer": "Khmer",
+    "loading": "Loading..."
+  },
+  "auth": {
+    "login": {
+      "title": "Welcome Back",
+      "subtitle": "Sign in to your account",
+
+      "code": "Code",
+      "phone": "Phone Number",
+      "phone_placeholder": "Enter phone number",
+
+      "email": "Email",
+
+      "password": "Password",
+      "password_placeholder": "Enter password",
+      "show_password": "Show password",
+      "hide_password": "Hide password",
+
+      "remember": "Remember me",
+      "forgot": "Forgot your password?",
+      "submit": "Login"
+    },
+    "forgot": {
+      "title": "Forgot Password",
+      "subtitle": "Enter your phone number to reset your password",
+      "code": "Code",
+      "phone": "Phone Number",
+      "phone_placeholder": "Enter phone number",
+      "continue": "Continue",
+      "remember": "Remember your password?",
+      "back_login": "Login"
+    },
+    "otp": {
+      "title": "OTP Verification",
+      "subtitle": "Enter the 6-digit code sent to your phone",
+      "code": "OTP Code",
+      "placeholder": "______",
+      "verify": "Verify",
+      "no_code": "Didn’t receive code?",
+      "resend": "Resend",
+      "invalid": "Please enter 6-digit OTP"
+    },
+    "reset": {
+      "title": "Reset Password",
+      "subtitle": "Create a new password for your account",
+      "new_password": "New Password",
+      "new_placeholder": "Enter new password",
+      "confirm_password": "Confirm Password",
+      "confirm_placeholder": "Confirm password",
+      "show_password": "Show password",
+      "hide_password": "Hide password",
+      "submit": "Reset Password",
+      "remember": "Remember your password?",
+      "back_login": "Login",
+      "errors": {
+        "min6": "Password must be at least 6 characters",
+        "mismatch": "Passwords do not match"
+      }
+    }
+
+  },
+  
+  "loginLeft": {
+    "slides": [
+      {
+        "title": "Guesthouse Management",
+        "desc": "Manage rooms, guests, billing and housekeeping easily.",
+        "features": ["Room status workflow", "Reservations calendar", "Guest history"]
+      },
+      {
+        "title": "Invoices & Payments",
+        "desc": "Track deposits, payments, and generate invoices quickly.",
+        "features": ["Deposits & refunds", "Multi payments", "Printable invoice"]
+      },
+      {
+        "title": "Housekeeping & Tasks",
+        "desc": "Daily tasks, status updates, maintenance and reports.",
+        "features": ["Cleaning checklist", "Maintenance requests", "Daily reports"]
+      }
+    ]
+  }
+}

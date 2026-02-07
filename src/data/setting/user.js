@@ -1,102 +1,125 @@
-/*
-
-SELECT 
-    u.user_id,
-    u.username,
-    u.email,
-    u.first_name,
-    u.last_name,
-    u.phone,
-    u.profile_image,
-    u.status,
-    u.created_at,
-    u.last_login,
-    GROUP_CONCAT(r.role_name) AS roles
-FROM users u
-LEFT JOIN user_roles ur 
-  ON u.user_id = ur.user_id 
-  AND ur.is_active = TRUE
-LEFT JOIN roles r 
-  ON ur.role_id = r.role_id 
-  AND r.is_active = TRUE
-GROUP BY
-  u.user_id, 
-  u.username, 
-  u.email, 
-  u.first_name, 
-  u.last_name,  
-  u.phone, 
-  u.profile_image,
-  u.status, 
-  u.created_at, 
-  u.last_login
-ORDER BY u.created_at DESC;     
-
-*/
-export const setting_user = [
+export const users = [
   {
     user_id: 1,
-    username: "admin01",
-    email: "admin@guesthouse.com",
+    property_id: null, // access all properties
+
+    username: "superadmin",
+    email: "admin@palmguesthouse.com",
+    password_hash: "$2y$10$examplehash",
+
     first_name: "Sok",
     last_name: "Dara",
-    phone: "012345678",
-    profile_image: null,
+    phone: "+85512345678",
+    profile_image: "https://randomuser.me/api/portraits/men/32.jpg",
+
     status: "active",
-    created_at: "2026-01-01 09:00:00",
-    last_login: "2026-01-13 08:45:00",
-    roles: ["admin"],
+    employee_id: "EMP-001",
+    position: "owner",
+
+    failed_login_attempts: 0,
+    last_failed_login: null,
+    account_locked_until: null,
+    password_changed_at: "2026-01-01 09:00:00",
+    must_change_password: false,
+
+    last_login: "2026-02-03 10:30:00",
+    last_login_ip: "192.168.1.20",
+
+    created_at: "2026-01-01 08:00:00",
+    updated_at: "2026-02-03 10:30:00",
+    deleted_at: null,
   },
+
   {
     user_id: 2,
-    username: "manager01",
-    email: "manager@guesthouse.com",
-    first_name: "Bun",
-    last_name: "Sothea",
-    phone: "011223344",
-    profile_image: null,
+    property_id: 1,
+
+    username: "reception01",
+    email: "reception@palmguesthouse.com",
+    password_hash: "$2y$10$examplehash",
+
+    first_name: "Chan",
+    last_name: "Sreyneang",
+    phone: "+85588765432",
+    profile_image: "https://randomuser.me/api/portraits/women/44.jpg",
+
     status: "active",
-    created_at: "2026-01-03 10:15:00",
-    last_login: "2026-01-12 09:10:00",
-    roles: ["manager"],
+    employee_id: "EMP-002",
+    position: "receptionist",
+
+    failed_login_attempts: 1,
+    last_failed_login: "2026-02-01 11:20:00",
+    account_locked_until: null,
+    password_changed_at: "2026-01-15 08:30:00",
+    must_change_password: false,
+
+    last_login: "2026-02-03 09:10:00",
+    last_login_ip: "192.168.1.25",
+
+    created_at: "2026-01-10 08:00:00",
+    updated_at: "2026-02-03 09:10:00",
+    deleted_at: null,
   },
+
   {
     user_id: 3,
-    username: "house01",
-    email: "cleaner1@guesthouse.com",
-    first_name: "Chan",
-    last_name: "Sophea",
-    phone: "010998877",
-    profile_image: null,
-    status: "active",
-    created_at: "2026-01-05 08:30:00",
-    last_login: "2026-01-13 07:55:00",
-    roles: ["housekeeping"],
+    property_id: 1,
+
+    username: "hk01",
+    email: "housekeeping@palmguesthouse.com",
+    password_hash: "$2y$10$examplehash",
+
+    first_name: "Vannak",
+    last_name: "Kim",
+    phone: "+85588999888",
+    profile_image: "https://randomuser.me/api/portraits/men/58.jpg",
+
+    status: "inactive",
+    employee_id: "EMP-003",
+    position: "housekeeping",
+
+    failed_login_attempts: 0,
+    last_failed_login: null,
+    account_locked_until: null,
+    password_changed_at: "2026-01-20 07:00:00",
+    must_change_password: true,
+
+    last_login: null,
+    last_login_ip: null,
+
+    created_at: "2026-01-20 08:00:00",
+    updated_at: "2026-02-01 12:00:00",
+    deleted_at: null,
   },
+
   {
     user_id: 4,
-    username: "house02",
-    email: "cleaner2@guesthouse.com",
-    first_name: "Vann",
-    last_name: "Rith",
-    phone: "097776655",
-    profile_image: null,
-    status: "active",
-    created_at: "2026-01-05 08:45:00",
-    last_login: "2026-01-12 16:20:00",
-    roles: ["housekeeping"],
+    property_id: 1,
+
+    username: "account01",
+    email: "account@palmguesthouse.com",
+    password_hash: "$2y$10$examplehash",
+
+    first_name: "Lina",
+    last_name: "Phan",
+    phone: "+85577123456",
+    profile_image: "https://randomuser.me/api/portraits/women/65.jpg",
+
+    status: "suspended",
+    employee_id: "EMP-004",
+    position: "accountant",
+
+    failed_login_attempts: 5,
+    last_failed_login: "2026-02-02 14:30:00",
+    account_locked_until: "2026-02-05 14:30:00",
+    password_changed_at: "2026-01-05 09:00:00",
+    must_change_password: false,
+
+    last_login: "2026-02-01 16:00:00",
+    last_login_ip: "192.168.1.30",
+
+    created_at: "2026-01-05 08:00:00",
+    updated_at: "2026-02-02 14:30:00",
+    deleted_at: null,
   },
-  {
-    user_id: 5,
-    username: "recept01",
-    email: "reception@guesthouse.com",
-    first_name: "Mey",
-    last_name: "Sreynich",
-    phone: "016554433",
-    profile_image: null,
-    status: "active",
-    created_at: "2026-01-07 09:10:00",
-    last_login: "2026-01-13 08:30:00",
-    roles: ["reception"],
-  },
-];
+]

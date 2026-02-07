@@ -103,7 +103,7 @@ CREATE TABLE system_config (
 
   UNIQUE KEY unique_property_key (property_id, config_key),
   INDEX idx_category (category),
-  INDEX idx_key (config_key)
+  INDEX idx_key (config_key);
 
 CREATE TABLE roles (
   role_id INT PRIMARY KEY AUTO_INCREMENT,
