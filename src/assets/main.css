@@ -1,52 +1,38 @@
 @import "tailwindcss";
-/* html, body, #app {
-  height: 100%;
-  width: 100%;
-  zoom: 1;
-  transform: none;
-  transform-origin: 0 0;
-  font-family: "Inter", system-ui, -apple-system, sans-serif;
-  font-size: 14px;
-} */
 
+/* STOP browser scroll (we use app scroll only) */
+html,
+body,
+#app {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Avoid transform issues */
 .va-layout,
 .va-layout__wrapper,
 .va-layout__area {
   transform: none !important;
 }
-.no-motion *, .no-motion *::before, .no-motion *::after {
-  transition: none !important;
-  animation: none !important;
-}
 
-/* Khmer UI font when language = kh */
+/* Khmer font */
 html[lang="kh"] body {
   font-family: "Noto Sans Khmer", system-ui, sans-serif;
 }
-
-/* Make headings a bit stronger in Khmer */
 html[lang="kh"] h1,
 html[lang="kh"] h2,
 html[lang="kh"] h3 {
   font-weight: 600;
   letter-spacing: 0.2px;
 }
-/* STOP browser/body scroll */
-html,
-body,
-#app {
-  height: 100%;
-  overflow: hidden !important;
-}
 
-/* Hide Vuestic scrollbars */
-.va-scroll-container__content {
-  scrollbar-width: none !important;
-  -ms-overflow-style: none !important;
+/* ✅ Hide scrollbar but keep scrolling */
+.hide-scrollbar {
+  scrollbar-width: none;     /* Firefox */
+  -ms-overflow-style: none;  /* IE/Edge */
 }
-
-.va-scroll-container__content::-webkit-scrollbar {
-  display: none !important;
-  width: 0 !important;
-  height: 0 !important;
+.hide-scrollbar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }

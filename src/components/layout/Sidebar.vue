@@ -12,7 +12,7 @@ const MENU = [
     icon: "support_agent",
     children: [
       { title: "Room Status", icon: "grid_view", to: "/admin/frontdesk/rooms-status", pin: true },
-      { title: "Walk-in Booking", icon: "event_available", to: "/admin/frontdesk/quick-book" }, // <-- your PosRooms.vue
+      { title: "Walk-in Booking", icon: "event_available", to: "/admin/frontdesk/quick-book" },
       { title: "Check-in", icon: "how_to_reg", to: "/admin/frontdesk/checkin" },
       { title: "Check-out", icon: "logout", to: "/admin/frontdesk/checkout" },
       { title: "In-House Guests", icon: "badge", to: "/admin/frontdesk/in-house" },
@@ -37,7 +37,7 @@ const MENU = [
     title: "POS",
     icon: "point_of_sale",
     children: [
-      { title: "Sell Items / Services", icon: "shopping_cart", to: "/admin/pos" }, // <-- POS items screen
+      { title: "Sell Items / Services", icon: "shopping_cart", to: "/admin/pos" }, 
       { title: "POS Orders", icon: "receipt_long", to: "/admin/pos/history" },
       { title: "Daily Closing", icon: "fact_check", to: "/admin/pos/closing" },
     ],
