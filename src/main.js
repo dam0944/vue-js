@@ -1,6 +1,7 @@
 import { createApp } from "vue"
 import App from "./App.vue"
 import router from "./router"
+import vuetify from './plugins/vuetify'
 
 import { createVuestic } from "vuestic-ui"
 import "vuestic-ui/styles/essential.css"
@@ -15,8 +16,9 @@ async function setupApp() {
 await setupApp();
 createApp(App)
   .use(router)
+  .use(vuetify)
   .use(
-    createVuestic({
+    createVuestic({ 
       config: {
         colors: {
           variables: {
