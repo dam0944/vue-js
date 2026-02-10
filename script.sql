@@ -1,8 +1,8 @@
 -- ============================================================================
--- GUESTHOUSE PROPERTY MANAGEMENT SYSTEM - COMPLETE SCHEMA
+-- GUESTHOUSE PROPERTY MANAGEMENT SYSTEM - COMPLETE SCHEMA (Guesthouse)
 -- Version: 2.1 Production Ready (February 2026)
--- Database: MySQL 8.0+
--- Charset: utf8mb4 (full Unicode support including Khmer)
+-- MySQL 8.0+ | Charset: utf8mb4
+-- Booking sources simplified to: phone, walk-in, other
 -- ============================================================================
 
 SET NAMES utf8mb4;
@@ -12,6 +12,51 @@ SET SQL_MODE = 'NO_AUTO_VALUE_ON_ZERO';
 -- ============================================================================
 -- 1. PROPERTIES
 -- ============================================================================
+
+DROP TABLE IF EXISTS schema_migrations;
+DROP TABLE IF EXISTS audit_logs;
+DROP TABLE IF EXISTS public_holidays;
+DROP TABLE IF EXISTS room_availability_cache;
+DROP TABLE IF EXISTS notification_logs;
+DROP TABLE IF EXISTS daily_closings;
+DROP TABLE IF EXISTS inventory_transactions;
+DROP TABLE IF EXISTS inventory_items;
+DROP TABLE IF EXISTS housekeeping_tasks;
+DROP TABLE IF EXISTS room_keys;
+DROP TABLE IF EXISTS promo_code_uses;
+DROP TABLE IF EXISTS promo_codes;
+DROP TABLE IF EXISTS tax_rates;
+DROP TABLE IF EXISTS receipts;
+DROP TABLE IF EXISTS payment_refunds;
+DROP TABLE IF EXISTS payments;
+DROP TABLE IF EXISTS invoice_items;
+DROP TABLE IF EXISTS invoices;
+DROP TABLE IF EXISTS additional_charges;
+DROP TABLE IF EXISTS tourist_police_reports;
+DROP TABLE IF EXISTS reservation_guests;
+DROP TABLE IF EXISTS reservations;
+DROP TABLE IF EXISTS bookings;
+DROP TABLE IF EXISTS booking_sources;
+DROP TABLE IF EXISTS room_images;
+DROP TABLE IF EXISTS rooms;
+DROP TABLE IF EXISTS room_type_pricing_seasons;
+DROP TABLE IF EXISTS room_type_amenities;
+DROP TABLE IF EXISTS room_types;
+DROP TABLE IF EXISTS amenities;
+DROP TABLE IF EXISTS guest_preferences;
+DROP TABLE IF EXISTS guest_documents;
+DROP TABLE IF EXISTS guests;
+DROP TABLE IF EXISTS exchange_rates;
+DROP TABLE IF EXISTS system_config;
+DROP TABLE IF EXISTS user_sessions;
+DROP TABLE IF EXISTS user_permissions;
+DROP TABLE IF EXISTS role_permissions;
+DROP TABLE IF EXISTS permissions;
+DROP TABLE IF EXISTS user_roles;
+DROP TABLE IF EXISTS roles;
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS cancellation_policies;
+DROP TABLE IF EXISTS properties;
 
 CREATE TABLE properties (
   property_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -25,13 +70,12 @@ CREATE TABLE properties (
   province VARCHAR(100),
   country VARCHAR(50) DEFAULT 'Cambodia',
   postal_code VARCHAR(20),
-  
+
   phone VARCHAR(25),
   phone_secondary VARCHAR(25),
   email VARCHAR(100),
   website VARCHAR(255),
 
-  -- Default operational settings
   default_currency ENUM('USD','KHR') DEFAULT 'USD',
   default_tax_rate DECIMAL(5,2) DEFAULT 0.00,
   default_check_in_time TIME DEFAULT '14:00:00',
@@ -69,17 +113,16 @@ CREATE TABLE users (
   status ENUM('active','inactive','suspended') DEFAULT 'active',
   employee_id VARCHAR(50) UNIQUE,
   position ENUM('owner','manager','receptionist','housekeeping','accountant','maintenance') NOT NULL,
-  
-  -- Security enhancements
+
   failed_login_attempts INT DEFAULT 0,
   last_failed_login TIMESTAMP NULL,
   account_locked_until TIMESTAMP NULL,
   password_changed_at TIMESTAMP NULL,
   must_change_password BOOLEAN DEFAULT FALSE,
-  
+
   last_login TIMESTAMP NULL,
   last_login_ip VARCHAR(45),
-  
+
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   deleted_at TIMESTAMP NULL,
@@ -190,7 +233,7 @@ CREATE TABLE system_config (
 );
 
 -- ============================================================================
--- 3. EXCHANGE RATES (CRITICAL FOR DUAL CURRENCY)
+-- 3. EXCHANGE RATES
 -- ============================================================================
 
 CREATE TABLE exchange_rates (
@@ -205,10 +248,10 @@ CREATE TABLE exchange_rates (
   created_by INT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  
+
   FOREIGN KEY (property_id) REFERENCES properties(property_id) ON DELETE CASCADE,
   FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE SET NULL,
-  
+
   UNIQUE KEY unique_property_date_pair (property_id, from_currency, to_currency, effective_date),
   INDEX idx_property (property_id),
   INDEX idx_active (is_active),
@@ -237,8 +280,7 @@ CREATE TABLE guests (
   address TEXT,
   city VARCHAR(100),
   country VARCHAR(50),
-  
-  -- Loyalty & VIP
+
   vip_status BOOLEAN DEFAULT FALSE,
   is_blacklisted BOOLEAN DEFAULT FALSE,
   blacklist_reason TEXT,
@@ -248,11 +290,10 @@ CREATE TABLE guests (
   total_stays INT DEFAULT 0,
   total_nights INT DEFAULT 0,
   total_spent DECIMAL(12,2) DEFAULT 0,
-  
-  -- Privacy & compliance
+
   marketing_consent BOOLEAN DEFAULT FALSE,
   data_retention_until DATE COMMENT 'GDPR compliance',
-  
+
   notes TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -303,7 +344,7 @@ CREATE TABLE guest_preferences (
 );
 
 -- ============================================================================
--- 5. AMENITIES (PROPER TABLES INSTEAD OF JSON)
+-- 5. AMENITIES
 -- ============================================================================
 
 CREATE TABLE amenities (
@@ -316,10 +357,10 @@ CREATE TABLE amenities (
   is_active BOOLEAN DEFAULT TRUE,
   display_order INT DEFAULT 0,
   description TEXT,
-  
+
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  
+
   INDEX idx_active (is_active),
   INDEX idx_category (category),
   INDEX idx_order (display_order),
@@ -342,19 +383,18 @@ CREATE TABLE room_types (
   type_name VARCHAR(50) NOT NULL,
   type_name_khmer VARCHAR(100),
 
-  -- Pricing
   base_currency ENUM('USD','KHR') DEFAULT 'USD',
   nightly_price DECIMAL(12,2) NOT NULL,
   hourly_price DECIMAL(12,2) NULL,
   monthly_price DECIMAL(12,2) NULL,
   weekend_price DECIMAL(12,2) NULL COMMENT 'Fri-Sun pricing',
-  
+
   max_occupancy INT NOT NULL DEFAULT 2,
   max_adults INT NOT NULL DEFAULT 2,
   max_children INT NOT NULL DEFAULT 1,
-  
+
   size_sqm DECIMAL(6,2) COMMENT 'Room size in square meters',
-  
+
   description TEXT,
   description_khmer TEXT,
 
@@ -379,10 +419,10 @@ CREATE TABLE room_type_amenities (
   amenity_id INT NOT NULL,
   is_included BOOLEAN DEFAULT TRUE COMMENT 'Free or paid extra',
   additional_charge DECIMAL(12,2) DEFAULT 0 COMMENT 'Extra cost if not included',
-  
+
   FOREIGN KEY (room_type_id) REFERENCES room_types(room_type_id) ON DELETE CASCADE,
   FOREIGN KEY (amenity_id) REFERENCES amenities(amenity_id) ON DELETE CASCADE,
-  
+
   UNIQUE KEY unique_room_type_amenity (room_type_id, amenity_id),
   INDEX idx_room_type (room_type_id),
   INDEX idx_amenity (amenity_id)
@@ -400,12 +440,12 @@ CREATE TABLE room_type_pricing_seasons (
   is_active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  
+
   FOREIGN KEY (room_type_id) REFERENCES room_types(room_type_id) ON DELETE CASCADE,
   INDEX idx_room_type (room_type_id),
   INDEX idx_dates (start_date, end_date),
   INDEX idx_active (is_active),
-  
+
   CONSTRAINT chk_season_dates CHECK (end_date >= start_date)
 );
 
@@ -418,22 +458,20 @@ CREATE TABLE rooms (
   building VARCHAR(50),
 
   status ENUM('available','occupied','cleaning','maintenance','out_of_order','blocked') DEFAULT 'available',
-  
-  -- Status tracking
+
   status_changed_at TIMESTAMP NULL,
   status_changed_by INT NULL,
   blocked_until DATE NULL,
   blocking_reason TEXT,
-  
+
   last_cleaned_at TIMESTAMP NULL,
   last_cleaned_by INT NULL,
-  
+
   last_maintenance_at TIMESTAMP NULL,
   next_maintenance_due DATE NULL,
-  
-  -- Optimistic locking
+
   version INT DEFAULT 0 COMMENT 'Prevents double booking',
-  
+
   notes TEXT,
 
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -488,31 +526,32 @@ CREATE TABLE room_images (
 );
 
 -- ============================================================================
--- 7. BOOKING SOURCES (TRACK CHANNELS)
+-- 7. BOOKING SOURCES (ONLY: PHONE, WALK-IN, OTHER)
 -- ============================================================================
 
 CREATE TABLE booking_sources (
   source_id INT PRIMARY KEY AUTO_INCREMENT,
-  source_code VARCHAR(50) UNIQUE NOT NULL COMMENT 'booking_com, agoda, walk_in, phone',
+  source_code VARCHAR(50) UNIQUE NOT NULL COMMENT 'phone, walk_in, other',
   source_name VARCHAR(150) NOT NULL,
   source_name_khmer VARCHAR(200),
-  source_type ENUM('ota','direct','phone','email','walk_in','referral','other') NOT NULL,
-  commission_rate DECIMAL(5,2) DEFAULT 0 COMMENT 'Booking.com = 15%, Agoda = 18%',
+  source_type ENUM('phone','walk_in','other') NOT NULL,
+  commission_rate DECIMAL(5,2) DEFAULT 0,
   is_active BOOLEAN DEFAULT TRUE,
-  
-  -- API integration (optional)
-  api_key VARCHAR(255),
-  api_url VARCHAR(500),
-  api_config JSON COMMENT 'Additional API settings',
-  
+
   notes TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  
+
   INDEX idx_active (is_active),
   INDEX idx_type (source_type),
   INDEX idx_code (source_code)
 );
+
+-- Seed the 3 booking sources
+INSERT INTO booking_sources (source_code, source_name, source_type, commission_rate) VALUES
+('phone',   'Phone Call', 'phone',   0),
+('walk_in', 'Walk-in',    'walk_in', 0),
+('other',   'Other',      'other',   0);
 
 -- ============================================================================
 -- 8. BOOKINGS & RESERVATIONS
@@ -524,16 +563,17 @@ CREATE TABLE bookings (
   booking_number VARCHAR(50) UNIQUE NOT NULL,
 
   primary_guest_id INT NOT NULL,
-  booking_source ENUM('walk_in','phone','email','online','other') NOT NULL DEFAULT 'walk_in',
-  booking_source_id INT NULL,
-  
-  -- OTA integration
+
+  -- simplified source (FK only)
+  booking_source_id INT NOT NULL,
+
+  -- (optional future integration fields kept but can be removed)
   external_booking_id VARCHAR(100),
   channel_commission_rate DECIMAL(5,2),
 
   status ENUM('pending','confirmed','checked_in','checked_out','cancelled','no_show') DEFAULT 'pending',
   booking_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  
+
   deposit_amount DECIMAL(12,2) DEFAULT 0,
   deposit_paid DECIMAL(12,2) DEFAULT 0,
   deposit_currency ENUM('USD','KHR') DEFAULT 'USD',
@@ -542,7 +582,7 @@ CREATE TABLE bookings (
   cancellation_reason TEXT,
   cancelled_at TIMESTAMP NULL,
   cancelled_by INT NULL,
-  
+
   created_by INT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -550,7 +590,7 @@ CREATE TABLE bookings (
 
   FOREIGN KEY (property_id) REFERENCES properties(property_id) ON DELETE CASCADE,
   FOREIGN KEY (primary_guest_id) REFERENCES guests(guest_id),
-  FOREIGN KEY (booking_source_id) REFERENCES booking_sources(source_id) ON DELETE SET NULL,
+  FOREIGN KEY (booking_source_id) REFERENCES booking_sources(source_id) ON DELETE RESTRICT,
   FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE SET NULL,
   FOREIGN KEY (cancelled_by) REFERENCES users(user_id) ON DELETE SET NULL,
 
@@ -559,7 +599,6 @@ CREATE TABLE bookings (
   INDEX idx_date (booking_date),
   INDEX idx_guest (primary_guest_id),
   INDEX idx_booking_number (booking_number),
-  INDEX idx_source (booking_source),
   INDEX idx_source_id (booking_source_id),
   INDEX idx_deleted (deleted_at)
 );
@@ -579,7 +618,7 @@ CREATE TABLE reservations (
   check_out_at DATETIME NOT NULL,
   actual_check_in_at DATETIME NULL,
   actual_check_out_at DATETIME NULL,
-  
+
   stay_units INT NOT NULL COMMENT 'Number of nights/hours/months',
 
   adults INT NOT NULL DEFAULT 1,
@@ -589,13 +628,13 @@ CREATE TABLE reservations (
   currency ENUM('USD','KHR') DEFAULT 'USD',
   exchange_rate_id INT NULL COMMENT 'Link to exchange rate at booking time',
   exchange_rate_used DECIMAL(10,4) DEFAULT 1.0000,
-  
+
   total_room_charge DECIMAL(12,2) NOT NULL DEFAULT 0,
   discount_amount DECIMAL(12,2) DEFAULT 0,
   discount_reason VARCHAR(255),
 
   status ENUM('pending','confirmed','checked_in','checked_out','cancelled','no_show') DEFAULT 'pending',
-  
+
   special_requests TEXT,
   notes TEXT,
 
@@ -623,11 +662,11 @@ CREATE TABLE reservations (
   INDEX idx_guest (guest_id),
   INDEX idx_reservation_number (reservation_number),
   INDEX idx_availability (property_id, room_id, status, check_in_at, check_out_at),
-  
+
   CONSTRAINT chk_valid_dates CHECK (check_out_at > check_in_at),
   CONSTRAINT chk_valid_actual_dates CHECK (
-    actual_check_out_at IS NULL OR 
-    actual_check_in_at IS NULL OR 
+    actual_check_out_at IS NULL OR
+    actual_check_in_at IS NULL OR
     actual_check_out_at >= actual_check_in_at
   )
 );
@@ -639,7 +678,7 @@ CREATE TABLE reservation_guests (
   is_primary BOOLEAN DEFAULT FALSE,
   relationship VARCHAR(50),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  
+
   FOREIGN KEY (reservation_id) REFERENCES reservations(reservation_id) ON DELETE CASCADE,
   FOREIGN KEY (guest_id) REFERENCES guests(guest_id) ON DELETE CASCADE,
 
@@ -658,47 +697,43 @@ CREATE TABLE tourist_police_reports (
   property_id INT NOT NULL,
   reservation_id INT NOT NULL,
   guest_id INT NOT NULL,
-  
+
   report_type ENUM('check_in','check_out','daily','weekly') NOT NULL DEFAULT 'check_in',
   report_number VARCHAR(50) UNIQUE COMMENT 'Official report number from police',
-  
-  -- Guest details snapshot (frozen at report creation)
+
   guest_full_name VARCHAR(150) NOT NULL,
   passport_number VARCHAR(50),
   id_number VARCHAR(50),
   nationality VARCHAR(50),
   date_of_birth DATE,
   gender ENUM('male','female','other'),
-  
-  -- Stay details
+
   room_number VARCHAR(20),
   check_in_date DATETIME,
   check_out_date DATETIME,
   purpose_of_visit VARCHAR(255),
-  
-  -- Submission tracking
+
   submitted_at TIMESTAMP NULL,
   submitted_by INT NULL,
   submission_method ENUM('manual','api','email','portal') DEFAULT 'manual',
   submission_file_path VARCHAR(500) COMMENT 'PDF or form file',
   submission_response TEXT COMMENT 'Response from police system',
-  
+
   status ENUM('pending','submitted','confirmed','rejected','failed') DEFAULT 'pending',
-  
-  -- Follow-up
+
   rejection_reason TEXT,
   retry_count INT DEFAULT 0,
   last_retry_at TIMESTAMP NULL,
-  
+
   notes TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  
+
   FOREIGN KEY (property_id) REFERENCES properties(property_id) ON DELETE CASCADE,
   FOREIGN KEY (reservation_id) REFERENCES reservations(reservation_id) ON DELETE CASCADE,
   FOREIGN KEY (guest_id) REFERENCES guests(guest_id) ON DELETE CASCADE,
   FOREIGN KEY (submitted_by) REFERENCES users(user_id) ON DELETE SET NULL,
-  
+
   INDEX idx_property (property_id),
   INDEX idx_reservation (reservation_id),
   INDEX idx_guest (guest_id),
@@ -721,20 +756,19 @@ CREATE TABLE additional_charges (
   quantity INT DEFAULT 1,
   total_amount DECIMAL(12,2) NOT NULL,
   currency ENUM('USD','KHR') DEFAULT 'USD',
-  
+
   charged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   charged_by INT NULL,
-  
-  -- Approval workflow
+
   requires_approval BOOLEAN DEFAULT FALSE,
   is_approved BOOLEAN DEFAULT TRUE,
   approved_by INT NULL,
   approved_at TIMESTAMP NULL,
-  
+
   FOREIGN KEY (reservation_id) REFERENCES reservations(reservation_id) ON DELETE CASCADE,
   FOREIGN KEY (charged_by) REFERENCES users(user_id) ON DELETE SET NULL,
   FOREIGN KEY (approved_by) REFERENCES users(user_id) ON DELETE SET NULL,
-  
+
   INDEX idx_reservation (reservation_id),
   INDEX idx_type (charge_type),
   INDEX idx_charged_at (charged_at),
@@ -747,7 +781,7 @@ CREATE TABLE invoices (
   invoice_number VARCHAR(50) UNIQUE NOT NULL,
   booking_id INT NOT NULL,
   reservation_id INT NULL COMMENT 'Can link to specific reservation or entire booking',
-  
+
   subtotal DECIMAL(12,2) NOT NULL COMMENT 'Room charges + additional charges',
   tax_rate DECIMAL(5,2) DEFAULT 0 COMMENT 'Tax percentage',
   tax_amount DECIMAL(12,2) DEFAULT 0,
@@ -756,29 +790,28 @@ CREATE TABLE invoices (
   total_amount DECIMAL(12,2) NOT NULL,
   amount_paid DECIMAL(12,2) DEFAULT 0,
 
-  -- Always correct balance (generated column)
   balance_due DECIMAL(12,2) GENERATED ALWAYS AS (total_amount - amount_paid) STORED,
-  
+
   currency ENUM('USD','KHR') DEFAULT 'USD',
   exchange_rate_id INT NULL COMMENT 'Rate at invoice creation',
   exchange_rate_used DECIMAL(10,4) DEFAULT 1.0000,
-  
+
   status ENUM('draft','pending','paid','partially_paid','cancelled','refunded') DEFAULT 'draft',
-  
+
   issued_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   due_date DATE,
   paid_at TIMESTAMP NULL,
-  
+
   notes TEXT,
   created_by INT NULL,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  
+
   FOREIGN KEY (property_id) REFERENCES properties(property_id) ON DELETE CASCADE,
   FOREIGN KEY (booking_id) REFERENCES bookings(booking_id) ON DELETE CASCADE,
   FOREIGN KEY (reservation_id) REFERENCES reservations(reservation_id) ON DELETE SET NULL,
   FOREIGN KEY (exchange_rate_id) REFERENCES exchange_rates(rate_id) ON DELETE SET NULL,
   FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE SET NULL,
-  
+
   INDEX idx_property (property_id),
   INDEX idx_status (status),
   INDEX idx_booking (booking_id),
@@ -792,25 +825,25 @@ CREATE TABLE invoice_items (
   invoice_id INT NOT NULL,
   reservation_id INT NULL,
   additional_charge_id INT NULL,
-  
+
   item_type ENUM('room_charge','additional_charge','discount','tax','other') NOT NULL,
   description VARCHAR(255) NOT NULL,
-  
+
   quantity DECIMAL(10,2) DEFAULT 1,
   unit_price DECIMAL(12,2) NOT NULL,
   line_total DECIMAL(12,2) NOT NULL,
-  
+
   tax_rate DECIMAL(5,2) DEFAULT 0,
   tax_amount DECIMAL(12,2) DEFAULT 0,
-  
+
   display_order INT DEFAULT 0,
-  
+
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  
+
   FOREIGN KEY (invoice_id) REFERENCES invoices(invoice_id) ON DELETE CASCADE,
   FOREIGN KEY (reservation_id) REFERENCES reservations(reservation_id) ON DELETE SET NULL,
   FOREIGN KEY (additional_charge_id) REFERENCES additional_charges(charge_id) ON DELETE SET NULL,
-  
+
   INDEX idx_invoice (invoice_id),
   INDEX idx_reservation (reservation_id),
   INDEX idx_type (item_type)
@@ -821,29 +854,29 @@ CREATE TABLE payments (
   property_id INT NOT NULL,
   invoice_id INT NOT NULL,
   payment_number VARCHAR(50) UNIQUE NOT NULL,
-  
+
   amount DECIMAL(12,2) NOT NULL,
   payment_method ENUM('cash','credit_card','debit_card','bank_transfer','aba','wing','true_money','pi_pay','bakong','wechat_pay','alipay','other') NOT NULL,
   payment_currency ENUM('USD','KHR') DEFAULT 'USD',
   exchange_rate DECIMAL(10,4) DEFAULT 1.0000,
   amount_in_base_currency DECIMAL(12,2),
-  
+
   reference_number VARCHAR(100),
   card_type VARCHAR(50),
   card_last_four VARCHAR(4),
   payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  
+
   status ENUM('pending','completed','failed','refunded','cancelled') DEFAULT 'completed',
   notes TEXT,
-  
+
   processed_by INT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  
+
   FOREIGN KEY (property_id) REFERENCES properties(property_id) ON DELETE CASCADE,
   FOREIGN KEY (invoice_id) REFERENCES invoices(invoice_id) ON DELETE CASCADE,
   FOREIGN KEY (processed_by) REFERENCES users(user_id) ON DELETE SET NULL,
-  
+
   INDEX idx_property (property_id),
   INDEX idx_invoice (invoice_id),
   INDEX idx_method (payment_method),
@@ -858,23 +891,23 @@ CREATE TABLE payment_refunds (
   payment_id INT NOT NULL,
   invoice_id INT NOT NULL,
   refund_number VARCHAR(50) UNIQUE NOT NULL,
-  
+
   refund_amount DECIMAL(12,2) NOT NULL,
   refund_method ENUM('cash','credit_card','bank_transfer','original_method') NOT NULL DEFAULT 'original_method',
   refund_reason TEXT,
-  
+
   refund_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   processed_by INT NULL,
   approved_by INT NULL,
-  
+
   status ENUM('pending','approved','completed','rejected') DEFAULT 'pending',
   notes TEXT,
-  
+
   FOREIGN KEY (payment_id) REFERENCES payments(payment_id) ON DELETE CASCADE,
   FOREIGN KEY (invoice_id) REFERENCES invoices(invoice_id) ON DELETE CASCADE,
   FOREIGN KEY (processed_by) REFERENCES users(user_id) ON DELETE SET NULL,
   FOREIGN KEY (approved_by) REFERENCES users(user_id) ON DELETE SET NULL,
-  
+
   INDEX idx_payment (payment_id),
   INDEX idx_invoice (invoice_id),
   INDEX idx_date (refund_date),
@@ -888,23 +921,23 @@ CREATE TABLE receipts (
   receipt_number VARCHAR(50) UNIQUE NOT NULL,
   payment_id INT NOT NULL,
   invoice_id INT NOT NULL,
-  
+
   receipt_type ENUM('payment','refund','deposit') NOT NULL DEFAULT 'payment',
   amount DECIMAL(12,2) NOT NULL,
   currency ENUM('USD','KHR') DEFAULT 'USD',
-  
+
   issued_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   issued_by INT NULL,
   printed_at TIMESTAMP NULL,
   print_count INT DEFAULT 0,
-  
+
   notes TEXT,
-  
+
   FOREIGN KEY (property_id) REFERENCES properties(property_id) ON DELETE CASCADE,
   FOREIGN KEY (payment_id) REFERENCES payments(payment_id) ON DELETE CASCADE,
   FOREIGN KEY (invoice_id) REFERENCES invoices(invoice_id) ON DELETE CASCADE,
   FOREIGN KEY (issued_by) REFERENCES users(user_id) ON DELETE SET NULL,
-  
+
   INDEX idx_property (property_id),
   INDEX idx_payment (payment_id),
   INDEX idx_invoice (invoice_id),
@@ -927,10 +960,10 @@ CREATE TABLE tax_rates (
   is_active BOOLEAN DEFAULT TRUE,
   effective_from DATE NOT NULL,
   effective_to DATE NULL,
-  
+
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  
+
   FOREIGN KEY (property_id) REFERENCES properties(property_id) ON DELETE CASCADE,
   INDEX idx_property (property_id),
   INDEX idx_active (is_active),
@@ -947,38 +980,38 @@ CREATE TABLE promo_codes (
   promo_code VARCHAR(50) UNIQUE NOT NULL,
   promo_name VARCHAR(150) NOT NULL,
   description TEXT,
-  
+
   discount_type ENUM('percentage','fixed_amount','free_night') NOT NULL,
   discount_value DECIMAL(12,2) NOT NULL COMMENT 'Percentage (15.00) or amount (50.00)',
-  
+
   min_nights INT DEFAULT 1,
   min_booking_amount DECIMAL(12,2) DEFAULT 0,
-  
+
   max_uses INT NULL COMMENT 'NULL = unlimited',
   max_uses_per_guest INT DEFAULT 1,
   current_uses INT DEFAULT 0,
-  
+
   valid_from DATE NOT NULL,
   valid_to DATE NOT NULL,
-  
+
   applicable_room_types JSON NULL COMMENT '[1,2,3] room_type_ids',
   applicable_days_of_week JSON NULL COMMENT '[1,2,3,4,5] Mon-Fri only',
   blackout_dates JSON NULL COMMENT '["2026-12-25","2026-12-26"]',
-  
+
   is_active BOOLEAN DEFAULT TRUE,
-  
+
   created_by INT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  
+
   FOREIGN KEY (property_id) REFERENCES properties(property_id) ON DELETE CASCADE,
   FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE SET NULL,
-  
+
   INDEX idx_code (promo_code),
   INDEX idx_active (is_active),
   INDEX idx_dates (valid_from, valid_to),
   INDEX idx_property (property_id),
-  
+
   CONSTRAINT chk_promo_dates CHECK (valid_to >= valid_from)
 );
 
@@ -991,11 +1024,11 @@ CREATE TABLE promo_code_uses (
   original_amount DECIMAL(12,2) NOT NULL,
   final_amount DECIMAL(12,2) NOT NULL,
   used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  
+
   FOREIGN KEY (promo_id) REFERENCES promo_codes(promo_id) ON DELETE CASCADE,
   FOREIGN KEY (booking_id) REFERENCES bookings(booking_id) ON DELETE CASCADE,
   FOREIGN KEY (guest_id) REFERENCES guests(guest_id) ON DELETE CASCADE,
-  
+
   INDEX idx_promo (promo_id),
   INDEX idx_booking (booking_id),
   INDEX idx_guest (guest_id),
@@ -1011,28 +1044,27 @@ CREATE TABLE cancellation_policies (
   property_id INT NOT NULL,
   policy_name VARCHAR(150) NOT NULL,
   policy_name_khmer VARCHAR(200),
-  
+
   hours_before_checkin INT NOT NULL COMMENT 'Cancel X hours before check-in',
   cancellation_fee_type ENUM('percentage','fixed_amount','nights') NOT NULL,
   cancellation_fee_value DECIMAL(12,2) NOT NULL,
-  
+
   description TEXT,
   terms_and_conditions TEXT,
-  
+
   is_active BOOLEAN DEFAULT TRUE,
   is_default BOOLEAN DEFAULT FALSE,
-  
+
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  
+
   FOREIGN KEY (property_id) REFERENCES properties(property_id) ON DELETE CASCADE,
   INDEX idx_property (property_id),
   INDEX idx_active (is_active),
   INDEX idx_default (is_default)
 );
 
--- Link cancellation policy to bookings
-ALTER TABLE bookings 
+ALTER TABLE bookings
 ADD COLUMN cancellation_policy_id INT NULL AFTER booking_source_id,
 ADD FOREIGN KEY (cancellation_policy_id) REFERENCES cancellation_policies(policy_id) ON DELETE SET NULL,
 ADD INDEX idx_cancellation_policy (cancellation_policy_id);
@@ -1070,30 +1102,30 @@ CREATE TABLE housekeeping_tasks (
   task_id INT PRIMARY KEY AUTO_INCREMENT,
   property_id INT NOT NULL,
   room_id INT NOT NULL,
-  
+
   task_type ENUM('cleaning','maintenance','inspection','deep_clean','turndown','laundry') NOT NULL DEFAULT 'cleaning',
   priority ENUM('low','normal','high','urgent') DEFAULT 'normal',
-  
+
   status ENUM('pending','in_progress','completed','cancelled') DEFAULT 'pending',
-  
+
   assigned_to INT NULL,
   assigned_at TIMESTAMP NULL,
   started_at TIMESTAMP NULL,
   completed_at TIMESTAMP NULL,
-  
+
   notes TEXT,
   completion_notes TEXT,
   issues_found TEXT COMMENT 'Damage, missing items, etc',
-  
+
   created_by INT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  
+
   FOREIGN KEY (property_id) REFERENCES properties(property_id) ON DELETE CASCADE,
   FOREIGN KEY (room_id) REFERENCES rooms(room_id) ON DELETE CASCADE,
   FOREIGN KEY (assigned_to) REFERENCES users(user_id) ON DELETE SET NULL,
   FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE SET NULL,
-  
+
   INDEX idx_property (property_id),
   INDEX idx_room (room_id),
   INDEX idx_status (status),
@@ -1120,10 +1152,10 @@ CREATE TABLE inventory_items (
   is_active BOOLEAN DEFAULT TRUE,
   supplier VARCHAR(255),
   notes TEXT,
-  
+
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  
+
   FOREIGN KEY (property_id) REFERENCES properties(property_id) ON DELETE CASCADE,
   UNIQUE KEY unique_property_item_code (property_id, item_code),
   INDEX idx_property (property_id),
@@ -1144,7 +1176,7 @@ CREATE TABLE inventory_transactions (
   notes TEXT,
   created_by INT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  
+
   FOREIGN KEY (item_id) REFERENCES inventory_items(item_id) ON DELETE CASCADE,
   FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE SET NULL,
   INDEX idx_item (item_id),
@@ -1160,36 +1192,36 @@ CREATE TABLE daily_closings (
   closing_id INT PRIMARY KEY AUTO_INCREMENT,
   property_id INT NOT NULL,
   closing_number VARCHAR(50) UNIQUE NOT NULL,
-  
+
   business_date DATE NOT NULL,
   shift_type ENUM('morning','afternoon','evening','full_day') DEFAULT 'full_day',
-  
+
   opening_cash DECIMAL(12,2) DEFAULT 0,
   closing_cash DECIMAL(12,2) NOT NULL,
   expected_cash DECIMAL(12,2) NOT NULL,
   cash_difference DECIMAL(12,2) DEFAULT 0 COMMENT 'closing_cash - expected_cash',
-  
+
   total_cash_sales DECIMAL(12,2) DEFAULT 0,
   total_card_sales DECIMAL(12,2) DEFAULT 0,
   total_bank_transfers DECIMAL(12,2) DEFAULT 0,
   total_mobile_payments DECIMAL(12,2) DEFAULT 0 COMMENT 'ABA, Wing, etc',
   total_other_sales DECIMAL(12,2) DEFAULT 0,
   total_sales DECIMAL(12,2) NOT NULL,
-  
+
   total_refunds DECIMAL(12,2) DEFAULT 0,
-  
+
   opened_at TIMESTAMP NULL,
   closed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   opened_by INT NULL,
   closed_by INT NOT NULL,
-  
+
   status ENUM('open','closed','reconciled') DEFAULT 'closed',
   notes TEXT,
-  
+
   FOREIGN KEY (property_id) REFERENCES properties(property_id) ON DELETE CASCADE,
   FOREIGN KEY (opened_by) REFERENCES users(user_id) ON DELETE SET NULL,
   FOREIGN KEY (closed_by) REFERENCES users(user_id) ON DELETE SET NULL,
-  
+
   UNIQUE KEY unique_property_date_shift (property_id, business_date, shift_type),
   INDEX idx_property (property_id),
   INDEX idx_date (business_date),
@@ -1203,37 +1235,37 @@ CREATE TABLE daily_closings (
 CREATE TABLE notification_logs (
   log_id BIGINT PRIMARY KEY AUTO_INCREMENT,
   property_id INT NULL,
-  
+
   recipient_type ENUM('guest','user','admin','system') NOT NULL,
   recipient_id INT NOT NULL COMMENT 'guest_id or user_id',
   recipient_email VARCHAR(100),
   recipient_phone VARCHAR(25),
-  
+
   notification_type ENUM(
     'booking_confirmation','check_in_reminder','check_out_reminder',
     'payment_receipt','payment_reminder','cancellation_confirmation',
     'promotional','system_alert','other'
   ) NOT NULL,
-  
+
   delivery_method ENUM('email','sms','push','in_app','whatsapp') NOT NULL DEFAULT 'email',
-  
+
   subject VARCHAR(255),
   message TEXT,
-  
+
   related_booking_id INT NULL,
   related_invoice_id INT NULL,
-  
+
   sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   status ENUM('pending','sent','delivered','failed','bounced') DEFAULT 'pending',
   error_message TEXT,
-  
+
   retry_count INT DEFAULT 0,
   last_retry_at TIMESTAMP NULL,
-  
+
   FOREIGN KEY (property_id) REFERENCES properties(property_id) ON DELETE SET NULL,
   FOREIGN KEY (related_booking_id) REFERENCES bookings(booking_id) ON DELETE SET NULL,
   FOREIGN KEY (related_invoice_id) REFERENCES invoices(invoice_id) ON DELETE SET NULL,
-  
+
   INDEX idx_property (property_id),
   INDEX idx_recipient (recipient_type, recipient_id),
   INDEX idx_sent_at (sent_at),
@@ -1242,7 +1274,7 @@ CREATE TABLE notification_logs (
 );
 
 -- ============================================================================
--- 19. ROOM AVAILABILITY CACHE (PERFORMANCE)
+-- 19. ROOM AVAILABILITY CACHE
 -- ============================================================================
 
 CREATE TABLE room_availability_cache (
@@ -1250,19 +1282,19 @@ CREATE TABLE room_availability_cache (
   property_id INT NOT NULL,
   room_id INT NOT NULL,
   availability_date DATE NOT NULL,
-  
+
   is_available BOOLEAN NOT NULL,
   status ENUM('available','occupied','blocked','maintenance') NOT NULL,
-  
+
   rate DECIMAL(12,2) NULL COMMENT 'Dynamic rate for this date',
   reservation_id INT NULL COMMENT 'If occupied, which reservation',
-  
+
   last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  
+
   FOREIGN KEY (property_id) REFERENCES properties(property_id) ON DELETE CASCADE,
   FOREIGN KEY (room_id) REFERENCES rooms(room_id) ON DELETE CASCADE,
   FOREIGN KEY (reservation_id) REFERENCES reservations(reservation_id) ON DELETE SET NULL,
-  
+
   UNIQUE KEY unique_property_room_date (property_id, room_id, availability_date),
   INDEX idx_property_date (property_id, availability_date),
   INDEX idx_room (room_id),
@@ -1284,9 +1316,9 @@ CREATE TABLE public_holidays (
   price_multiplier DECIMAL(5,2) DEFAULT 1.5 COMMENT 'Price increase for holidays',
   year INT NOT NULL,
   description TEXT,
-  
+
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  
+
   UNIQUE KEY unique_holiday_date (holiday_date),
   INDEX idx_year (year),
   INDEX idx_date (holiday_date),
@@ -1301,22 +1333,22 @@ CREATE TABLE audit_logs (
   log_id BIGINT PRIMARY KEY AUTO_INCREMENT,
   property_id INT NULL,
   user_id INT NULL,
-  
+
   action_type VARCHAR(50) NOT NULL COMMENT 'CREATE, UPDATE, DELETE, LOGIN, LOGOUT, etc',
   table_name VARCHAR(100),
   record_id INT,
-  
+
   old_values JSON COMMENT 'Previous state of record',
   new_values JSON COMMENT 'New state of record',
-  
+
   ip_address VARCHAR(45),
   user_agent TEXT,
-  
+
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  
+
   FOREIGN KEY (property_id) REFERENCES properties(property_id) ON DELETE SET NULL,
   FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL,
-  
+
   INDEX idx_property (property_id),
   INDEX idx_user (user_id),
   INDEX idx_action (action_type),
@@ -1333,7 +1365,7 @@ CREATE TABLE schema_migrations (
   version VARCHAR(14) PRIMARY KEY COMMENT 'YYYYMMDDHHMMSS format',
   description VARCHAR(255),
   applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  
+
   INDEX idx_applied_at (applied_at)
 );
 
@@ -1342,4 +1374,3 @@ CREATE TABLE schema_migrations (
 -- ============================================================================
 
 SET FOREIGN_KEY_CHECKS = 1;
-
